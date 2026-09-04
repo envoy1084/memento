@@ -1,0 +1,25 @@
+# Dependencies
+node_modules/
+
+# Build and tool output
+.turbo/
+build/
+coverage/
+dist/
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+pnpm-debug.log*
+
+# Editors and operating systems
+.DS_Store
+.idea/
+.vscode/
+
+# Local product research
+research/
