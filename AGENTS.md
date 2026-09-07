@@ -26,3 +26,13 @@ dependency direction, build lifecycle, or multiple consumers.
   typed code.
 - Use package imports across workspace boundaries and keep dependency direction explicit.
 - Never commit secrets or files from `research/`.
+
+## Effect and backend conventions
+
+Before writing Effect code, read `node_modules/effect/AGENTS.md` completely and follow its local documentation. Use class-based `Context.Service`, `Layer`, `Effect.gen`, and named `Effect.fn` operations.
+
+Follow the Namera reference conventions: `#/*` package imports, `memento-source` source exports, transaction-aware repositories, and package-owned provider test Layers. Public contracts belong in `api`/`protocol`; workflows belong in `application`; runtime composition belongs in `apps/server`. Tests use migrated PGlite, with real PostgreSQL for concurrency. Do not implement frontend work until requested.
+
+## Architecture documentation
+
+Read the relevant document in `architecture/` before cross-package changes. Update it with implemented behavior, invariants, tests, and concrete remaining integration work. Keep package-specific commands in package READMEs. A placeholder or schema alone is not a completed feature.

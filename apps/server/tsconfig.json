@@ -1,0 +1,7 @@
+{
+  "extends": "klarity/tsconfig/app/node",
+  "compilerOptions": {
+    "customConditions": ["memento-source"]
+  },
+  "include": ["src/**/*.ts"]
+}

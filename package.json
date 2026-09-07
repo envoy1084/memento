@@ -19,10 +19,12 @@
     "@commitlint/cli": "catalog:",
     "@commitlint/config-conventional": "catalog:",
     "@types/node": "catalog:",
+    "effect": "4.0.0-rc.112",
     "klarity": "catalog:",
     "lefthook": "catalog:",
     "oxfmt": "catalog:",
     "oxlint": "catalog:",
+    "publint": "0.3.21",
     "turbo": "catalog:",
     "typescript": "catalog:"
   },

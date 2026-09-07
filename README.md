@@ -3,14 +3,16 @@
 Memento is an ETHGlobal ETHOnline hackathon project for gifting a complete, self-custodial ENS
 identity.
 
-This repository currently contains a deliberately empty pnpm/Turborepo workspace. Deployable
-applications belong in `apps/`; shared domain or infrastructure libraries belong in `packages/` only
-when a real boundary or reuse case exists.
+The backend implements chosen-name gifts, existing-name gifts, and invitation campaigns.
+`apps/server` runs an Effect HttpApi and durable workers in one Node process. Focused packages own
+protocol schemas, application workflows, Drizzle/PostgreSQL, Privy, World ID, and Solidity contracts.
+The frontend is not implemented. See [architecture](architecture/README.md) for boundaries and tests.
 
 ## Requirements
 
 - Node.js 24 (see `.node-version`)
 - Corepack
+- Foundry (Solidity builds and contract tests)
 
 ## Getting started
 
