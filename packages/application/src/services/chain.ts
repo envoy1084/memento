@@ -20,12 +20,14 @@ export interface PreparedAccount {
   readonly commitment: string;
   readonly typedData: unknown;
 }
+
 export interface ChainProgress {
   readonly state: Claim["state"];
   readonly commitmentAt?: number;
   readonly price?: string;
   readonly retryAt?: number;
 }
+
 export class Chain extends Context.Service<
   Chain,
   {
@@ -88,6 +90,7 @@ export class Mailer extends Context.Service<
     }) => Effect.Effect<void, ApplicationError>;
   }
 >()("@memento/application/Mailer") {}
+
 export class Product extends Context.Service<
   Product,
   {

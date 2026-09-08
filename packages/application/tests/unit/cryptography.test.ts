@@ -5,6 +5,7 @@ import { concat, keccak256 } from "viem";
 
 import { merkle, invitationLeaf } from "../../src/features/policy.js";
 import { Cryptography } from "../../src/services/cryptography.js";
+
 layer(Cryptography.live(Redacted.make("11".repeat(32)), Redacted.make("22".repeat(32))))(
   "encrypted claim material",
   (it) => {
@@ -13,6 +14,7 @@ layer(Cryptography.live(Redacted.make("11".repeat(32)), Redacted.make("22".repea
         const crypto = yield* Cryptography;
         const first = crypto.seal("private", "claim:one");
         const second = crypto.seal("private", "claim:one");
+
         expect(first).not.toBe(second);
         expect(yield* crypto.open(first, "claim:one")).toBe("private");
         expect((yield* crypto.open(first, "claim:two").pipe(Effect.flip))._tag).toBe(
@@ -32,6 +34,7 @@ layer(Cryptography.live(Redacted.make("11".repeat(32)), Redacted.make("22".repea
             invitationLeaf(index, `0x${"33".repeat(32)}`, { kind: "any", value: "" }),
           );
           const tree = merkle(leaves);
+
           for (const [index, leaf] of leaves.entries()) {
             const root = tree
               .proof(index)
@@ -40,6 +43,7 @@ layer(Cryptography.live(Redacted.make("11".repeat(32)), Redacted.make("22".repea
                   keccak256(concat(current < sibling ? [current, sibling] : [sibling, current])),
                 leaf,
               );
+
             expect(root).toBe(tree.root);
           }
         }
