@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { GiftWizard } from "#/features/gifts/gift-wizard";
+import { GiftWizard } from "#/routes/send/_components/gift-wizard";
 export const Route = createFileRoute("/send")({
   validateSearch: (search: Record<string, unknown>): { kind?: "owned" } =>
     search.kind === "owned" ? { kind: "owned" } : {},
