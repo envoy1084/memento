@@ -29,8 +29,8 @@ import {
 } from "#/components/common/page";
 import { NameMark } from "#/components/display/brand";
 import { GiftArt } from "#/components/display/gift-art";
-import { ClaimProgress } from "#/features/claim/claim-progress";
 import { useDemo } from "#/hooks/use-demo";
+import { ClaimProgress } from "#/routes/claim/_components/claim-progress";
 
 type Stage = "sealed" | "choose" | "wallet" | "verify" | "review" | "claiming" | "complete";
 

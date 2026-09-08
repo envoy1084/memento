@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { ClaimJourney } from "#/features/claim/claim-journey";
+import { ClaimJourney } from "#/routes/claim/_components/claim-journey";
 export const Route = createFileRoute("/invite/$campaignId/$invitationId")({
   component: CampaignInvitation,
 });
