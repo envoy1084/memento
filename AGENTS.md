@@ -36,3 +36,10 @@ Follow the Namera reference conventions: `#/*` package imports, `memento-source`
 ## Architecture documentation
 
 Read the relevant document in `architecture/` before cross-package changes. Update it with implemented behavior, invariants, tests, and concrete remaining integration work. Keep package-specific commands in package READMEs. A placeholder or schema alone is not a completed feature.
+
+## Frontend organization
+
+- Group routes in folders matching URL segments; use `index.tsx` for collection indexes and `route.tsx` for exact pages. Avoid dotted flat route filenames.
+- Keep route modules focused on routing, parameters, and search. Put route-owned screens and journeys in that group’s `_components/` folder. Vite excludes these folders from route generation.
+- Keep shared controls and page compositions in `apps/web/src/components/common/`, and branding/artwork in `components/display/`. Shared persisted types derive from `@memento/protocol`.
+- Use `#/*` imports inside the web app. Let the Router plugin regenerate `routeTree.gen.ts` after route moves. Preserve URLs when reorganizing code.

@@ -4,7 +4,7 @@
 
 Shared controls and page compositions live in `components/common/`; brand marks and keepsake artwork live in `components/display/`. UIKit owns control semantics, while Tailwind theme ramps and utilities preserve the Aura presentation. Wrapping types derive from the protocol preview model.
 
-Route folders mirror URL segments, including dynamic identifier folders. Use `index.tsx` for collection indexes and `route.tsx` for exact page paths. Vite excludes `_components` folders with `routeFileIgnorePattern`; these contain route-owned rendering and are never endpoints. Regenerate `routeTree.gen.ts` through the web build after moving route files.
+Route folders mirror URL segments, including dynamic identifier folders. Use `index.tsx` for collection indexes and `route.tsx` for exact page paths. Vite excludes `_components` folders with `routeFileIgnorePattern`; these contain route-owned rendering and are never endpoints. Regenerate `routeTree.gen.ts` through the web build after moving route files. Route modules remain thin: they read URL parameters/search and pass props into `_components` screens. `send` owns its gift wizard, `campaigns` owns its wizard and management screens, and `claim` owns the recipient journey reused by `invite`. Home-specific presentation lives in `routes/_components/`. There is no separate `features/` layer.
 
 ## Implemented journeys
 
@@ -24,7 +24,7 @@ Gifts and invitations can be claimed only once. Expired/returned gifts and pause
 
 ## Verification and future integration
 
-The preview transition tests cover name rules/budget/duration, one-time claims, exact-name gifts, campaign eligibility/state, and saved-state decoding. Browser QA covers sender/recipient/campaign journeys and responsive layouts.
+The preview transition tests cover name rules/budget/duration, one-time claims, exact-name gifts, campaign eligibility/state, and saved-state decoding. The folder reorganization was verified with the full workspace check and browser smoke checks of discovery, both sender modes, gift lists/details, campaign lists/creation/details, both invitation paths, profile, and help. This check verified route loading; it did not repeat the complete transaction simulations or responsive visual review.
 
 No live API client, Privy login, wallet call, real World ID proof, ENS quote, payment, email, or onchain write is connected. Integration must replace the preview adapter with the existing schema-first API client and provider flows. Real invitation secrets must follow the backend fragment/POST design and never enter localStorage. No real email address is required to explore the UI.
 
