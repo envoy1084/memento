@@ -1,7 +1,7 @@
 import { Context, Effect, Layer, Schema } from "effect";
 
 import { DatabaseError, Gift } from "@memento/protocol";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 
 import { mapRepositoryError } from "#/core/errors";
 import { Database } from "#/core/layer";
@@ -27,14 +27,16 @@ const make = Effect.gen(function* () {
           )
         : undefined;
     }, mapRepositoryError),
-    list: Effect.fn("GiftRepository.list")(function* (wallets: readonly string[]) {
+    list: Effect.fn("GiftRepository.list")(function* (wallets: readonly string[], offset = 0) {
       const db = yield* transactionOrDatabase(database);
       return yield* Schema.decodeUnknownEffect(Schema.Array(Gift))(
         yield* db
           .select()
           .from(gift)
           .where(inArray(gift.sponsorWallet, [...wallets]))
-          .limit(100),
+          .orderBy(desc(gift.createdAt), gift.id)
+          .limit(100)
+          .offset(offset),
       ).pipe(
         Effect.mapError((cause) => new DatabaseError({ cause, message: "Invalid stored gifts" })),
       );

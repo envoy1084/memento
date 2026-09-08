@@ -16,7 +16,9 @@ export class TestDatabase extends Context.Service<
     Effect.gen(function* () {
       const db = yield* Database;
       yield* migrate(db, {
-        migrationsFolder: fileURLToPath(new URL("../../migrations", import.meta.url)),
+        migrationsFolder: fileURLToPath(
+          new URL("./migrations", import.meta.resolve("@memento/database/package.json")),
+        ),
       });
       return {
         reset: db

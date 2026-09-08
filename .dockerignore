@@ -1,0 +1,12 @@
+.git
+**/node_modules
+**/dist
+**/.turbo
+**/coverage
+packages/contracts/out
+packages/contracts/cache
+packages/contracts/broadcast
+research
+.env
+.env.*
+*.log

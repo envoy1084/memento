@@ -33,7 +33,7 @@
     "typecheck": "tsc -p tsconfig.test.json --noEmit",
     "lint": "oxlint . --no-error-on-unmatched-pattern",
     "test": "NODE_OPTIONS=--conditions=memento-source vitest run --passWithNoTests",
-    "dev": "node --env-file-if-exists=.env --conditions=memento-source --import tsx --watch src/main.ts",
+    "dev": "node --env-file-if-exists=../../.env --conditions=memento-source --import tsx --watch src/main.ts",
     "start": "node --env-file-if-exists=.env dist/main.js"
   },
   "dependencies": {

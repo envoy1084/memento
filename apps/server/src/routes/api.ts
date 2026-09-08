@@ -1,8 +1,10 @@
-import { Effect, Layer } from "effect";
+import { Effect, Layer, Stream } from "effect";
+import { HttpServerResponse } from "effect/unstable/http";
 import { HttpApiBuilder } from "effect/unstable/httpapi";
 
 import { Api, Authentication, CurrentActor } from "@memento/api";
 import { Application } from "@memento/application";
+import { Database, job } from "@memento/database";
 import { Privy } from "@memento/privy";
 import { type ApplicationError, ProviderError } from "@memento/protocol";
 const safe = <A, R>(effect: Effect.Effect<A, ApplicationError, R>) =>
@@ -35,7 +37,31 @@ const Gifts = HttpApiBuilder.group(
   Effect.fn(function* (handlers) {
     const app = yield* Application;
     return handlers.handleAll({
-      list: () => CurrentActor.pipe(Effect.flatMap(app.listGifts), safe),
+      list: ({ query }) =>
+        CurrentActor.pipe(
+          Effect.flatMap((actor) => app.listGifts(actor, query.offset)),
+          safe,
+        ),
+      get: ({ params }) =>
+        CurrentActor.pipe(
+          Effect.flatMap((actor) => app.getGift(actor, params.id)),
+          safe,
+        ),
+      link: ({ params }) =>
+        CurrentActor.pipe(
+          Effect.flatMap((actor) => app.getGiftLink(actor, params.id)),
+          safe,
+        ),
+      listCampaigns: ({ query }) =>
+        CurrentActor.pipe(
+          Effect.flatMap((actor) => app.listCampaigns(actor, query.offset)),
+          safe,
+        ),
+      getCampaign: ({ params }) =>
+        CurrentActor.pipe(
+          Effect.flatMap((actor) => app.getCampaign(actor, params.id)),
+          safe,
+        ),
       prepare: ({ payload }) =>
         CurrentActor.pipe(
           Effect.flatMap((actor) => app.createGift(actor, payload)),
@@ -49,6 +75,18 @@ const Gifts = HttpApiBuilder.group(
       email: ({ params, payload }) =>
         CurrentActor.pipe(
           Effect.flatMap((actor) => app.emailGift(actor, params.id, payload.to)),
+          safe,
+        ),
+      confirmRefund: ({ params, payload }) =>
+        CurrentActor.pipe(
+          Effect.flatMap((actor) => app.confirmRefund(actor, params.id, payload.transactionHash)),
+          safe,
+        ),
+      confirmCampaignRefund: ({ params, payload }) =>
+        CurrentActor.pipe(
+          Effect.flatMap((actor) =>
+            app.confirmCampaignRefund(actor, params.id, payload.transactionHash),
+          ),
           safe,
         ),
       refund: ({ params }) =>
@@ -89,6 +127,30 @@ const Claims = HttpApiBuilder.group(
         CurrentActor.pipe(
           Effect.flatMap((actor) => app.prepareClaim(actor, params.id, payload)),
           safe,
+        ),
+      events: ({ params }) =>
+        safe(
+          Effect.gen(function* () {
+            const actor = yield* CurrentActor;
+            const initial = yield* app.getClaim(actor, params.id);
+            const updates = Stream.concat(
+              Stream.succeed(initial),
+              Stream.tick("2 seconds").pipe(
+                Stream.mapEffect(() => app.getClaim(actor, params.id)),
+                Stream.take(29),
+              ),
+            );
+            return HttpServerResponse.stream(
+              updates.pipe(
+                Stream.map((claim) => `event: claim\ndata: ${JSON.stringify(claim)}\n\n`),
+                Stream.encodeText,
+              ),
+              {
+                contentType: "text/event-stream",
+                headers: { "cache-control": "no-store", "x-accel-buffering": "no" },
+              },
+            );
+          }),
         ),
       get: ({ params }) =>
         CurrentActor.pipe(
@@ -131,8 +193,31 @@ const Public = HttpApiBuilder.group(
     });
   }),
 );
-const Health = HttpApiBuilder.group(Api, "system", (handlers) =>
-  handlers.handle("health", () => Effect.succeed({ status: "ok" as const })),
+const Health = HttpApiBuilder.group(
+  Api,
+  "system",
+  Effect.fn(function* (handlers) {
+    const database = yield* Database;
+    return handlers.handleAll({
+      health: () => Effect.succeed({ status: "ok" as const }),
+      ready: () =>
+        database
+          .select({ id: job.id })
+          .from(job)
+          .limit(0)
+          .pipe(
+            Effect.as({ status: "ok" as const }),
+            Effect.mapError(
+              () =>
+                new ProviderError({
+                  provider: "database",
+                  retryable: true,
+                  message: "Database is unavailable",
+                }),
+            ),
+          ),
+    });
+  }),
 );
 export const ApiHandlers = Layer.mergeAll(Gifts, Claims, Public, Health).pipe(
   Layer.provideMerge(AuthenticationLive),

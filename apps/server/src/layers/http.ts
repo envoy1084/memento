@@ -1,5 +1,10 @@
 import { DateTime, Effect, FileSystem, Layer, Option } from "effect";
-import { HttpRouter, HttpServerRequest, HttpServerResponse } from "effect/unstable/http";
+import {
+  HttpEffect,
+  HttpRouter,
+  HttpServerRequest,
+  HttpServerResponse,
+} from "effect/unstable/http";
 export const HttpPolicy = (origin: string) =>
   Layer.unwrap(
     Effect.sync(() => {
@@ -8,6 +13,16 @@ export const HttpPolicy = (origin: string) =>
         (httpEffect) =>
           Effect.gen(function* () {
             const request = yield* HttpServerRequest.HttpServerRequest;
+            yield* HttpEffect.appendPreResponseHandler((_, response) =>
+              Effect.succeed(
+                HttpServerResponse.setHeaders(response, {
+                  "cache-control": "no-store",
+                  "referrer-policy": "no-referrer",
+                  "x-content-type-options": "nosniff",
+                }),
+              ),
+            );
+
             const now = yield* DateTime.now.pipe(Effect.map(DateTime.toEpochMillis));
             // The VPS proxy overwrites this header; the application port is not published externally.
             const ip =
@@ -16,20 +31,15 @@ export const HttpPolicy = (origin: string) =>
             for (const [key, bucket] of buckets) if (bucket.until <= now) buckets.delete(key);
             const bucket = buckets.get(ip) ?? { count: 0, until: now + 60000 };
             bucket.count++;
-            buckets.set(ip, bucket);
-            if (bucket.count > 180 || buckets.size > 10000)
+            if (bucket.count > 180 || (!buckets.has(ip) && buckets.size >= 10000))
               return HttpServerResponse.text("Too many requests", {
                 status: 429,
                 headers: { "retry-after": "60", "cache-control": "no-store" },
               });
-            const response = yield* httpEffect.pipe(
+            buckets.set(ip, bucket);
+            return yield* httpEffect.pipe(
               Effect.provideService(HttpServerRequest.MaxBodySize, FileSystem.Size(131072)),
             );
-            return HttpServerResponse.setHeaders(response, {
-              "cache-control": "no-store",
-              "referrer-policy": "no-referrer",
-              "x-content-type-options": "nosniff",
-            });
           }),
         { global: true },
       );

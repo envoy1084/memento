@@ -39,6 +39,7 @@ export const CreateCampaign = Schema.Struct({
 export type CreateCampaign = typeof CreateCampaign.Type;
 export const GiftView = Schema.Struct({
   id: Digest,
+  campaignId: Schema.NullOr(Digest),
   kind: GiftKind,
   sponsorWallet: Address,
   policy: GiftPolicy,
@@ -46,6 +47,19 @@ export const GiftView = Schema.Struct({
   theme: Schema.String,
   label: Schema.NullOr(Schema.String),
   message: Schema.String,
+});
+export const CampaignView = Schema.Struct({
+  id: Digest,
+  sponsorWallet: Address,
+  policy: GiftPolicy,
+  count: Schema.Int,
+  status: Schema.Literals(["draft", "ready", "refunded"]),
+  fundingHash: Schema.NullOr(Digest),
+  createdAt: Timestamp,
+});
+export const CampaignDetail = Schema.Struct({
+  campaign: CampaignView,
+  invitations: Schema.Array(GiftView),
 });
 export const GiftPlan = Schema.Struct({
   id: Digest,

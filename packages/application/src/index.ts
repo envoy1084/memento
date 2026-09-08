@@ -29,6 +29,7 @@ export {
   recipientKind,
   hashText,
   hashSecret,
+  claimSecret,
   invitationLeaf,
   campaignClaimId,
 } from "./features/policy.js";

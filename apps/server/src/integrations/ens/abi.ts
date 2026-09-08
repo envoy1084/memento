@@ -6,6 +6,7 @@ export const registrarAbi = parseAbi([
   "function makeCommitment(string label,address owner,bytes32 secret,address subregistry,address resolver,uint64 duration,bytes32 referrer) pure returns (bytes32)",
   "function commit(bytes32 commitment)",
   "function commitmentAt(bytes32 commitment) view returns (uint64)",
+  "function MIN_REGISTER_DURATION() view returns (uint64)",
   "function MIN_COMMITMENT_AGE() view returns (uint64)",
   "function MAX_COMMITMENT_AGE() view returns (uint64)",
   "function register(string label,address owner,bytes32 secret,address subregistry,address resolver,uint64 duration,address paymentToken,bytes32 referrer) returns (uint256)",
@@ -39,6 +40,16 @@ export const resolverAbi = parseAbi([
   "function setAddress(bytes name,uint256 coinType,bytes value)",
   "function setText(bytes name,string key,string value)",
   "function roles(uint256 resource,address account) view returns (uint256)",
-  "function addr(bytes32 node) view returns (address)",
+  "function resolve(bytes name,bytes data) view returns (bytes)",
 ]);
-export const reverseAbi = parseAbi(["function setNameWithHCA(address owner,string name)"]);
+export const profileAbi = parseAbi([
+  "function addr(bytes32 node) view returns (address)",
+  "function text(bytes32 node,string key) view returns (string)",
+]);
+export const reverseAbi = parseAbi([
+  "function setNameWithHCA(address owner,string name)",
+  "function DEFAULT_REVERSE_REGISTRAR() view returns (address)",
+]);
+export const defaultReverseAbi = parseAbi([
+  "function nameForAddr(address account) view returns (string)",
+]);

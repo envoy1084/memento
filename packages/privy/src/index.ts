@@ -1,7 +1,9 @@
-import { Context, Effect, Layer, Redacted, Schema } from "effect";
+import { Context, Effect, Layer, Redacted } from "effect";
 
-import { Actor, Unauthorized, ProviderError } from "@memento/protocol";
+import { type Actor, Unauthorized, ProviderError } from "@memento/protocol";
 import { PrivyClient } from "@privy-io/node";
+
+import { verifiedActor } from "./profile.js";
 
 export class Privy extends Context.Service<
   Privy,
@@ -27,7 +29,7 @@ export class Privy extends Context.Service<
           });
           const user = yield* Effect.tryPromise({
             // The SDK's documented user-ID lookup is named _get.
-            // eslint-disable-next-line no-underscore-dangle
+            // oxlint-disable-next-line no-underscore-dangle -- Official SDK method name.
             try: () => client.users()._get(session.user_id),
             catch: () =>
               new ProviderError({
@@ -36,21 +38,7 @@ export class Privy extends Context.Service<
                 message: "Unable to retrieve verified user accounts",
               }),
           });
-          return yield* Schema.decodeUnknownEffect(Actor)({
-            userId: user.id,
-            wallets: user.linked_accounts.flatMap((account) =>
-              account.type === "wallet" && account.chain_type === "ethereum" && account.verified_at
-                ? [account.address.toLowerCase()]
-                : [],
-            ),
-            emails: user.linked_accounts.flatMap((account) =>
-              account.type === "email" && account.verified_at
-                ? [account.address.trim().toLowerCase()]
-                : [],
-            ),
-          }).pipe(
-            Effect.mapError(() => new Unauthorized({ message: "Invalid verified user profile" })),
-          );
+          return yield* verifiedActor(session.user_id, user);
         }),
       });
     });

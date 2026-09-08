@@ -20,7 +20,8 @@ export const wallet = (actor: Actor, address: string) =>
 export const label = (input: string) =>
   Effect.try({
     try: () => {
-      const value = normalize(input.endsWith(".eth") ? input.slice(0, -4) : input);
+      const name = normalize(input);
+      const value = name.endsWith(".eth") ? name.slice(0, -4) : name;
       if (value.includes(".") || value.length === 0 || Buffer.byteLength(value) > 63)
         throw new Error("Invalid label");
       return value;
@@ -73,7 +74,10 @@ export const recipientId = (restriction: RecipientConstraint) =>
 export const recipientKind = (restriction: RecipientConstraint) =>
   ({ any: 0, wallet: 1, email: 2 })[restriction.kind];
 export const hashText = (value: string) => keccak256(stringToHex(value));
-export const hashSecret = (value: string) => keccak256(value as `0x${string}`);
+// Reservation reveals this preimage onchain, while the original private URL secret stays hidden.
+export const claimSecret = (linkSecret: string) =>
+  keccak256(concat([stringToHex("memento:claim:v1:"), linkSecret as `0x${string}`]));
+export const hashSecret = (linkSecret: string) => keccak256(claimSecret(linkSecret));
 export const campaignClaimId = (id: string, index: number) =>
   keccak256(
     encodeAbiParameters([{ type: "bytes32" }, { type: "uint32" }], [id as `0x${string}`, index]),

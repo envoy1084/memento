@@ -335,6 +335,67 @@ export const makePlans = Effect.gen(function* () {
           message: "Transaction does not fund this campaign",
         });
     }),
+    confirmRefund: Effect.fn("Chain.confirmRefund")(function* (gift: Gift, hash: string) {
+      const receipt = yield* journal.receipt(hash as Hex);
+      if (gift.kind === "existing_name") {
+        const event = parseEventLogs({
+          abi: vaultAbi,
+          logs: receipt.logs,
+          eventName: "Recovered",
+        }).find(
+          (log) =>
+            log.address.toLowerCase() === config.vault.toLowerCase() && log.args.id === gift.id,
+        );
+        if (!event || (yield* vaultGift(gift))[2] !== 4)
+          return yield* new Conflict({
+            code: "REFUND_NOT_CONFIRMED",
+            message: "Name recovery is not confirmed",
+          });
+      } else {
+        const event = parseEventLogs({
+          abi: escrowAbi,
+          logs: receipt.logs,
+          eventName: "Refunded",
+        }).find(
+          (log) =>
+            log.address.toLowerCase() === config.sponsorship.toLowerCase() &&
+            log.args.id === gift.id,
+        );
+        if (!event || (yield* escrowGift(gift))[9] !== 5)
+          return yield* new Conflict({
+            code: "REFUND_NOT_CONFIRMED",
+            message: "Gift refund is not confirmed",
+          });
+      }
+    }),
+    confirmCampaignRefund: Effect.fn("Chain.confirmCampaignRefund")(function* (
+      campaign: Campaign,
+      hash: string,
+    ) {
+      const receipt = yield* journal.receipt(hash as Hex);
+      const event = parseEventLogs({
+        abi: escrowAbi,
+        logs: receipt.logs,
+        eventName: "Refunded",
+      }).find(
+        (log) =>
+          log.address.toLowerCase() === config.sponsorship.toLowerCase() &&
+          log.args.id === campaign.id,
+      );
+      const actual = yield* provider("rpc", () =>
+        publicClient.readContract({
+          address: config.sponsorship,
+          abi: escrowAbi,
+          functionName: "campaigns",
+          args: [campaign.id as Hex],
+        }),
+      );
+      if (!event || !actual[6])
+        return yield* new Conflict({
+          code: "REFUND_NOT_CONFIRMED",
+          message: "Campaign refund is not confirmed",
+        });
+    }),
     refundPlan: Effect.fn("Chain.refundPlan")(function* (gift: Gift) {
       const block = yield* provider("rpc", () => publicClient.getBlock());
       const expired = block.timestamp > BigInt(gift.policy.expiresAt);

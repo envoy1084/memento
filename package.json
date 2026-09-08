@@ -11,9 +11,10 @@
     "format:check": "oxfmt --check .",
     "lint": "oxlint --deny-warnings . && turbo run lint",
     "lint:fix": "oxlint --fix .",
-    "prepare": "lefthook install",
+    "prepare": "node scripts/install-hooks.mjs",
     "test": "turbo run test",
-    "typecheck": "tsc -p tsconfig.json --noEmit && turbo run typecheck"
+    "typecheck": "tsc -p tsconfig.json --noEmit && turbo run typecheck",
+    "test:postgres": "node scripts/test-postgres.mjs"
   },
   "devDependencies": {
     "@commitlint/cli": "catalog:",

@@ -1,0 +1,26 @@
+name: Backend checks
+on:
+  pull_request:
+  push:
+    branches: [main]
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+      - run: corepack enable && corepack prepare pnpm@11.25.0 --activate
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: nightly-3c16e2361f18f2cecc975e1d5a8d17330d92ced7
+      - run: pnpm install --frozen-lockfile
+        env:
+          LEFTHOOK: "0"
+      - run: pnpm check
+      - run: pnpm test:postgres
+      - run: git diff --exit-code -- packages/contracts/src/generated
+      - run: docker build -t memento-backend:check .

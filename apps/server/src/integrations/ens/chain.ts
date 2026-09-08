@@ -4,6 +4,7 @@ import {
   Chain,
   Cryptography,
   claimIntent,
+  claimSecret,
   recipientId,
   type ChainProgress,
 } from "@memento/application";
@@ -18,6 +19,7 @@ import {
   type ClaimIntent,
   Conflict,
   Forbidden,
+  InvalidRequest,
   ProviderError,
 } from "@memento/protocol";
 import {
@@ -29,14 +31,14 @@ import {
   zeroHash,
 } from "viem";
 import { sepolia } from "viem/chains";
-import { namehash } from "viem/ens";
 
-import { factoryAbi, registrarAbi, registryAbi, resolverAbi } from "./abi.js";
+import { registrarAbi, registryAbi } from "./abi.js";
 import { Ethereum, provider } from "./client.js";
 import { EnsConfig } from "./config.js";
 import { Hca, proxyAddress } from "./hca.js";
-import { TransactionJournal } from "./journal.js";
+import { TransactionJournal, jsonValue } from "./journal.js";
 import { makePlans, restriction } from "./plans.js";
+import { makeOwnershipVerification } from "./verification.js";
 const intentTypes = {
   ClaimIntent: [
     { name: "giftId", type: "bytes32" },
@@ -84,6 +86,19 @@ const make = Effect.gen(function* () {
     message: contractIntent(intent),
   });
   const quote = Effect.fn("Chain.quote")(function* (label: string, duration: number) {
+    const minimum = yield* provider("rpc", () =>
+      publicClient.readContract({
+        address: config.registrar,
+        abi: registrarAbi,
+        functionName: "MIN_REGISTER_DURATION",
+      }),
+    );
+    if (BigInt(duration) < minimum)
+      return yield* new InvalidRequest({
+        code: "REGISTRATION_DURATION_TOO_SHORT",
+        message: `Registrar requires at least ${minimum} seconds`,
+      });
+
     // ENSForge's public config pins deployments. Custom post-audit deployments use the exact branch ABI.
     if (
       ensforge.config.deployments.protocol === "v2" &&
@@ -125,67 +140,7 @@ const make = Effect.gen(function* () {
     );
     return { label, duration, available, price: (base + premium).toString() };
   });
-  const verifyOwnership = Effect.fn("Chain.verifyOwnership")(function* (gift: Gift, claim: Claim) {
-    const owner = yield* provider("rpc", () =>
-      publicClient.readContract({
-        address: config.registry,
-        abi: registryAbi,
-        functionName: "getOwner",
-        args: [BigInt(claim.labelhash)],
-      }),
-    );
-    const resolver = yield* provider("rpc", () =>
-      publicClient.readContract({
-        address: config.registry,
-        abi: registryAbi,
-        functionName: "getResolver",
-        args: [claim.label],
-      }),
-    );
-    if (
-      owner.toLowerCase() !== claim.recipientWallet ||
-      resolver.toLowerCase() !== claim.resolver.toLowerCase()
-    )
-      return yield* new Conflict({
-        code: "OWNERSHIP_NOT_CONFIRMED",
-        message: "Recipient ownership and resolver are not confirmed",
-      });
-    const implementation = yield* provider("rpc", () =>
-      publicClient.readContract({
-        address: config.verifiableFactory,
-        abi: factoryAbi,
-        functionName: "verifyContract",
-        args: [resolver],
-      }),
-    );
-    const address = yield* provider("rpc", () =>
-      publicClient.readContract({
-        address: resolver,
-        abi: resolverAbi,
-        functionName: "addr",
-        args: [namehash(`${claim.label}.eth`)],
-      }),
-    );
-    const roles = yield* provider("rpc", () =>
-      publicClient.readContract({
-        address: resolver,
-        abi: resolverAbi,
-        functionName: "roles",
-        args: [0n, claim.recipientWallet as Address],
-      }),
-    );
-    if (
-      implementation.toLowerCase() !== config.resolverImplementation.toLowerCase() ||
-      address.toLowerCase() !== claim.recipientWallet ||
-      roles !== BigInt(`0x${"1".repeat(64)}`)
-    )
-      return yield* new Conflict({
-        code: "RESOLVER_HANDOFF_FAILED",
-        message: "Recipient resolver control is not confirmed",
-      });
-    if (gift.kind === "chosen_name")
-      yield* hca.verify(claim.hca as Address, claim.recipientWallet as Address);
-  });
+  const verifyOwnership = yield* makeOwnershipVerification;
   const auth = Effect.fn("Chain.storedAuthorization")(function* (gift: Gift, claim: Claim) {
     if (
       !gift.secretCiphertext ||
@@ -199,7 +154,7 @@ const make = Effect.gen(function* () {
       });
     return {
       intent: contractIntent(claimIntent(claim)),
-      secret: (yield* crypto.open(gift.secretCiphertext, `gift:${gift.id}:secret`)) as Hex,
+      secret: claimSecret(yield* crypto.open(gift.secretCiphertext, `gift:${gift.id}:secret`)),
       signature: claim.signature as Hex,
       recipientAuthorization: (yield* crypto.open(
         claim.recipientAuthorizationCiphertext,
@@ -215,7 +170,7 @@ const make = Effect.gen(function* () {
     ...plans,
     chainId: sepolia.id,
     quote,
-    typedIntent,
+    typedIntent: (gift, intent) => jsonValue(typedIntent(gift, intent)),
     prepare: (gift, recipient, label, _nonce, deadline) =>
       gift.kind === "chosen_name"
         ? hca.prepare(gift, recipient as Address, label, deadline)
@@ -319,6 +274,17 @@ const make = Effect.gen(function* () {
         return { state: "complete" };
       }
       const actual = yield* plans.escrowGift(gift);
+      if (gift.campaignId && actual[9] === 0) {
+        const campaign = yield* provider("rpc", () =>
+          publicClient.readContract({
+            address: config.sponsorship,
+            abi: escrowAbi,
+            functionName: "campaigns",
+            args: [gift.campaignId as Hex],
+          }),
+        );
+        if (campaign[6]) return { state: "refunded" };
+      }
       if (actual[9] === 5) return { state: "refunded" };
       if (
         actual[9] >= 2 &&

@@ -5,6 +5,7 @@ This folder records implemented boundaries, invariants, tests, and remaining int
 - [Backend](backend/README.md): package ownership and runtime composition.
 - [Database](database/README.md): transactions, persistence, migrations, and durable jobs.
 - [Contracts](contracts/README.md): sponsorship and existing-name custody.
+- [Deployment](deployment/README.md): environment, Docker Compose, and recovery.
 - [Testing](engineering/testing.md): test layers and boundary coverage.
 
-Implementation is in progress. Provider credentials and compatible ENS testnet deployments must be supplied before a live demonstration.
+The backend implementation is covered by local checks. Provider credentials and compatible ENS testnet deployments must be supplied before a live demonstration.

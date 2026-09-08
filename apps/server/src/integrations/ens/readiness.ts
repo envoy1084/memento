@@ -5,7 +5,7 @@ import {
   MementoNameVaultAbi as vaultAbi,
 } from "@memento/contracts";
 import { ProviderError } from "@memento/protocol";
-import { parseAbi, type Address } from "viem";
+import { erc20Abi, parseAbi, type Address } from "viem";
 
 import { hcaAbi, factoryAbi, hcaFactoryAbi } from "./abi.js";
 import { Ethereum, provider } from "./client.js";
@@ -36,6 +36,10 @@ export const checkDeployment = Effect.gen(function* () {
     if (!code || code === "0x")
       return yield* fail("A configured contract has no deployed bytecode");
   }
+  const decimals = yield* provider("rpc", () =>
+    publicClient.readContract({ address: config.token, abi: erc20Abi, functionName: "decimals" }),
+  );
+  if (decimals !== 6) return yield* fail("Payment token must use six decimals");
   const id = yield* provider("rpc", () =>
     publicClient.readContract({
       address: config.hcaImplementation,
@@ -55,6 +59,7 @@ export const checkDeployment = Effect.gen(function* () {
   );
   if (!approved) return yield* fail("HCA implementation is not factory approved");
   const expectations: readonly [Address, string, Address][] = [
+    [config.registrar, "ETH_REGISTRY", config.registry],
     [config.validator, "ETH_REGISTRY", config.registry],
     [config.validator, "PERMITTED_RESOLVER_IMPL", config.resolverImplementation],
     [config.validator, "VERIFIABLE_FACTORY", config.verifiableFactory],

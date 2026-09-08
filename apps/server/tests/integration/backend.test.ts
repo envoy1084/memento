@@ -1,11 +1,11 @@
 import { expect, layer } from "@effect/vitest";
-import { Effect, Layer, Ref } from "effect";
+import { DateTime, Effect, Fiber, Layer, Ref } from "effect";
 import { TestClock } from "effect/testing";
 import { HttpClientRequest, HttpServer } from "effect/unstable/http";
 import { HttpApiMiddleware, HttpApiTest } from "effect/unstable/httpapi";
 
 import { Api, Authentication } from "@memento/api";
-import { Application, Worker } from "@memento/application";
+import { Application, Worker, claimSecret } from "@memento/application";
 import {
   ClaimRepository,
   GiftRepository,
@@ -71,6 +71,11 @@ layer(testLayer)("backend HTTP workflows with migrated PGlite", (it) => {
       });
       expect(opened.message).toBe("Happy birthday!");
       expect("secretCiphertext" in opened).toBe(false);
+      expect(
+        (yield* recipient.public
+          .open({ params: { id: gift.id }, payload: { secret: claimSecret(gift.secret) } })
+          .pipe(Effect.flip))._tag,
+      ).toBe("Forbidden");
       const prepared = yield* recipient.claims.prepare({
         params: { id: gift.id },
         payload: {
@@ -310,6 +315,124 @@ layer(testLayer)("backend HTTP workflows with migrated PGlite", (it) => {
       ).toBe("Conflict");
       expect((yield* (yield* ClaimRepository).find(second))?.worldVerified).toBe(false);
     }),
+  );
+  it.effect(
+    "recovers sponsor links, paginates gifts and hides campaign details from other accounts",
+    () =>
+      Effect.gen(function* () {
+        yield* (yield* TestDatabase).reset;
+        const first = yield* create;
+        const second = yield* create;
+        expect((yield* first.sender.gifts.link({ params: { id: first.id } })).url).toContain(
+          first.secret,
+        );
+        const page = yield* first.sender.gifts.list({ query: { offset: 1 } });
+        expect(page).toHaveLength(1);
+        expect([first.id, second.id]).toContain(page[0]?.id);
+        const stranger = yield* client("carol");
+        expect(
+          (yield* stranger.gifts.link({ params: { id: first.id } }).pipe(Effect.flip))._tag,
+        ).toBe("Forbidden");
+        const campaign = yield* first.sender.gifts.prepareCampaign({
+          payload: {
+            sponsorWallet: input.sponsorWallet,
+            policy: input.policy,
+            message: "Welcome",
+            theme: "moon",
+            recipients: [{ kind: "any", value: "" }],
+          },
+        });
+        const listed = yield* first.sender.gifts.listCampaigns({ query: {} });
+        expect(listed[0]?.id).toBe(campaign.id);
+        const detail = yield* first.sender.gifts.getCampaign({ params: { id: campaign.id } });
+        expect(detail.invitations).toHaveLength(1);
+        expect(detail.invitations[0]?.campaignId).toBe(campaign.id);
+        expect(JSON.stringify(detail)).not.toContain("Ciphertext");
+        expect(
+          (yield* stranger.gifts.getCampaign({ params: { id: campaign.id } }).pipe(Effect.flip))
+            ._tag,
+        ).toBe("Forbidden");
+        yield* first.sender.gifts.confirmCampaign({
+          params: { id: campaign.id },
+          payload: { transactionHash: digest },
+        });
+        yield* first.sender.gifts.confirmCampaignRefund({
+          params: { id: campaign.id },
+          payload: { transactionHash: digest },
+        });
+        const refunded = yield* first.sender.gifts.getCampaign({ params: { id: campaign.id } });
+        expect(refunded.campaign.status).toBe("refunded");
+        expect(refunded.invitations[0]?.status).toBe("refunded");
+      }),
+  );
+  it.effect("retries a failed email job without creating duplicate deliveries", () =>
+    Effect.gen(function* () {
+      yield* (yield* TestDatabase).reset;
+      yield* Ref.set((yield* TestProviders).emails, []);
+      const gift = yield* create;
+      const payload = { params: { id: gift.id }, payload: { to: "bob@example.test" } };
+      yield* gift.sender.gifts.email(payload);
+      const jobs = yield* JobRepository;
+      const leased = yield* jobs.lease(
+        yield* DateTime.now.pipe(Effect.map(DateTime.toEpochMillis)),
+        "test-worker",
+      );
+      if (!leased) return yield* Effect.die("Missing email job");
+      yield* jobs.finish(leased.id, "test-worker", "failed", 0, "Mail temporarily unavailable");
+      yield* gift.sender.gifts.email(payload);
+      yield* (yield* Worker).tick();
+      expect(yield* Ref.get((yield* TestProviders).emails)).toHaveLength(1);
+    }),
+  );
+  it.effect("rejects duplicate starter record keys before preparing funding", () =>
+    Effect.gen(function* () {
+      yield* (yield* TestDatabase).reset;
+      const sender = yield* client("alice");
+      const error = yield* sender.gifts
+        .prepare({
+          payload: {
+            ...input,
+            records: [
+              { key: "url", value: "one" },
+              { key: "url", value: "two" },
+            ],
+          },
+        })
+        .pipe(Effect.flip);
+      expect(error._tag === "InvalidRequest" && error.code).toBe("DUPLICATE_RECORD");
+    }),
+  );
+  it.effect(
+    "times out a stalled provider before the lease expires and resumes its durable job",
+    () =>
+      Effect.gen(function* () {
+        yield* (yield* TestDatabase).reset;
+        const gift = yield* create;
+        const recipient = yield* client("bob");
+        const prepared = yield* recipient.claims.prepare({
+          params: { id: gift.id },
+          payload: { secret: gift.secret, recipientWallet: bob.wallets[0] ?? "", label: "bobbbb" },
+        });
+        yield* recipient.claims.authorize({
+          params: { id: prepared.id },
+          payload: { signature: "0x1234", sessionAuthorization: {} },
+        });
+        const test = yield* TestProviders;
+        yield* Ref.set(test.hangChain, true);
+        const worker = yield* Worker;
+        const running = yield* worker.tick().pipe(Effect.forkChild);
+        yield* TestClock.adjust("91 seconds");
+        yield* Fiber.join(running);
+        expect((yield* recipient.claims.get({ params: { id: prepared.id } })).lastError).toContain(
+          "timed out",
+        );
+        yield* Ref.set(test.hangChain, false);
+        yield* TestClock.adjust("5 seconds");
+        yield* worker.tick();
+        expect((yield* recipient.claims.get({ params: { id: prepared.id } })).state).toBe(
+          "reserved",
+        );
+      }),
   );
   it.effect("keeps failed claims resumable through durable jobs", () =>
     Effect.gen(function* () {

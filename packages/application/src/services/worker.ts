@@ -6,7 +6,13 @@ import {
   JobRepository,
   TransactionService,
 } from "@memento/database";
-import { type Job, type ApplicationError, Conflict, InvalidRequest } from "@memento/protocol";
+import {
+  type Job,
+  type ApplicationError,
+  Conflict,
+  InvalidRequest,
+  ProviderError,
+} from "@memento/protocol";
 
 import { Chain, Mailer } from "./chain.js";
 import { Cryptography } from "./cryptography.js";
@@ -68,7 +74,7 @@ const make = Effect.gen(function* () {
             lastError: null,
             ...(progress.commitmentAt === undefined ? {} : { commitmentAt: progress.commitmentAt }),
             ...(progress.price === undefined ? {} : { price: progress.price }),
-            ...(progress.state === "complete"
+            ...(["complete", "refunded"].includes(progress.state)
               ? {
                   sessionKeyCiphertext: null,
                   authorizationCiphertext: null,
@@ -131,7 +137,20 @@ const make = Effect.gen(function* () {
       const token = crypto.random();
       const job = yield* jobs.lease(yield* now, token);
       if (!job) return false;
-      yield* execute(job, token).pipe(Effect.catch((error) => failed(job, token, error)));
+      yield* execute(job, token).pipe(
+        Effect.timeoutOrElse({
+          duration: "90 seconds",
+          orElse: () =>
+            Effect.fail(
+              new ProviderError({
+                provider: job.kind === "email" ? "email" : "chain",
+                retryable: true,
+                message: "Operation timed out; its recorded result will be checked on retry",
+              }),
+            ),
+        }),
+        Effect.catch((error) => failed(job, token, error)),
+      );
       return true;
     }),
   };

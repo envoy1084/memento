@@ -58,17 +58,34 @@ const make = Effect.gen(function* () {
       const db = yield* transactionOrDatabase(database);
       const rows = yield* db
         .update(job)
-        .set({ state, runAt, lastError, leaseToken: null, leaseUntil: null })
+        .set({
+          state,
+          runAt,
+          lastError,
+          leaseToken: null,
+          leaseUntil: null,
+          ...(lastError === null ? { attempts: 0 } : {}),
+        })
         .where(and(eq(job.id, id), eq(job.state, "running"), eq(job.leaseToken, token)))
         .returning({ id: job.id });
       return rows.length === 1;
     }, mapRepositoryError),
-    retry: Effect.fn("JobRepository.retry")(function* (subjectId: string, now: number) {
+    retry: Effect.fn("JobRepository.retry")(function* (
+      subjectId: string,
+      now: number,
+      dedupeKey?: string,
+    ) {
       const db = yield* transactionOrDatabase(database);
       yield* db
         .update(job)
         .set({ state: "pending", runAt: now, attempts: 0, lastError: null })
-        .where(and(eq(job.subjectId, subjectId), eq(job.state, "failed")));
+        .where(
+          and(
+            eq(job.subjectId, subjectId),
+            eq(job.state, "failed"),
+            dedupeKey === undefined ? undefined : eq(job.dedupeKey, dedupeKey),
+          ),
+        );
     }, mapRepositoryError),
   };
 });

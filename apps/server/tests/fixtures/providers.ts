@@ -20,18 +20,23 @@ export const carol: Actor = {
   emails: ["carol@example.test"],
 };
 export const digest = `0x${"44".repeat(32)}`;
-export const address = `0x${"55".repeat(20)}`;
+export const address: `0x${string}` = `0x${"55".repeat(20)}`;
 export class TestProviders extends Context.Service<
   TestProviders,
   {
     readonly emails: Ref.Ref<readonly string[]>;
     readonly failChain: Ref.Ref<boolean>;
+    readonly hangChain: Ref.Ref<boolean>;
   }
 >()("@memento/test/TestProviders") {
   static readonly layer = Layer.effect(
     TestProviders,
     Effect.gen(function* () {
-      return { emails: yield* Ref.make<readonly string[]>([]), failChain: yield* Ref.make(false) };
+      return {
+        emails: yield* Ref.make<readonly string[]>([]),
+        failChain: yield* Ref.make(false),
+        hangChain: yield* Ref.make(false),
+      };
     }),
   );
 }
@@ -92,6 +97,7 @@ const chain = Layer.effect(
           : Effect.fail(new Forbidden({ message: "Invalid signature" })),
       advance: (gift, claim) =>
         Effect.gen(function* () {
+          if (yield* Ref.get(test.hangChain)) yield* Effect.never;
           if (yield* Ref.get(test.failChain))
             return yield* new Conflict({ code: "SESSION_REVOKED", message: "Session was revoked" });
           return {
@@ -99,6 +105,8 @@ const chain = Layer.effect(
               gift.kind === "existing_name" ? "complete" : (states[claim.state] ?? claim.state),
           };
         }),
+      confirmRefund: () => Effect.void,
+      confirmCampaignRefund: () => Effect.void,
       refundPlan: () => Effect.succeed([]),
       campaignRefundPlan: () => Effect.succeed([]),
     });

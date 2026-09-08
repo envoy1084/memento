@@ -24,16 +24,19 @@ pnpm check
 
 ## Commands
 
-| Command             | Purpose                                           |
-| ------------------- | ------------------------------------------------- |
-| `pnpm dev`          | Run every package's development task              |
-| `pnpm build`        | Build the workspace in dependency order           |
-| `pnpm test`         | Run workspace tests                               |
-| `pnpm typecheck`    | Type-check root configuration and workspace code  |
-| `pnpm lint`         | Lint root configuration and workspace code        |
-| `pnpm format`       | Format supported files with Oxfmt                 |
-| `pnpm format:check` | Check formatting without writing                  |
-| `pnpm check`        | Run formatting, linting, type-checks, tests/build |
+| Command              | Purpose                                                      |
+| -------------------- | ------------------------------------------------------------ |
+| `pnpm dev`           | Run every package's development task                         |
+| `pnpm build`         | Build the workspace in dependency order                      |
+| `pnpm test:postgres` | Verify real PostgreSQL concurrency in a disposable container |
+| `pnpm test`          | Run workspace tests                                          |
+| `pnpm typecheck`     | Type-check root configuration and workspace code             |
+| `pnpm lint`          | Lint root configuration and workspace code                   |
+| `pnpm format`        | Format supported files with Oxfmt                            |
+| `pnpm format:check`  | Check formatting without writing                             |
+| `pnpm check`         | Run formatting, linting, type-checks, tests/build            |
 
 Klarity supplies the shared configuration for TypeScript, Oxfmt, Oxlint, Commitlint, Turborepo, and
 Lefthook. The research material is intentionally local-only and ignored by Git.
+
+For environment setup and a single VPS deployment, see [deployment](architecture/deployment/README.md).

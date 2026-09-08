@@ -1,7 +1,7 @@
 import { Context, Effect, Layer, Schema } from "effect";
 
 import { Campaign, DatabaseError } from "@memento/protocol";
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 
 import { mapRepositoryError } from "#/core/errors";
 import { Database } from "#/core/layer";
@@ -10,6 +10,22 @@ import { campaign } from "#/schema/index";
 const make = Effect.gen(function* () {
   const database = yield* Database;
   return {
+    list: Effect.fn("CampaignRepository.list")(function* (wallets: readonly string[], offset = 0) {
+      const db = yield* transactionOrDatabase(database);
+      return yield* Schema.decodeUnknownEffect(Schema.Array(Campaign))(
+        yield* db
+          .select()
+          .from(campaign)
+          .where(inArray(campaign.sponsorWallet, [...wallets]))
+          .orderBy(desc(campaign.createdAt), campaign.id)
+          .limit(100)
+          .offset(offset),
+      ).pipe(
+        Effect.mapError(
+          (cause) => new DatabaseError({ cause, message: "Invalid stored campaigns" }),
+        ),
+      );
+    }, mapRepositoryError),
     create: Effect.fn("CampaignRepository.create")(function* (row: Campaign) {
       const db = yield* transactionOrDatabase(database);
       yield* db.insert(campaign).values(row);

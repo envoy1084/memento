@@ -64,6 +64,11 @@ export class Chain extends Context.Service<
       ApplicationError
     >;
     readonly advance: (gift: Gift, claim: Claim) => Effect.Effect<ChainProgress, ApplicationError>;
+    readonly confirmRefund: (gift: Gift, hash: string) => Effect.Effect<void, ApplicationError>;
+    readonly confirmCampaignRefund: (
+      campaign: Campaign,
+      hash: string,
+    ) => Effect.Effect<void, ApplicationError>;
     readonly refundPlan: (
       gift: Gift,
     ) => Effect.Effect<readonly (typeof Call.Type)[], ApplicationError>;

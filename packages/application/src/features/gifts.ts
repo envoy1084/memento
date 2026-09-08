@@ -1,6 +1,7 @@
 import { DateTime, Effect } from "effect";
 
 import {
+  ClaimRepository,
   GiftRepository,
   CampaignRepository,
   TransactionService,
@@ -33,8 +34,19 @@ import {
   merkle,
 } from "./policy.js";
 
+const campaignView = (campaign: Campaign) => ({
+  id: campaign.id,
+  sponsorWallet: campaign.sponsorWallet,
+  policy: campaign.policy,
+  count: campaign.count,
+  status: campaign.status,
+  fundingHash: campaign.fundingHash,
+  createdAt: campaign.createdAt,
+});
+
 export const makeGifts = Effect.gen(function* () {
   const gifts = yield* GiftRepository;
+  const claims = yield* ClaimRepository;
   const campaigns = yield* CampaignRepository;
   const tx = yield* TransactionService;
   const audit = yield* AuditRepository;
@@ -63,6 +75,7 @@ export const makeGifts = Effect.gen(function* () {
     return {
       id: gift.id,
       kind: gift.kind,
+      campaignId: gift.campaignId,
       sponsorWallet: gift.sponsorWallet,
       policy: gift.policy,
       status: gift.status,
@@ -83,13 +96,26 @@ export const makeGifts = Effect.gen(function* () {
   const event = (id: string, action: string, actor: Actor, createdAt: number) =>
     audit.record({ id: crypto.random(), subjectId: id, action, actorId: actor.userId, createdAt });
   return {
-    find,
-    sponsor,
-    findCampaign,
-    view,
-    link,
-    listGifts: Effect.fn("Application.listGifts")(function* (actor: Actor) {
-      return yield* Effect.forEach(yield* gifts.list(actor.wallets), view);
+    listGifts: Effect.fn("Application.listGifts")(function* (actor: Actor, offset = 0) {
+      return yield* Effect.forEach(yield* gifts.list(actor.wallets, offset), view);
+    }),
+    getGift: Effect.fn("Application.getGift")(function* (actor: Actor, id: string) {
+      return yield* view(yield* sponsor(id, actor));
+    }),
+    getGiftLink: Effect.fn("Application.getGiftLink")(function* (actor: Actor, id: string) {
+      const gift = yield* sponsor(id, actor);
+      if (gift.status === "draft")
+        return yield* new Conflict({
+          code: "GIFT_NOT_FUNDED",
+          message: "Fund the gift before retrieving its link",
+        });
+      return yield* link(gift);
+    }),
+    listCampaigns: (actor: Actor, offset = 0) =>
+      campaigns.list(actor.wallets, offset).pipe(Effect.map((rows) => rows.map(campaignView))),
+    getCampaign: Effect.fn("Application.getCampaign")(function* (actor: Actor, id: string) {
+      const campaign = campaignView(yield* findCampaign(id, actor));
+      return { campaign, invitations: yield* Effect.forEach(yield* gifts.campaign(id), view) };
     }),
     createGift: Effect.fn("Application.createGift")(function* (actor: Actor, input: CreateGift) {
       yield* wallet(actor, input.sponsorWallet);
@@ -100,6 +126,8 @@ export const makeGifts = Effect.gen(function* () {
         product.maximumBudget,
         product.maximumLifetime,
       );
+      if (new Set(input.records.map((record) => record.key)).size !== input.records.length)
+        return yield* invalid("DUPLICATE_RECORD", "Starter record keys must be unique");
       const restriction = yield* recipient(input.recipient, crypto);
       if (input.kind === "existing_name" && (restriction.kind === "any" || !input.label))
         return yield* invalid(
@@ -317,7 +345,60 @@ export const makeGifts = Effect.gen(function* () {
               `email:${id}`,
             ),
           });
+          yield* jobs.retry(id, timestamp, dedupeKey);
           yield* event(id, "email.requested", actor, timestamp);
+        }),
+      );
+      return { ok: true };
+    }),
+    confirmRefund: Effect.fn("Application.confirmRefund")(function* (
+      actor: Actor,
+      id: string,
+      hash: string,
+    ) {
+      const gift = yield* sponsor(id, actor);
+      yield* chain.confirmRefund(gift, hash);
+      yield* tx.run(
+        Effect.gen(function* () {
+          if (!(yield* gifts.transition(id, gift.status, "refunded")))
+            return yield* new Conflict({
+              code: "GIFT_CHANGED",
+              message: "Gift changed during refund confirmation; retry",
+            });
+          const claim = yield* claims.forGift(id);
+          if (claim && claim.state !== "complete")
+            if (
+              !(yield* claims.transition(claim.id, claim.state, {
+                state: "refunded",
+                sessionKeyCiphertext: null,
+                authorizationCiphertext: null,
+                commitmentSecretCiphertext: null,
+                eligibilityCiphertext: null,
+                recipientAuthorizationCiphertext: null,
+              }))
+            )
+              return yield* new Conflict({
+                code: "CLAIM_CHANGED",
+                message: "Claim changed during refund confirmation; retry",
+              });
+        }),
+      );
+      return { ok: true };
+    }),
+    confirmCampaignRefund: Effect.fn("Application.confirmCampaignRefund")(function* (
+      actor: Actor,
+      id: string,
+      hash: string,
+    ) {
+      const campaign = yield* findCampaign(id, actor);
+      yield* chain.confirmCampaignRefund(campaign, hash);
+      yield* tx.run(
+        Effect.gen(function* () {
+          yield* campaigns.transition(id, campaign.status, "refunded");
+          for (const gift of yield* gifts.campaign(id)) {
+            if (gift.status === "ready" || gift.status === "draft")
+              yield* gifts.transition(gift.id, gift.status, "refunded");
+          }
         }),
       );
       return { ok: true };

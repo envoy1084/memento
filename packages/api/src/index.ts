@@ -4,9 +4,12 @@ import {
   HttpApiEndpoint as Endpoint,
   HttpApiGroup as Group,
   OpenApi,
+  HttpApiSchema,
 } from "effect/unstable/httpapi";
 
 import {
+  CampaignView,
+  CampaignDetail,
   CreateGift,
   CreateCampaign,
   GiftPlan,
@@ -34,9 +37,20 @@ import {
 import { Authentication } from "./middleware/authentication.js";
 const error = [InvalidRequest, Forbidden, NotFound, Conflict, ProviderError, Unauthorized];
 const params = { id: Digest };
+const page = {
+  offset: Schema.optional(Schema.Int.check(Schema.isBetween({ minimum: 0, maximum: 1000000 }))),
+};
 const Gifts = Group.make("gifts")
   .add(
-    Endpoint.get("list", "/gifts", { success: Schema.Array(GiftView), error }),
+    Endpoint.get("list", "/gifts", { query: page, success: Schema.Array(GiftView), error }),
+    Endpoint.get("get", "/gifts/:id", { params, success: GiftView, error }),
+    Endpoint.get("link", "/gifts/:id/link", { params, success: GiftLink, error }),
+    Endpoint.get("listCampaigns", "/campaigns", {
+      query: page,
+      success: Schema.Array(CampaignView),
+      error,
+    }),
+    Endpoint.get("getCampaign", "/campaigns/:id", { params, success: CampaignDetail, error }),
     Endpoint.post("prepare", "/gifts/prepare", { payload: CreateGift, success: GiftPlan, error }),
     Endpoint.post("confirm", "/gifts/:id/confirm", {
       params,
@@ -47,6 +61,12 @@ const Gifts = Group.make("gifts")
     Endpoint.post("email", "/gifts/:id/email", {
       params,
       payload: EmailRequest,
+      success: Success,
+      error,
+    }),
+    Endpoint.post("confirmRefund", "/gifts/:id/refund/confirm", {
+      params,
+      payload: ConfirmFunding,
       success: Success,
       error,
     }),
@@ -67,6 +87,12 @@ const Gifts = Group.make("gifts")
       success: Schema.Array(GiftLink),
       error,
     }),
+    Endpoint.post("confirmCampaignRefund", "/campaigns/:id/refund/confirm", {
+      params,
+      payload: ConfirmFunding,
+      success: Success,
+      error,
+    }),
     Endpoint.post("refundCampaign", "/campaigns/:id/refund", { params, success: GiftPlan, error }),
   )
   .middleware(Authentication)
@@ -77,6 +103,11 @@ const Claims = Group.make("claims")
       params,
       payload: PrepareClaim,
       success: ClaimPreparation,
+      error,
+    }),
+    Endpoint.get("events", "/claims/:id/events", {
+      params,
+      success: Schema.String.pipe(HttpApiSchema.asText({ contentType: "text/event-stream" })),
       error,
     }),
     Endpoint.get("get", "/claims/:id", { params, success: ClaimView, error }),
@@ -125,6 +156,10 @@ export class Api extends HttpApi.make("memento")
   .add(Public)
   .add(
     Group.make("system").add(
+      Endpoint.get("ready", "/health/ready", {
+        success: Schema.Struct({ status: Schema.Literal("ok") }),
+        error: ProviderError,
+      }),
       Endpoint.get("health", "/health/live", {
         success: Schema.Struct({ status: Schema.Literal("ok") }),
       }),
