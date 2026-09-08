@@ -10,7 +10,7 @@ Memento’s Aura frontend: React 19, Vite, TanStack Router, Effect Atom, Namespa
 - `pnpm --filter @memento/web typecheck` and `test` — validate types and preview transitions.
 - `pnpm check` — all workspace checks, required before commits.
 
-No environment variables, backend, credentials, or wallet extensions are required. The app intentionally makes no API calls. Names, prices, authentication, World ID, payments, and registrations are simulated.
+No environment variables, backend, credentials, or wallet extensions are required for the existing preview UI. The app intentionally makes no API calls. Names, prices, authentication, World ID, payments, and registrations are simulated.
 
 ## Ownership
 
@@ -19,3 +19,9 @@ No environment variables, backend, credentials, or wallet extensions are require
 One Effect Atom registry is created per router and shared with React. Non-sensitive demo state persists under `memento:demo:v1` in localStorage and is schema-decoded on restoration. Saved previews are local to a browser; links for newly created gifts are not portable to another browser. Clearing this key resets fixtures. Do not store real claim credentials or auth tokens here.
 
 Static hosting must fall back to `index.html` for route paths. The backend Docker image remains independent; see [frontend architecture](../../architecture/frontend/README.md).
+
+## Real-service RPC configuration
+
+`src/config/chain.ts` exposes the Sepolia `chain` for wallet providers and a shared viem `publicClient` for real-data atoms. Both use the Memento `/rpc/sepolia` proxy with no direct RPC fallback. Existing preview screens remain local until their integration is implemented.
+
+Set public `VITE_API_URL` in `apps/web/.env` to the API origin when overriding the defaults: `http://localhost:3001` in development and `https://api.memento.envoy1084.xyz` in production. No paths, credentials, queries, or fragments are accepted. Keep Alchemy in server-only `RPC_URL` and use matching `WEB_ORIGIN` for CORS. The frontend tests verify that viem sends its JSON-RPC requests to the proxy.

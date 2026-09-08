@@ -26,6 +26,8 @@ Gifts and invitations can be claimed only once. Expired/returned gifts and pause
 
 The preview transition tests cover name rules/budget/duration, one-time claims, exact-name gifts, campaign eligibility/state, and saved-state decoding. The folder reorganization was verified with the full workspace check and browser smoke checks of discovery, both sender modes, gift lists/details, campaign lists/creation/details, both invitation paths, profile, and help. This check verified route loading; it did not repeat the complete transaction simulations or responsive visual review.
 
-No live API client, Privy login, wallet call, real World ID proof, ENS quote, payment, email, or onchain write is connected. Integration must replace the preview adapter with the existing schema-first API client and provider flows. Real invitation secrets must follow the backend fragment/POST design and never enter localStorage. No real email address is required to explore the UI.
+A real-service viem client and wallet chain configuration now live in `src/config/chain.ts`, using the server’s `/rpc/sepolia` endpoint. Public `VITE_API_URL` selects the API origin; no provider key or direct Alchemy fallback is bundled. Tests verify the proxy destination and reject credential-bearing or non-origin URLs. Preview screens do not consume this client yet.
+
+No application API client, Privy login, wallet call, real World ID proof, ENS quote, payment, email, or onchain write is connected to the UI. Integration must replace the preview adapter with the existing schema-first API client and provider flows. Real invitation secrets must follow the backend fragment/POST design and never enter localStorage. No real email address is required to explore the UI.
 
 Deploy `dist/` on a static server with an index fallback; keep API deployment independent. This change does not publish the app or modify DNS.

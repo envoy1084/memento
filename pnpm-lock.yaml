@@ -217,6 +217,9 @@ importers:
       '@fontsource-variable/manrope':
         specifier: 5.2.8
         version: 5.2.8
+      '@memento/chain':
+        specifier: workspace:*
+        version: link:../../packages/chain
       '@memento/protocol':
         specifier: workspace:*
         version: link:../../packages/protocol
@@ -247,6 +250,9 @@ importers:
       tailwindcss:
         specifier: 4.3.3
         version: 4.3.3
+      viem:
+        specifier: 'catalog:'
+        version: 2.56.3(typescript@7.0.2)(zod@4.5.4)
     devDependencies:
       '@effect/vitest':
         specifier: 'catalog:'
