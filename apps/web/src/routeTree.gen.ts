@@ -10,33 +10,33 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as HelpRouteImport } from './routes/help'
-import { Route as ProfileRouteImport } from './routes/profile'
-import { Route as SendRouteImport } from './routes/send'
-import { Route as CampaignsIndexRouteImport } from './routes/campaigns.index'
-import { Route as CampaignsCampaignIdRouteImport } from './routes/campaigns.$campaignId'
-import { Route as CampaignsNewRouteImport } from './routes/campaigns.new'
-import { Route as ClaimGiftIdRouteImport } from './routes/claim.$giftId'
-import { Route as GiftsIndexRouteImport } from './routes/gifts.index'
-import { Route as GiftsGiftIdRouteImport } from './routes/gifts.$giftId'
-import { Route as InviteCampaignIdInvitationIdRouteImport } from './routes/invite.$campaignId.$invitationId'
+import { Route as HelpRouteRouteImport } from './routes/help/route'
+import { Route as ProfileRouteRouteImport } from './routes/profile/route'
+import { Route as SendRouteRouteImport } from './routes/send/route'
+import { Route as CampaignsIndexRouteImport } from './routes/campaigns/index'
+import { Route as CampaignsCampaignIdRouteRouteImport } from './routes/campaigns/$campaignId/route'
+import { Route as CampaignsNewRouteRouteImport } from './routes/campaigns/new/route'
+import { Route as ClaimGiftIdRouteRouteImport } from './routes/claim/$giftId/route'
+import { Route as GiftsIndexRouteImport } from './routes/gifts/index'
+import { Route as GiftsGiftIdRouteRouteImport } from './routes/gifts/$giftId/route'
+import { Route as InviteCampaignIdInvitationIdRouteRouteImport } from './routes/invite/$campaignId/$invitationId/route'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const HelpRoute = HelpRouteImport.update({
+const HelpRouteRoute = HelpRouteRouteImport.update({
   id: '/help',
   path: '/help',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ProfileRoute = ProfileRouteImport.update({
+const ProfileRouteRoute = ProfileRouteRouteImport.update({
   id: '/profile',
   path: '/profile',
   getParentRoute: () => rootRouteImport,
 } as any)
-const SendRoute = SendRouteImport.update({
+const SendRouteRoute = SendRouteRouteImport.update({
   id: '/send',
   path: '/send',
   getParentRoute: () => rootRouteImport,
@@ -46,17 +46,18 @@ const CampaignsIndexRoute = CampaignsIndexRouteImport.update({
   path: '/campaigns/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const CampaignsCampaignIdRoute = CampaignsCampaignIdRouteImport.update({
-  id: '/campaigns/$campaignId',
-  path: '/campaigns/$campaignId',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const CampaignsNewRoute = CampaignsNewRouteImport.update({
+const CampaignsCampaignIdRouteRoute =
+  CampaignsCampaignIdRouteRouteImport.update({
+    id: '/campaigns/$campaignId',
+    path: '/campaigns/$campaignId',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const CampaignsNewRouteRoute = CampaignsNewRouteRouteImport.update({
   id: '/campaigns/new',
   path: '/campaigns/new',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ClaimGiftIdRoute = ClaimGiftIdRouteImport.update({
+const ClaimGiftIdRouteRoute = ClaimGiftIdRouteRouteImport.update({
   id: '/claim/$giftId',
   path: '/claim/$giftId',
   getParentRoute: () => rootRouteImport,
@@ -66,13 +67,13 @@ const GiftsIndexRoute = GiftsIndexRouteImport.update({
   path: '/gifts/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const GiftsGiftIdRoute = GiftsGiftIdRouteImport.update({
+const GiftsGiftIdRouteRoute = GiftsGiftIdRouteRouteImport.update({
   id: '/gifts/$giftId',
   path: '/gifts/$giftId',
   getParentRoute: () => rootRouteImport,
 } as any)
-const InviteCampaignIdInvitationIdRoute =
-  InviteCampaignIdInvitationIdRouteImport.update({
+const InviteCampaignIdInvitationIdRouteRoute =
+  InviteCampaignIdInvitationIdRouteRouteImport.update({
     id: '/invite/$campaignId/$invitationId',
     path: '/invite/$campaignId/$invitationId',
     getParentRoute: () => rootRouteImport,
@@ -80,43 +81,43 @@ const InviteCampaignIdInvitationIdRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/help': typeof HelpRoute
-  '/profile': typeof ProfileRoute
-  '/send': typeof SendRoute
-  '/campaigns/$campaignId': typeof CampaignsCampaignIdRoute
-  '/campaigns/new': typeof CampaignsNewRoute
-  '/claim/$giftId': typeof ClaimGiftIdRoute
-  '/gifts/$giftId': typeof GiftsGiftIdRoute
+  '/help': typeof HelpRouteRoute
+  '/profile': typeof ProfileRouteRoute
+  '/send': typeof SendRouteRoute
+  '/campaigns/$campaignId': typeof CampaignsCampaignIdRouteRoute
+  '/campaigns/new': typeof CampaignsNewRouteRoute
+  '/claim/$giftId': typeof ClaimGiftIdRouteRoute
+  '/gifts/$giftId': typeof GiftsGiftIdRouteRoute
   '/campaigns/': typeof CampaignsIndexRoute
   '/gifts/': typeof GiftsIndexRoute
-  '/invite/$campaignId/$invitationId': typeof InviteCampaignIdInvitationIdRoute
+  '/invite/$campaignId/$invitationId': typeof InviteCampaignIdInvitationIdRouteRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/help': typeof HelpRoute
-  '/profile': typeof ProfileRoute
-  '/send': typeof SendRoute
-  '/campaigns/$campaignId': typeof CampaignsCampaignIdRoute
-  '/campaigns/new': typeof CampaignsNewRoute
-  '/claim/$giftId': typeof ClaimGiftIdRoute
-  '/gifts/$giftId': typeof GiftsGiftIdRoute
+  '/help': typeof HelpRouteRoute
+  '/profile': typeof ProfileRouteRoute
+  '/send': typeof SendRouteRoute
+  '/campaigns/$campaignId': typeof CampaignsCampaignIdRouteRoute
+  '/campaigns/new': typeof CampaignsNewRouteRoute
+  '/claim/$giftId': typeof ClaimGiftIdRouteRoute
+  '/gifts/$giftId': typeof GiftsGiftIdRouteRoute
   '/campaigns': typeof CampaignsIndexRoute
   '/gifts': typeof GiftsIndexRoute
-  '/invite/$campaignId/$invitationId': typeof InviteCampaignIdInvitationIdRoute
+  '/invite/$campaignId/$invitationId': typeof InviteCampaignIdInvitationIdRouteRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/help': typeof HelpRoute
-  '/profile': typeof ProfileRoute
-  '/send': typeof SendRoute
-  '/campaigns/$campaignId': typeof CampaignsCampaignIdRoute
-  '/campaigns/new': typeof CampaignsNewRoute
-  '/claim/$giftId': typeof ClaimGiftIdRoute
-  '/gifts/$giftId': typeof GiftsGiftIdRoute
+  '/help': typeof HelpRouteRoute
+  '/profile': typeof ProfileRouteRoute
+  '/send': typeof SendRouteRoute
+  '/campaigns/$campaignId': typeof CampaignsCampaignIdRouteRoute
+  '/campaigns/new': typeof CampaignsNewRouteRoute
+  '/claim/$giftId': typeof ClaimGiftIdRouteRoute
+  '/gifts/$giftId': typeof GiftsGiftIdRouteRoute
   '/campaigns/': typeof CampaignsIndexRoute
   '/gifts/': typeof GiftsIndexRoute
-  '/invite/$campaignId/$invitationId': typeof InviteCampaignIdInvitationIdRoute
+  '/invite/$campaignId/$invitationId': typeof InviteCampaignIdInvitationIdRouteRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -162,16 +163,16 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  HelpRoute: typeof HelpRoute
-  ProfileRoute: typeof ProfileRoute
-  SendRoute: typeof SendRoute
-  CampaignsCampaignIdRoute: typeof CampaignsCampaignIdRoute
-  CampaignsNewRoute: typeof CampaignsNewRoute
-  ClaimGiftIdRoute: typeof ClaimGiftIdRoute
-  GiftsGiftIdRoute: typeof GiftsGiftIdRoute
+  HelpRouteRoute: typeof HelpRouteRoute
+  ProfileRouteRoute: typeof ProfileRouteRoute
+  SendRouteRoute: typeof SendRouteRoute
+  CampaignsCampaignIdRouteRoute: typeof CampaignsCampaignIdRouteRoute
+  CampaignsNewRouteRoute: typeof CampaignsNewRouteRoute
+  ClaimGiftIdRouteRoute: typeof ClaimGiftIdRouteRoute
+  GiftsGiftIdRouteRoute: typeof GiftsGiftIdRouteRoute
   CampaignsIndexRoute: typeof CampaignsIndexRoute
   GiftsIndexRoute: typeof GiftsIndexRoute
-  InviteCampaignIdInvitationIdRoute: typeof InviteCampaignIdInvitationIdRoute
+  InviteCampaignIdInvitationIdRouteRoute: typeof InviteCampaignIdInvitationIdRouteRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -187,21 +188,21 @@ declare module '@tanstack/react-router' {
       id: '/help'
       path: '/help'
       fullPath: '/help'
-      preLoaderRoute: typeof HelpRouteImport
+      preLoaderRoute: typeof HelpRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/profile': {
       id: '/profile'
       path: '/profile'
       fullPath: '/profile'
-      preLoaderRoute: typeof ProfileRouteImport
+      preLoaderRoute: typeof ProfileRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/send': {
       id: '/send'
       path: '/send'
       fullPath: '/send'
-      preLoaderRoute: typeof SendRouteImport
+      preLoaderRoute: typeof SendRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/campaigns/': {
@@ -215,21 +216,21 @@ declare module '@tanstack/react-router' {
       id: '/campaigns/$campaignId'
       path: '/campaigns/$campaignId'
       fullPath: '/campaigns/$campaignId'
-      preLoaderRoute: typeof CampaignsCampaignIdRouteImport
+      preLoaderRoute: typeof CampaignsCampaignIdRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/campaigns/new': {
       id: '/campaigns/new'
       path: '/campaigns/new'
       fullPath: '/campaigns/new'
-      preLoaderRoute: typeof CampaignsNewRouteImport
+      preLoaderRoute: typeof CampaignsNewRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/claim/$giftId': {
       id: '/claim/$giftId'
       path: '/claim/$giftId'
       fullPath: '/claim/$giftId'
-      preLoaderRoute: typeof ClaimGiftIdRouteImport
+      preLoaderRoute: typeof ClaimGiftIdRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/gifts/': {
@@ -243,14 +244,14 @@ declare module '@tanstack/react-router' {
       id: '/gifts/$giftId'
       path: '/gifts/$giftId'
       fullPath: '/gifts/$giftId'
-      preLoaderRoute: typeof GiftsGiftIdRouteImport
+      preLoaderRoute: typeof GiftsGiftIdRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/invite/$campaignId/$invitationId': {
       id: '/invite/$campaignId/$invitationId'
       path: '/invite/$campaignId/$invitationId'
       fullPath: '/invite/$campaignId/$invitationId'
-      preLoaderRoute: typeof InviteCampaignIdInvitationIdRouteImport
+      preLoaderRoute: typeof InviteCampaignIdInvitationIdRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -258,16 +259,17 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  HelpRoute: HelpRoute,
-  ProfileRoute: ProfileRoute,
-  SendRoute: SendRoute,
-  CampaignsCampaignIdRoute: CampaignsCampaignIdRoute,
-  CampaignsNewRoute: CampaignsNewRoute,
-  ClaimGiftIdRoute: ClaimGiftIdRoute,
-  GiftsGiftIdRoute: GiftsGiftIdRoute,
+  HelpRouteRoute: HelpRouteRoute,
+  ProfileRouteRoute: ProfileRouteRoute,
+  SendRouteRoute: SendRouteRoute,
+  CampaignsCampaignIdRouteRoute: CampaignsCampaignIdRouteRoute,
+  CampaignsNewRouteRoute: CampaignsNewRouteRoute,
+  ClaimGiftIdRouteRoute: ClaimGiftIdRouteRoute,
+  GiftsGiftIdRouteRoute: GiftsGiftIdRouteRoute,
   CampaignsIndexRoute: CampaignsIndexRoute,
   GiftsIndexRoute: GiftsIndexRoute,
-  InviteCampaignIdInvitationIdRoute: InviteCampaignIdInvitationIdRoute,
+  InviteCampaignIdInvitationIdRouteRoute:
+    InviteCampaignIdInvitationIdRouteRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

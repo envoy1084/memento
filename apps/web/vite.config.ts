@@ -7,7 +7,15 @@ import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
 export default defineConfig({
-  plugins: [tanstackRouter({ target: "react", autoCodeSplitting: true }), tailwindcss(), react()],
+  plugins: [
+    tanstackRouter({
+      target: "react",
+      autoCodeSplitting: true,
+      routeFileIgnorePattern: "^_components$",
+    }),
+    tailwindcss(),
+    react(),
+  ],
   resolve: {
     conditions: ["memento-source"],
     alias: { "#": fileURLToPath(new URL("./src", import.meta.url)) },

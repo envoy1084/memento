@@ -4,6 +4,8 @@
 
 Shared controls and page compositions live in `components/common/`; brand marks and keepsake artwork live in `components/display/`. UIKit owns control semantics, while Tailwind theme ramps and utilities preserve the Aura presentation. Wrapping types derive from the protocol preview model.
 
+Route folders mirror URL segments, including dynamic identifier folders. Use `index.tsx` for collection indexes and `route.tsx` for exact page paths. Vite excludes `_components` folders with `routeFileIgnorePattern`; these contain route-owned rendering and are never endpoints. Regenerate `routeTree.gen.ts` through the web build after moving route files.
+
 ## Implemented journeys
 
 - `/`: Aura discovery and entry points for all three gift cases.
