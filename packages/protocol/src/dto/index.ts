@@ -134,3 +134,5 @@ export const EmailRequest = Schema.Struct({ to: Schema.String.check(Schema.isMax
 export const WorldProof = Schema.Struct({ proof: Schema.Unknown });
 
 export const Success = Schema.Struct({ ok: Schema.Boolean });
+
+export * from "./rpc.js";

@@ -51,6 +51,10 @@ a failed job. Prepared claims bind one wallet/name; after authorization, retries
 signed operation. Expired sessions, unavailable reserved names and permanent reverts require the
 expiry recovery described in [deployment](../deployment/README.md), rather than new spending authority.
 
+## Browser RPC transport
+
+`POST /rpc/sepolia` is a JSON-RPC transport alongside the schema-first application API. Envelope schemas live in `protocol`; the server owns the method policy and fixed Alchemy upstream. Frontend reads and signed transaction broadcasts use this endpoint. It never signs transactions or forwards browser auth headers. The global body/rate/CORS policy applies, with explicit streamed body/response limits, bounded batches and timeouts. Proxy integration tests use injected upstream transport and verify no upstream URL leaks in error responses.
+
 ## Integration choices
 
 ENSv2 targets `ensdomains/contracts-v2` branch `post-audit-2`, revision

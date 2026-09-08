@@ -18,8 +18,10 @@ import { EnsConfig } from "./integrations/ens/config.js";
 import { Hca } from "./integrations/ens/hca.js";
 import { TransactionJournal } from "./integrations/ens/journal.js";
 import { checkDeployment } from "./integrations/ens/readiness.js";
+import { SepoliaRpc } from "./integrations/ens/rpc.js";
 import { HttpPolicy } from "./layers/http.js";
 import { ApiRoutes } from "./routes/api.js";
+import { RpcRoutes } from "./routes/rpc/index.js";
 
 const WorkerRuntime = Layer.effectDiscard(
   Effect.gen(function* () {
@@ -78,6 +80,9 @@ Effect.gen(function* () {
 
   const routes = Layer.mergeAll(
     ApiRoutes,
+    RpcRoutes.pipe(
+      Layer.provide(Layer.unwrap(Config.redacted("RPC_URL").pipe(Effect.map(SepoliaRpc.live)))),
+    ),
     HttpPolicy(webOrigin),
     HttpApiScalar.layer(Api, { path: "/docs" }),
   );
