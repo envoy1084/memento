@@ -1,0 +1,45 @@
+{
+  "name": "@memento/web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "imports": {
+    "#/*": "./src/*"
+  },
+  "scripts": {
+    "dev": "vite --host 0.0.0.0 --port 3000",
+    "build": "vite build",
+    "preview": "vite preview --host 0.0.0.0 --port 3000",
+    "typecheck": "tsc --noEmit",
+    "lint": "oxlint . --no-error-on-unmatched-pattern",
+    "test": "NODE_OPTIONS=--conditions=memento-source vitest run"
+  },
+  "dependencies": {
+    "@effect/atom-react": "4.0.0-rc.112",
+    "@fontsource-variable/dm-sans": "5.2.8",
+    "@fontsource-variable/manrope": "5.2.8",
+    "@memento/protocol": "workspace:*",
+    "@paper-design/shaders-react": "0.0.80",
+    "@tanstack/react-router": "1.170.33",
+    "@thenamespace/uikit": "0.3.0",
+    "effect": "catalog:",
+    "motion": "13.2.0",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "scheduler": "0.27.0",
+    "tailwindcss": "4.3.3"
+  },
+  "devDependencies": {
+    "@effect/vitest": "catalog:",
+    "@tailwindcss/vite": "4.3.3",
+    "@tanstack/router-plugin": "1.168.36",
+    "@types/node": "catalog:",
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.4",
+    "@vitejs/plugin-react": "6.1.1",
+    "klarity": "catalog:",
+    "typescript": "catalog:",
+    "vite": "8.2.2",
+    "vitest": "catalog:"
+  }
+}

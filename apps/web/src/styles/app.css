@@ -1,0 +1,88 @@
+@import "tailwindcss";
+@import "@thenamespace/uikit/styles";
+
+@theme {
+  --font-sans: "DM Sans Variable", sans-serif;
+  --font-display: "Manrope Variable", sans-serif;
+}
+:root,
+.light,
+[data-theme="light"] {
+  --background: #fbf9fc;
+  --foreground: #292530;
+  --surface: #fff;
+  --surface-foreground: #292530;
+  --surface-secondary: #f5f0fa;
+  --surface-tertiary: #eee7f7;
+  --overlay: #fff;
+  --overlay-foreground: #292530;
+  --accent: #302a39;
+  --accent-foreground: #fff;
+  --accent-soft: #f0eafa;
+  --accent-soft-foreground: #695185;
+  --default: #f1edf5;
+  --default-foreground: #50475c;
+  --muted: #786e82;
+  --separator: #eae4ef;
+  --field-background: #fff;
+  --field-foreground: #292530;
+  --field-border: #e5ddea;
+  --field-border-width: 1px;
+  --field-radius: 0.875rem;
+  --radius: 1rem;
+  --focus: #8972c6;
+  --success: #26745b;
+  --success-soft: #e6f4ed;
+  --danger: #ab3c57;
+  --warning: #8a651f;
+  --lavender: #aa93de;
+  --blush: #f4d9e5;
+  --ink: #292530;
+}
+
+@layer base {
+  body {
+    @apply m-0 bg-background font-sans text-foreground antialiased;
+  }
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply font-display font-semibold tracking-[-0.045em];
+  }
+  h1 {
+    @apply text-[clamp(2.3rem,4.1vw,3.6rem)] leading-[1.12];
+  }
+  h2 {
+    @apply text-[clamp(1.8rem,3vw,2.8rem)] leading-[1.2];
+  }
+  h3 {
+    @apply text-xl leading-[1.3] tracking-tight;
+  }
+  p {
+    @apply leading-relaxed;
+  }
+  :focus-visible {
+    @apply outline-2 outline-offset-4 outline-focus;
+  }
+  ::selection {
+    @apply bg-[#dfcff5] text-foreground;
+  }
+}
+@layer components {
+  .button {
+    @apply gap-3 rounded-full font-medium transition-[transform,box-shadow,background] duration-150 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] motion-reduce:transform-none motion-reduce:transition-none;
+  }
+  a.button {
+    @apply inline-flex min-h-11 items-center justify-center px-5 py-3 text-sm;
+  }
+  a.button--primary {
+    @apply bg-accent text-accent-foreground;
+  }
+  a.button--secondary {
+    @apply bg-accent-soft text-accent-soft-foreground;
+  }
+  a.button--lg {
+    @apply min-h-[54px] px-6 py-4;
+  }
+}

@@ -40,3 +40,7 @@ Klarity supplies the shared configuration for TypeScript, Oxfmt, Oxlint, Commitl
 Lefthook. The research material is intentionally local-only and ignored by Git.
 
 For environment setup and a single VPS deployment, see [deployment](architecture/deployment/README.md).
+
+## Frontend preview
+
+Run `pnpm --filter @memento/web dev` and open http://localhost:3000. The Aura app includes sender, recipient, campaign, and profile journeys using local preview state; no backend or credentials are needed. See [frontend architecture](architecture/frontend/README.md) for the integration boundary.

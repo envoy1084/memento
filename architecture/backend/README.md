@@ -14,7 +14,7 @@
 The server hosts HTTP and one scoped worker loop in the same Node process. PostgreSQL persists work;
 no Redis, external queue, cron service or separate worker deployment is needed. Development uses
 `memento-source` exports; production runs built ESM. `#/*` imports remain package-local. The frontend
-is not implemented.
+is a standalone local preview; see [frontend](../frontend/README.md).
 
 ## Request flow
 

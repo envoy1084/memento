@@ -1,0 +1,8 @@
+{
+  "extends": "klarity/tsconfig/app/vite",
+  "compilerOptions": {
+    "customConditions": ["memento-source"],
+    "paths": { "#/*": ["./src/*"] }
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx", "*.config.ts"]
+}
