@@ -1,37 +1,59 @@
 import { useState } from "react";
 
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 
 import type { PreviewProfile } from "@memento/protocol";
-import { Button, Card, Form, toast } from "@thenamespace/uikit";
+import { Button, Card, Form, Separator, toast } from "@thenamespace/uikit";
 
+import { NameMark, ShellMark } from "#/components/brand";
 import { Field, SelectField, Toggle } from "#/components/fields";
 import { Icon } from "#/components/icon";
-import { CopyButton, Empty, PageTitle, SummaryRow } from "#/components/page";
+import {
+  ButtonLink,
+  CopyButton,
+  DetailList,
+  DetailRow,
+  EmptyPanel,
+  Eyebrow,
+  Note,
+  PageHeader,
+  Section,
+} from "#/components/page";
 import { ThemePicker, type GiftTheme } from "#/features/gifts/theme-picker";
 import { useDemo } from "#/hooks/use-demo";
+
 export const Route = createFileRoute("/profile")({ component: ProfilePage });
+
 function ProfilePage() {
   const [state, setState] = useDemo();
   const [selected, setSelected] = useState("");
   const profile = state.profiles.find((entry) => entry.name === selected) ?? state.profiles.at(-1);
+
   return (
-    <div className="mx-auto w-[calc(100%-40px)] max-w-[1100px] py-12 md:w-[calc(100%-96px)]">
-      <PageTitle
-        eyebrow="A LITTLE MORE YOU"
-        title="Your name. Your story."
-        description="Make your little corner of the internet feel like home."
+    <Section width="form" className="py-12">
+      <PageHeader
+        eyebrow="Your identity"
+        title="Your name, your story."
+        description="Everything here travels with your name. Apps that speak ENS can show it wherever you go."
+        action={
+          state.profiles.length > 1 && profile ? (
+            <div className="w-56">
+              <SelectField
+                label="Showing"
+                value={profile.name}
+                onChange={setSelected}
+                options={state.profiles.map((entry) => ({
+                  value: entry.name,
+                  label: entry.name,
+                }))}
+              />
+            </div>
+          ) : undefined
+        }
       />
+
       {profile ? (
-        <>
-          <div className="my-8 max-w-xs">
-            <SelectField
-              label="Your names"
-              value={profile.name}
-              onChange={setSelected}
-              options={state.profiles.map((entry) => ({ value: entry.name, label: entry.name }))}
-            />
-          </div>
+        <div className="mt-10">
           <ProfileEditor
             key={profile.name}
             profile={profile}
@@ -46,20 +68,31 @@ function ProfilePage() {
               }))
             }
           />
-        </>
+        </div>
       ) : (
         <div className="mt-10">
-          <Empty
-            title="Your name is waiting for you."
-            description="Open a gift and claim your first identity in this preview. Then come back to make it yours."
-            to="/claim/a-little-beginning"
-            action="Open your gift"
+          <EmptyPanel
+            icon="person"
+            title="No name yet."
+            description="Open a gift and claim your first name in this preview. Then come back and make it yours."
+            action={
+              <ButtonLink to="/claim/$giftId" params={{ giftId: "a-little-beginning" }}>
+                Open a sample gift
+              </ButtonLink>
+            }
           />
         </div>
       )}
-    </div>
+    </Section>
   );
 }
+
+const covers: Record<GiftTheme, string> = {
+  aura: "from-lavender-100 to-lavender-50",
+  rose: "from-blush-100 to-blush-50",
+  mint: "from-sage-100 to-sage-50",
+};
+
 function ProfileEditor({
   profile,
   save,
@@ -71,36 +104,36 @@ function ProfileEditor({
   const [website, setWebsite] = useState(profile.website);
   const [theme, setTheme] = useState<GiftTheme>(profile.theme);
   const [primary, setPrimary] = useState(profile.primary);
-  const colors = {
-    aura: "from-[#e7d7f7] to-[#f8eefb]",
-    rose: "from-[#f2d6e1] to-[#fff0f5]",
-    mint: "from-[#cde5d7] to-[#f0faf4]",
-  };
+
   return (
-    <div className="grid items-start gap-8 lg:grid-cols-2">
-      <div>
-        <Card className="overflow-hidden rounded-[28px] border border-separator p-0 shadow-none">
-          <div className={`relative flex h-44 items-end bg-linear-140 ${colors[theme]} p-7`}>
-            <span className="absolute top-6 right-6 text-[#ae91bf]">
-              <Icon name="sparkle" size={30} />
-            </span>
-            <span className="-mb-14 flex size-24 items-center justify-center rounded-[28px] border-4 border-white bg-surface-secondary font-serif text-5xl text-[#a183b5] italic">
-              {profile.name.charAt(0)}
+    <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-12">
+      <div className="lg:sticky lg:top-28">
+        <Eyebrow className="mb-4">How others see you</Eyebrow>
+        <Card
+          variant="transparent"
+          className="overflow-hidden rounded-[28px] border border-rule bg-paper-raised p-0 shadow-lift"
+        >
+          <div className={`relative flex h-40 items-end bg-linear-140 ${covers[theme]} px-7`}>
+            <ShellMark tone="lavender" size={30} className="absolute top-6 right-6 opacity-60" />
+            <span className="-mb-12 grid size-24 place-content-center rounded-[26px] border-4 border-paper-raised bg-paper-sunken font-display text-4xl font-semibold text-lavender-600">
+              {profile.name.charAt(0).toUpperCase()}
             </span>
           </div>
           <div className="px-7 pt-16 pb-7">
             <div className="flex flex-wrap items-center gap-3">
-              <h2 className="break-all text-3xl">{profile.name}</h2>
+              <NameMark name={profile.name} size="lg" />
               {primary ? (
-                <span className="rounded-full bg-success/10 px-2 py-1 text-[9px] text-success">
-                  Primary name
+                <span className="rounded-full bg-success/10 px-2.5 py-1 text-[10px] font-medium text-success">
+                  Primary
                 </span>
               ) : null}
             </div>
-            <p className="mt-4 text-sm text-muted">{bio || "Your story starts here."}</p>
+            <p className="mt-4 mb-0 text-[15px] leading-relaxed text-ink-soft">
+              {bio || "Your story starts here."}
+            </p>
             {website ? (
-              <p className="mt-4 flex items-center gap-2 break-all text-xs text-[#8c6da0]">
-                <Icon name="globe" size={14} />
+              <p className="mt-4 mb-0 flex items-center gap-2 text-[13px] break-all text-lavender-700">
+                <Icon name="globe" size={15} />
                 {website}
               </p>
             ) : null}
@@ -109,57 +142,61 @@ function ProfileEditor({
             </div>
           </div>
         </Card>
-        <p className="mt-5 text-center text-xs text-muted">
-          A name for all the things you’ll become.
-        </p>
       </div>
-      <Card className="rounded-3xl border border-separator p-7 shadow-none">
+
+      <Card className="rounded-3xl border border-rule p-6 shadow-none md:p-7">
         <Form
-          className="w-full space-y-5"
+          className="w-full space-y-6"
           onSubmit={(event) => {
             event.preventDefault();
             save({ ...profile, bio, website, theme, primary });
-            toast.success("Your preview feels a little more like you");
+            toast.success("Profile saved");
           }}
         >
-          <h3>Make it personal</h3>
+          <h3 className="m-0">Make it personal</h3>
           <Field
-            label="A little about you"
+            label="About you"
             value={bio}
             onChange={setBio}
             multiline
+            rows={3}
             maxLength={200}
             placeholder="Curious mind. Maker of things. Here for what’s next."
           />
           <Field
-            label="Your website"
+            label="Website"
             type="url"
             value={website}
             onChange={setWebsite}
             placeholder="https://yourcorner.xyz"
+            description="Shown next to your name in apps that support it."
           />
-          <p className="text-sm font-medium">Your color</p>
-          <ThemePicker value={theme} onChange={setTheme} />
+          <Separator />
+          <ThemePicker
+            value={theme}
+            onChange={setTheme}
+            label="Your colour"
+            description="Used on your profile card and any gifts you send."
+          />
+          <Separator />
           <Toggle
             label="Use as my primary name"
             selected={primary}
             onChange={setPrimary}
-            description="The name you introduce yourself with across apps."
+            description="The name apps show first when they recognise your wallet."
           />
-          <Button type="submit" fullWidth>
-            Save your touches
-            <Icon name="check" size={17} />
+          <Button type="submit" fullWidth size="lg">
+            Save changes
+            <Icon name="check" size={18} />
           </Button>
-          <p className="text-[11px] text-muted">
-            Saved in this browser only. Your onchain profile stays unchanged.
-          </p>
         </Form>
-        <div className="mt-6 border-t border-separator pt-3">
-          <SummaryRow label="Ownership">Your preview wallet</SummaryRow>
-          <Link to="/send" className="mt-4 inline-flex items-center gap-2 text-xs text-[#8c6da0]">
-            Give someone their beginning
-            <Icon name="gift" size={16} />
-          </Link>
+        <Separator className="my-6" />
+        <DetailList>
+          <DetailRow label="Held in">Your preview wallet</DetailRow>
+          <DetailRow label="Renewal">Covered by the gift</DetailRow>
+        </DetailList>
+        <div className="mt-6">
+          <Note>Saved in this browser only. Nothing is written onchain.</Note>
         </div>
       </Card>
     </div>
