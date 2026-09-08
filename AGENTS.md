@@ -43,3 +43,10 @@ Read the relevant document in `architecture/` before cross-package changes. Upda
 - Keep route modules focused on routing, parameters, and search. Put route-owned screens and journeys in that group’s `_components/` folder. Vite excludes these folders from route generation.
 - Keep shared controls and page compositions in `apps/web/src/components/common/`, and branding/artwork in `components/display/`. Shared persisted types derive from `@memento/protocol`.
 - Use `#/*` imports inside the web app. Let the Router plugin regenerate `routeTree.gen.ts` after route moves. Preserve URLs when reorganizing code.
+
+## Source readability and commit size
+
+- Separate setup, guards, computation, state changes, external calls, and results with blank lines when they form distinct logical phases. Keep closely related declarations and assignments together.
+- Separate independent functions, service operations, and test phases. Avoid adding a blank line after every statement.
+- Add comments only for non-obvious intent, ordering constraints, invariants, or compatibility decisions; do not narrate the code. Preserve generated output rather than hand-formatting it.
+- Keep each commit at or below 3,000 changed lines (additions plus deletions). Split larger work into focused commits.
