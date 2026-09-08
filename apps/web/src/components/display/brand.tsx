@@ -87,6 +87,7 @@ export function NameMark({
   const separator = name.lastIndexOf(".");
   const stem = separator > 0 ? name.slice(0, separator) : name;
   const suffix = separator > 0 ? name.slice(separator) : "";
+
   return (
     <span
       className={cn(

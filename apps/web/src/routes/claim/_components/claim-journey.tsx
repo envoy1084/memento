@@ -64,8 +64,10 @@ export function ClaimJourney({
   useEffect(() => {
     if (first.current) {
       first.current = false;
+
       return;
     }
+
     panel.current?.focus();
   }, [stage]);
 
@@ -93,6 +95,7 @@ export function ClaimJourney({
         campaignId && invitationId
           ? claimCampaign(state, campaignId, invitationId, name)
           : claimGift(state, giftId ?? "", name);
+
       setState(next);
       setStage("complete");
     } catch (cause) {
@@ -105,6 +108,7 @@ export function ClaimJourney({
 
   if (unavailable && stage !== "complete" && stage !== "claiming") {
     const alreadyClaimed = gift?.state === "claimed" || invitation?.claimed;
+
     return (
       <Section className="py-20">
         <EmptyPanel
@@ -217,6 +221,7 @@ export function ClaimJourney({
                     className="space-y-5"
                     onSubmit={(event) => {
                       event.preventDefault();
+
                       if (quote.available) setStage("wallet");
                     }}
                   >

@@ -6,5 +6,6 @@ export const Route = createFileRoute("/campaigns/$campaignId")({ component: Camp
 
 function CampaignDetailRoute() {
   const { campaignId } = Route.useParams();
+
   return <CampaignDetail campaignId={campaignId} />;
 }

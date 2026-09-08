@@ -20,6 +20,7 @@ export function SiteHeader() {
   const [menuOpen, setMenuOpen] = useState(false);
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const isInvitation = pathname.startsWith("/claim/") || pathname.startsWith("/invite/");
+
   const current = (to: string, exact: boolean) =>
     exact ? pathname === to : pathname.startsWith(to);
 

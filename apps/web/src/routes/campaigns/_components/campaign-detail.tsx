@@ -64,6 +64,7 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
 
   const createInvitation = () => {
     if (availableSlots <= 0 || locked) return;
+
     update({
       invitations: [
         ...campaign.invitations,
@@ -87,8 +88,10 @@ export function CampaignDetail({ campaignId }: { campaignId: string }) {
           `"${invitation.recipient.replaceAll('"', '""').replace(/^[=+@-]/, "'")}","${window.location.origin}/invite/${campaignId}/${invitation.id}","${invitation.claimed ? "Claimed" : "Ready"}"`,
       ),
     ].join("\n");
+
     const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
     const anchor = document.createElement("a");
+
     anchor.href = url;
     anchor.download = "memento-invitations.csv";
     anchor.click();

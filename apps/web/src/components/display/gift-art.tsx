@@ -70,11 +70,15 @@ export function GiftArt({
 
   const track = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (!interactive) return;
+
     const box = frame.current?.getBoundingClientRect();
+
     if (!box) return;
+
     pointerX.set((event.clientX - box.left) / box.width - 0.5);
     pointerY.set((event.clientY - box.top) / box.height - 0.5);
   };
+
   const release = () => {
     setHovered(false);
     pointerX.set(0);

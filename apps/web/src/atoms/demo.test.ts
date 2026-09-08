@@ -14,6 +14,7 @@ describe("local preview journeys", () => {
   });
   it("claims a gift once and creates the recipient identity", () => {
     const next = claimGift(initialDemo, "a-little-beginning", "bobby");
+
     expect(next.profiles[0]?.name).toBe("bobby.eth");
     expect(next.gifts[0]?.state).toBe("claimed");
     expect(() => claimGift(next, "a-little-beginning", "bobby")).toThrow();
@@ -27,6 +28,7 @@ describe("local preview journeys", () => {
   });
   it("consumes campaign invitations once and updates totals", () => {
     const next = claimCampaign(initialDemo, "builders-club", "welcome", "bobby");
+
     expect(next.campaigns[0]?.claimed).toBe(33);
     expect(() => claimCampaign(next, "builders-club", "welcome", "another")).toThrow();
     expect(() => claimCampaign(initialDemo, "builders-club", "missing", "bobby")).toThrow();
@@ -37,11 +39,13 @@ describe("local preview journeys", () => {
         ...initialDemo,
         campaigns: initialDemo.campaigns.map((campaign) => ({ ...campaign, ...overrides })),
       };
+
       expect(() => claimCampaign(next, "builders-club", "welcome", "bobby")).toThrow();
     }
   });
   it("prevents two gifts from creating the same preview identity", () => {
     const next = claimGift(initialDemo, "a-little-beginning", "bobby");
+
     expect(() => claimCampaign(next, "builders-club", "welcome", "bobby")).toThrow(
       "already has a home",
     );

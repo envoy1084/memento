@@ -72,7 +72,9 @@ export function Reveal({
   delay?: number;
 }) {
   const reduced = useReducedMotion();
+
   if (reduced) return <div className={className}>{children}</div>;
+
   return (
     <motion.div
       className={className}
@@ -135,6 +137,7 @@ export function Back({ to = "/", label = "Back" }: { to?: string; label?: string
   const navigate = useNavigate();
   const router = useRouter();
   const canGoBack = useCanGoBack();
+
   return (
     <Button
       variant="ghost"
@@ -163,6 +166,7 @@ const statusTone = {
 
 export function StatusChip({ state }: { state: keyof typeof statusTone }) {
   const tone = statusTone[state] ?? statusTone.ready;
+
   return (
     <Chip size="sm" variant="soft" color={tone.color}>
       {tone.label}

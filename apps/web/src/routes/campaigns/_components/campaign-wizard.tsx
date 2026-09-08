@@ -42,18 +42,24 @@ export function CampaignWizard() {
   const submit = () => {
     if (!name.trim()) {
       setError("Give the campaign a name so members recognise it.");
+
       return;
     }
+
     if (!Number.isInteger(quantity) || quantity < 1 || quantity > 500) {
       setError("Choose between 1 and 500 invitations.");
+
       return;
     }
+
     if (!Number.isFinite(budget) || budget < 5 * years || budget > 1000) {
       setError(
         `A budget of at least $${5 * years} covers ${years} year${years > 1 ? "s" : ""} per person. The maximum in this preview is $1,000.`,
       );
+
       return;
     }
+
     if (
       !Number.isInteger(minLength) ||
       !Number.isInteger(maxLength) ||
@@ -62,14 +68,19 @@ export function CampaignWizard() {
       minLength > maxLength
     ) {
       setError("Name length must be a range between 3 and 63 characters.");
+
       return;
     }
+
     if (step === 0) {
       setError("");
       setStep(1);
+
       return;
     }
+
     const id = crypto.randomUUID();
+
     setState((current) => ({
       ...current,
       connected: true,

@@ -32,6 +32,7 @@ export function Gifts() {
     const matchesFilter =
       filter === "all" || (filter === "open" ? gift.state === "ready" : gift.state === "claimed");
     const haystack = `${gift.recipient} ${gift.name}`.toLowerCase();
+
     return matchesFilter && haystack.includes(query.trim().toLowerCase());
   });
 

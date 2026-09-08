@@ -17,6 +17,7 @@ export const Route = createRootRouteWithContext<{
   storageMessage: string | undefined;
 }>()({
   component: Root,
+
   notFoundComponent: () => (
     <Section className="py-20">
       <EmptyPanel
@@ -27,6 +28,7 @@ export const Route = createRootRouteWithContext<{
       />
     </Section>
   ),
+
   errorComponent: ({ reset }) => (
     <Section width="reading" className="py-20">
       <h1>Something interrupted this preview.</h1>
@@ -43,6 +45,7 @@ export const Route = createRootRouteWithContext<{
 function Root() {
   const context = Route.useRouteContext();
   const storageNotice = useAtomValue(storageNoticeAtom) ?? context.storageMessage;
+
   return (
     <MotionConfig reducedMotion="user">
       <a

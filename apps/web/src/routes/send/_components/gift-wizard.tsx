@@ -60,6 +60,7 @@ export function GiftWizard({ initialKind }: { initialKind: "choice" | "owned" })
       .filter((gift) => gift.kind === "owned" && gift.state !== "refunded")
       .map((gift) => gift.name),
   );
+
   const ownedNames = ["sophie.eth", "goodthings.eth", "littlewonder.eth"].filter(
     (name) => !gifted.has(name),
   );
@@ -73,8 +74,10 @@ export function GiftWizard({ initialKind }: { initialKind: "choice" | "owned" })
         setError(
           `A budget of at least $${5 * years} covers ${years} year${years > 1 ? "s" : ""} of a five-letter name. The maximum in this preview is $1,000.`,
         );
+
         return;
       }
+
       if (
         !Number.isInteger(minLength) ||
         !Number.isInteger(maxLength) ||
@@ -83,19 +86,24 @@ export function GiftWizard({ initialKind }: { initialKind: "choice" | "owned" })
         minLength > maxLength
       ) {
         setError("Name length must be a range between 3 and 63 characters.");
+
         return;
       }
     }
+
     if (step === 0 && kind === "owned" && !selectedName) {
       setError("You’ve gifted every name in your demo wallet. Try a choose-your-own gift instead.");
+
       return;
     }
+
     setError("");
     setStep(step + 1);
   };
 
   const create = () => {
     const id = crypto.randomUUID();
+
     const gift: Gift = {
       id,
       kind,
@@ -114,6 +122,7 @@ export function GiftWizard({ initialKind }: { initialKind: "choice" | "owned" })
         year: "numeric",
       }).format(new Date()),
     };
+
     setState((current) => ({ ...current, gifts: [gift, ...current.gifts], connected: true }));
     void navigate({ to: "/gifts/$giftId", params: { giftId: id }, search: { created: true } });
   };
@@ -132,6 +141,7 @@ export function GiftWizard({ initialKind }: { initialKind: "choice" | "owned" })
             className="w-full"
             onSubmit={(event) => {
               event.preventDefault();
+
               if (step < 2) advance();
               else create();
             }}
@@ -152,6 +162,7 @@ export function GiftWizard({ initialKind }: { initialKind: "choice" | "owned" })
                         value={kind}
                         onChange={(value) => {
                           if (value === "choice" || value === "owned") setKind(value);
+
                           setError("");
                         }}
                         variant="secondary"

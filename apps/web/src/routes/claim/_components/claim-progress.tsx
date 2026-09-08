@@ -15,7 +15,9 @@ const stages = [
 export function ClaimProgress({ name, onComplete }: { name: string; onComplete: () => void }) {
   const [progress, setProgress] = useState(0);
   const complete = useRef(onComplete);
+
   complete.current = onComplete;
+
   const finished = useRef(false);
 
   useEffect(() => {
@@ -23,6 +25,7 @@ export function ClaimProgress({ name, onComplete }: { name: string; onComplete: 
       () => setProgress((value) => Math.min(stages.length, value + 1)),
       1300,
     );
+
     return () => window.clearInterval(timer);
   }, []);
 
@@ -45,6 +48,7 @@ export function ClaimProgress({ name, onComplete }: { name: string; onComplete: 
         {stages.map((stage, index) => {
           const done = progress > index;
           const active = progress === index;
+
           return (
             <Timeline.Item
               key={stage.title}
