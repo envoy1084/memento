@@ -19,6 +19,7 @@ contract MementoSponsorship is ClaimAuthorization, ReentrancyGuard {
         uint8 maxLength;
         bool worldRequired;
     }
+
     enum Status {
         None,
         Ready,
@@ -50,16 +51,19 @@ contract MementoSponsorship is ClaimAuthorization, ReentrancyGuard {
         uint256 available;
         bool closed;
     }
+
     IERC20 public immutable paymentToken;
     IHcaFactory public immutable hcaFactory;
     IEnsRegistry public immutable registry;
     mapping(bytes32 => Gift) public gifts;
     mapping(bytes32 => Campaign) public campaigns;
     mapping(bytes32 => mapping(uint32 => bool)) public invitationsUsed;
+
     event GiftCreated(bytes32 indexed id, address indexed sponsor, uint256 amount);
     event CampaignCreated(
         bytes32 indexed id, address indexed sponsor, bytes32 root, uint256 amount
     );
+
     event Reserved(bytes32 indexed id, address indexed recipient, address hca, bytes32 labelhash);
     event Released(bytes32 indexed id, address indexed hca, uint96 amount);
     event Completed(bytes32 indexed id);
@@ -76,6 +80,7 @@ contract MementoSponsorship is ClaimAuthorization, ReentrancyGuard {
             address(token_) == address(0) || address(factory_) == address(0)
                 || address(registry_) == address(0)
         ) revert InvalidClaim();
+
         paymentToken = token_;
         hcaFactory = factory_;
         registry = registry_;
@@ -91,6 +96,7 @@ contract MementoSponsorship is ClaimAuthorization, ReentrancyGuard {
     function _pull(uint256 amount) private {
         uint256 beforeBalance = paymentToken.balanceOf(address(this));
         paymentToken.safeTransferFrom(msg.sender, address(this), amount);
+
         if (paymentToken.balanceOf(address(this)) - beforeBalance != amount) revert InvalidClaim();
     }
 
@@ -103,10 +109,12 @@ contract MementoSponsorship is ClaimAuthorization, ReentrancyGuard {
     ) external nonReentrant {
         _policy(policy);
         _validateRecipient(restriction);
+
         if (
             id == 0 || claimHash == 0 || gifts[id].status != Status.None
                 || campaigns[id].sponsor != address(0)
         ) revert InvalidState();
+
         gifts[id] = Gift(
             msg.sender,
             claimHash,
@@ -119,7 +127,9 @@ contract MementoSponsorship is ClaimAuthorization, ReentrancyGuard {
             policy.maxPrice,
             Status.Ready
         );
+
         _pull(policy.maxPrice);
+
         emit GiftCreated(id, msg.sender, policy.maxPrice);
     }
 
@@ -128,13 +138,17 @@ contract MementoSponsorship is ClaimAuthorization, ReentrancyGuard {
         nonReentrant
     {
         _policy(policy);
+
         if (
             id == 0 || root == 0 || count == 0 || count > 500 || campaigns[id].sponsor != address(0)
                 || gifts[id].status != Status.None
         ) revert InvalidState();
+
         uint256 amount = uint256(policy.maxPrice) * count;
         campaigns[id] = Campaign(msg.sender, root, policy, count, 0, amount, false);
+
         _pull(amount);
+
         emit CampaignCreated(id, msg.sender, root, amount);
     }
 
@@ -161,9 +175,11 @@ contract MementoSponsorship is ClaimAuthorization, ReentrancyGuard {
         bytes calldata eligibility
     ) external nonReentrant {
         Gift storage g = gifts[intent.giftId];
+
         if (g.status != Status.Ready || g.claimHash != keccak256(abi.encodePacked(secret))) {
             revert InvalidState();
         }
+
         _reserve(g, intent, signature, recipientAuthorization, eligibility);
     }
 
@@ -180,6 +196,7 @@ contract MementoSponsorship is ClaimAuthorization, ReentrancyGuard {
     ) external nonReentrant {
         Campaign storage c = campaigns[campaignId];
         _validateRecipient(restriction);
+
         if (
             c.sponsor == address(0) || c.closed || index >= c.count
                 || invitationsUsed[campaignId][index]
@@ -191,6 +208,8 @@ contract MementoSponsorship is ClaimAuthorization, ReentrancyGuard {
                     invitationLeaf(index, keccak256(abi.encodePacked(secret)), restriction)
                 )
         ) revert InvalidClaim();
+
+        // Reserved invitation budgets must no longer be withdrawable by the campaign sponsor.
         invitationsUsed[campaignId][index] = true;
         c.reserved++;
         c.available -= c.policy.maxPrice;
@@ -206,6 +225,7 @@ contract MementoSponsorship is ClaimAuthorization, ReentrancyGuard {
             c.policy.maxPrice,
             Status.Ready
         );
+
         _reserve(gifts[intent.giftId], intent, signature, recipientAuthorization, eligibility);
     }
 
@@ -220,6 +240,7 @@ contract MementoSponsorship is ClaimAuthorization, ReentrancyGuard {
             g.policy.expiresAt < block.timestamp || intent.deadline > g.policy.expiresAt
                 || intent.hca == address(0)
         ) revert InvalidClaim();
+
         _authorize(
             intent,
             g.restriction,
@@ -232,67 +253,88 @@ contract MementoSponsorship is ClaimAuthorization, ReentrancyGuard {
         g.hca = intent.hca;
         g.labelhash = intent.labelhash;
         g.status = Status.Reserved;
+
         emit Reserved(intent.giftId, intent.recipient, intent.hca, intent.labelhash);
     }
 
     function releaseToHca(bytes32 id, uint96 amount) external onlyCoordinator nonReentrant {
         Gift storage g = gifts[id];
+
         if (
             g.status != Status.Reserved || block.timestamp > g.policy.expiresAt || amount == 0
                 || amount > g.remaining || g.hca.code.length == 0
                 || hcaFactory.authorizedOwnerOf(g.hca) != g.recipient
         ) revert InvalidState();
+
         g.status = Status.Funded;
         g.remaining -= amount;
+
         paymentToken.safeTransfer(g.hca, amount);
+
         emit Released(id, g.hca, amount);
     }
 
     function completeGift(bytes32 id) external nonReentrant {
         Gift storage g = gifts[id];
+
         if (
             (g.status != Status.Funded && g.status != Status.Reserved)
                 || registry.getOwner(uint256(g.labelhash)) != g.recipient
         ) revert InvalidState();
+
         g.status = Status.Complete;
+
         _refund(id, g);
+
         emit Completed(id);
     }
 
     function cancel(bytes32 id) external nonReentrant {
         Gift storage g = gifts[id];
+
         if (g.sponsor != msg.sender || g.status != Status.Ready) revert Unauthorized();
+
         g.status = Status.Refunded;
+
         _refund(id, g);
     }
 
     function refundExpired(bytes32 id) external nonReentrant {
         Gift storage g = gifts[id];
+
         if (
             g.status == Status.None || g.status == Status.Complete || g.status == Status.Refunded
                 || block.timestamp <= g.policy.expiresAt
         ) revert InvalidState();
+
         g.status = Status.Refunded;
+
         _refund(id, g);
     }
 
     function refundCampaign(bytes32 id) external nonReentrant {
         Campaign storage c = campaigns[id];
+
         if (
             c.sponsor == address(0) || c.closed
                 || (msg.sender != c.sponsor && block.timestamp <= c.policy.expiresAt)
         ) revert Unauthorized();
+
         c.closed = true;
         uint256 amount = c.available;
         c.available = 0;
+
         paymentToken.safeTransfer(c.sponsor, amount);
+
         emit Refunded(id, c.sponsor, amount);
     }
 
     function _refund(bytes32 id, Gift storage g) private {
         uint96 amount = g.remaining;
         g.remaining = 0;
+
         if (amount > 0) paymentToken.safeTransfer(g.sponsor, amount);
+
         emit Refunded(id, g.sponsor, amount);
     }
 }

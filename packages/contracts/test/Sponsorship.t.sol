@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.30;
+
 import {MementoSponsorship} from "../src/MementoSponsorship.sol";
 import {ClaimAuthorization} from "../src/ClaimAuthorization.sol";
 import {Token, HcaFactory, Hca, Registry, TestBase} from "./Fixtures.sol";
@@ -21,6 +22,7 @@ contract SponsorshipTest is TestBase {
         escrow = new MementoSponsorship(token, factory, registry, address(this), address(this));
         factory.certify(address(hca), bob);
         token.mint(alice, 1000);
+
         vm.prank(alice);
         token.approve(address(escrow), 1000);
         policy = MementoSponsorship.Policy(
@@ -67,9 +69,11 @@ contract SponsorshipTest is TestBase {
         ClaimAuthorization.Intent memory i = intent(ID);
         bytes memory sig = signature(escrow, i);
         i.recipient = alice;
+
         vm.expectRevert();
         escrow.reserveGift(i, SECRET, sig, "", "");
         i.recipient = bob;
+
         vm.expectRevert();
         escrow.reserveGift(i, bytes32(uint256(1)), sig, "", "");
     }
@@ -77,11 +81,13 @@ contract SponsorshipTest is TestBase {
     function testReserveCannotBeCancelledOrReplayed() public {
         create();
         reserve(ID);
+
         vm.prank(alice);
         vm.expectRevert();
         escrow.cancel(ID);
         ClaimAuthorization.Intent memory i = intent(ID);
         bytes memory sig = signature(escrow, i);
+
         vm.expectRevert();
         escrow.reserveGift(i, SECRET, sig, "", "");
     }
@@ -90,12 +96,15 @@ contract SponsorshipTest is TestBase {
         create();
         reserve(ID);
         factory.certify(address(hca), alice);
+
         vm.expectRevert();
         escrow.releaseToHca(ID, 50);
         factory.certify(address(hca), bob);
+
         vm.expectRevert();
         escrow.releaseToHca(ID, 101);
         escrow.releaseToHca(ID, 50);
+
         vm.expectRevert();
         escrow.releaseToHca(ID, 1);
     }
@@ -112,6 +121,7 @@ contract SponsorshipTest is TestBase {
     function testCampaignWithdrawalPreservesReservedBudget() public {
         ClaimAuthorization.Recipient memory restriction = ClaimAuthorization.Recipient(0, 0);
         bytes32 root = escrow.invitationLeaf(0, keccak256(abi.encodePacked(SECRET)), restriction);
+
         vm.prank(alice);
         escrow.createCampaign(ID, root, 2, policy);
         bytes32 claimId = escrow.campaignClaimId(ID, 0);
@@ -119,6 +129,7 @@ contract SponsorshipTest is TestBase {
         escrow.reserveCampaignClaim(
             ID, 0, restriction, SECRET, new bytes32[](0), i, signature(escrow, i), "", ""
         );
+
         vm.prank(alice);
         escrow.refundCampaign(ID);
         require(token.balanceOf(address(escrow)) == 100);
@@ -131,12 +142,14 @@ contract SponsorshipTest is TestBase {
         create();
         ClaimAuthorization.Intent memory i = intent(ID);
         bytes memory sig = signature(escrow, i);
+
         vm.expectRevert();
         escrow.reserveGift(i, SECRET, sig, "", "");
     }
 
     function testCoordinatorRotationIsDelayed() public {
         escrow.proposeCoordinator(bob);
+
         vm.expectRevert();
         escrow.activateCoordinator();
         vm.warp(block.timestamp + 1 days);

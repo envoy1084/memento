@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.30;
+
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {IERC1155Receiver} from "@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol";
 import {
@@ -12,10 +13,15 @@ import {ClaimAuthorization} from "../src/ClaimAuthorization.sol";
 
 interface Vm {
     function addr(uint256 key) external returns (address);
+
     function sign(uint256 key, bytes32 digest) external returns (uint8, bytes32, bytes32);
+
     function prank(address sender) external;
+
     function warp(uint256 time) external;
+
     function expectRevert() external;
+
     function expectRevert(bytes4 selector) external;
 }
 
@@ -90,6 +96,7 @@ contract Registry is IEnsRegistry {
     ) external {
         require(msg.sender == from && owners[id] == from && amount == 1);
         owners[id] = to;
+
         if (to.code.length > 0) {
             require(
                 IERC1155Receiver(to).onERC1155Received(msg.sender, from, id, amount, data)
@@ -109,7 +116,9 @@ contract Resolver is IPermissionedResolver {
         controller = grants[0].account;
         require(calls.length >= 1);
     }
+
     function setAddress(bytes calldata, uint256, bytes calldata) external pure {}
+
     function setText(bytes calldata, string calldata, string calldata) external pure {}
 }
 
@@ -124,11 +133,13 @@ contract ResolverFactory is IVerifiableFactory {
         require(implementation_ == implementation);
         (bool success,) = address(next).call(initData);
         require(success);
+
         return address(next);
     }
 
     function verifyContract(address proxy) external view returns (address) {
         require(proxy == address(next));
+
         return implementation;
     }
 }
@@ -146,6 +157,7 @@ abstract contract TestBase {
         returns (bytes memory)
     {
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(BOB_KEY, contract_.intentDigest(intent));
+
         return abi.encodePacked(r, s, v);
     }
 }

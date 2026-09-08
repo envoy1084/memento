@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.30;
+
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IEnsRegistry, IHcaFactory, IVerifiableFactory} from "../src/interfaces/IEnsV2.sol";
 import {MementoSponsorship} from "../src/MementoSponsorship.sol";
@@ -7,7 +8,9 @@ import {MementoNameVault} from "../src/MementoNameVault.sol";
 
 interface DeployVm {
     function envAddress(string calldata name) external returns (address);
+
     function startBroadcast() external;
+
     function stopBroadcast() external;
 }
 
@@ -24,9 +27,11 @@ contract Deploy {
         IVerifiableFactory factory = IVerifiableFactory(VM.envAddress("VERIFIABLE_FACTORY"));
         IERC20 token = IERC20(VM.envAddress("PAYMENT_TOKEN"));
         address resolver = VM.envAddress("PERMISSIONED_RESOLVER_IMPLEMENTATION");
+
         VM.startBroadcast();
         sponsorship = new MementoSponsorship(token, hcaFactory, registry, admin, coordinator);
         vault = new MementoNameVault(registry, factory, resolver, admin, coordinator);
+
         VM.stopBroadcast();
     }
 }

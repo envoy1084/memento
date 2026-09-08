@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.30;
+
 import {MementoNameVault} from "../src/MementoNameVault.sol";
 import {ClaimAuthorization} from "../src/ClaimAuthorization.sol";
 import {Registry, ResolverFactory, TestBase} from "./Fixtures.sol";
@@ -21,6 +22,7 @@ contract NameVaultTest is TestBase {
         registry.mint(labelhash, alice);
         expiry = uint64(block.timestamp + 1 days);
         MementoNameVault.TextRecord[] memory records = new MementoNameVault.TextRecord[](0);
+
         vm.prank(alice);
         vault.prepareGift(
             ID,
@@ -37,13 +39,16 @@ contract NameVaultTest is TestBase {
 
     function testRejectsHiddenRegistryDelegates() public {
         registry.delegate(true);
+
         vm.expectRevert();
         vm.prank(alice);
+
         registry.safeTransferFrom(alice, address(vault), uint256(labelhash), 1, abi.encode(ID));
     }
 
     function deposit() internal {
         vm.prank(alice);
+
         registry.safeTransferFrom(alice, address(vault), uint256(labelhash), 1, abi.encode(ID));
     }
 
@@ -61,6 +66,7 @@ contract NameVaultTest is TestBase {
     function testRejectUnsolicitedDeposits() public {
         vm.prank(alice);
         vm.expectRevert();
+
         registry.safeTransferFrom(
             alice, address(vault), uint256(labelhash), 1, abi.encode(bytes32(uint256(2)))
         );
@@ -68,6 +74,7 @@ contract NameVaultTest is TestBase {
 
     function testRecoveryOnlyAfterExpiryAndOnlyToSponsor() public {
         deposit();
+
         vm.expectRevert();
         vault.recoverExpired(ID);
         vm.warp(uint256(expiry) + 1);
@@ -83,6 +90,7 @@ contract NameVaultTest is TestBase {
         MementoNameVault.TextRecord[] memory records = new MementoNameVault.TextRecord[](1);
         records[0] = MementoNameVault.TextRecord("url", "changed");
         bytes memory sig = signature(vault, i);
+
         vm.expectRevert();
         vault.claimName(i, SECRET, "bob", records, sig, "", "");
     }
