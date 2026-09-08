@@ -2,46 +2,66 @@ import { useState } from "react";
 
 import { useNavigate } from "@tanstack/react-router";
 
-import { Button, Card, Form } from "@thenamespace/uikit";
+import { Button, Card, Form, Separator } from "@thenamespace/uikit";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 
-import { Field, SelectField, Toggle } from "#/components/fields";
+import { Field, NumberInput, SelectField, Toggle } from "#/components/fields";
 import { Icon } from "#/components/icon";
-import { Back, PageTitle, Steps, SummaryRow } from "#/components/page";
+import {
+  Back,
+  DetailList,
+  DetailRow,
+  Eyebrow,
+  Note,
+  PageHeader,
+  Section,
+  Steps,
+} from "#/components/page";
 import { useDemo } from "#/hooks/use-demo";
+
 export function CampaignWizard() {
   const [, setState] = useDemo();
   const navigate = useNavigate();
+  const reduced = useReducedMotion();
+
   const [step, setStep] = useState(0);
   const [name, setName] = useState("");
   const [description, setDescription] = useState(
-    "A little welcome to our corner of the internet. Your first name is on us.",
+    "A welcome to our corner of the internet. Your first name is on us.",
   );
-  const [quantity, setQuantity] = useState("100");
-  const [budget, setBudget] = useState("20");
-  const [years, setYears] = useState("1");
-  const [minLength, setMinLength] = useState("5");
-  const [maxLength, setMaxLength] = useState("20");
+  const [quantity, setQuantity] = useState(100);
+  const [budget, setBudget] = useState(20);
+  const [years, setYears] = useState(1);
+  const [minLength, setMinLength] = useState(5);
+  const [maxLength, setMaxLength] = useState(20);
   const [worldId, setWorldId] = useState(true);
   const [error, setError] = useState("");
-  const total = Number(quantity) * Number(budget);
+
+  const total = quantity * budget;
+
   const submit = () => {
-    if (
-      !name.trim() ||
-      !Number.isInteger(Number(quantity)) ||
-      Number(quantity) < 1 ||
-      Number(quantity) > 500 ||
-      !Number.isFinite(Number(budget)) ||
-      Number(budget) < 5 * Number(years) ||
-      Number(budget) > 1000 ||
-      !Number.isInteger(Number(minLength)) ||
-      !Number.isInteger(Number(maxLength)) ||
-      Number(minLength) < 3 ||
-      Number(maxLength) > 63 ||
-      Number(minLength) > Number(maxLength)
-    ) {
+    if (!name.trim()) {
+      setError("Give the campaign a name so members recognise it.");
+      return;
+    }
+    if (!Number.isInteger(quantity) || quantity < 1 || quantity > 500) {
+      setError("Choose between 1 and 500 invitations.");
+      return;
+    }
+    if (!Number.isFinite(budget) || budget < 5 * years || budget > 1000) {
       setError(
-        "Add a name, 1–500 invitations, a budget covering at least $5 per year, and a length range of 3–63 characters.",
+        `A budget of at least $${5 * years} covers ${years} year${years > 1 ? "s" : ""} per person. The maximum in this preview is $1,000.`,
       );
+      return;
+    }
+    if (
+      !Number.isInteger(minLength) ||
+      !Number.isInteger(maxLength) ||
+      minLength < 3 ||
+      maxLength > 63 ||
+      minLength > maxLength
+    ) {
+      setError("Name length must be a range between 3 and 63 characters.");
       return;
     }
     if (step === 0) {
@@ -58,11 +78,11 @@ export function CampaignWizard() {
           id,
           name: name.trim(),
           description,
-          quantity: Number(quantity),
-          budget: Number(budget),
-          years: Number(years),
-          minLength: Number(minLength),
-          maxLength: Number(maxLength),
+          quantity,
+          budget,
+          years,
+          minLength,
+          maxLength,
           worldId,
           claimed: 0,
           paused: false,
@@ -74,166 +94,208 @@ export function CampaignWizard() {
     }));
     void navigate({ to: "/campaigns/$campaignId", params: { campaignId: id } });
   };
+
   return (
-    <div className="mx-auto w-[calc(100%-40px)] max-w-[1100px] py-10 md:w-[calc(100%-96px)]">
-      <Back to="/campaigns" />
-      <PageTitle
-        eyebrow="A WELCOME THEY CAN KEEP"
-        title={step ? "Every name starts with you." : "Let’s bring your people in."}
-        description="A shared beginning, with a little space for everyone to be themselves."
+    <Section width="form" className="py-10 md:py-14">
+      <Back to="/campaigns" label="Campaigns" />
+      <PageHeader
+        eyebrow="New campaign"
+        title={step ? "Ready to welcome them?" : "Bring your people in."}
+        description={
+          step
+            ? "Check the details. Creating this makes a local preview campaign — no funds move."
+            : "Set the budget and the rules once. Everyone you invite picks their own name."
+        }
       />
-      <div className="mt-10 grid gap-8 lg:grid-cols-[1.2fr_1fr]">
-        <div>
-          <Steps labels={["Your community", "Review & create"]} step={step} />
-          <Card className="rounded-3xl border border-separator p-6 shadow-none md:p-8">
-            <Form
-              onSubmit={(event) => {
-                event.preventDefault();
-                submit();
-              }}
-              className="w-full space-y-5"
-            >
-              {step === 0 ? (
-                <>
-                  <Field
-                    label="Community name"
-                    value={name}
-                    onChange={setName}
-                    required
-                    maxLength={80}
-                    placeholder="The Builders Club"
-                  />
-                  <Field
-                    label="Your welcome note"
-                    value={description}
-                    onChange={setDescription}
-                    multiline
-                    maxLength={240}
-                  />
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <Field
-                      label="Number of invitations"
-                      type="number"
-                      min={1}
-                      max={500}
-                      required
-                      value={quantity}
-                      onChange={setQuantity}
-                    />
-                    <Field
-                      label="Budget per person (USD)"
-                      type="number"
-                      min={5}
-                      max={1000}
-                      required
-                      value={budget}
-                      onChange={setBudget}
-                    />
-                  </div>
-                  <SelectField
-                    label="Registration length"
-                    value={years}
-                    onChange={setYears}
-                    options={[1, 2, 3].map((n) => ({
-                      value: String(n),
-                      label: `${n} year${n > 1 ? "s" : ""}`,
-                    }))}
-                  />
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <Field
-                      label="Minimum characters"
-                      type="number"
-                      min={3}
-                      max={63}
-                      required
-                      value={minLength}
-                      onChange={setMinLength}
-                    />
-                    <Field
-                      label="Maximum characters"
-                      type="number"
-                      min={3}
-                      max={63}
-                      required
-                      value={maxLength}
-                      onChange={setMaxLength}
-                    />
-                  </div>
-                  <div className="border-t border-separator pt-5">
-                    <Toggle
-                      label="One person, one gift"
-                      selected={worldId}
-                      onChange={setWorldId}
-                      description="Ask for World ID before claiming. A fair beginning for your community."
-                    />
-                  </div>
-                </>
-              ) : (
-                <>
-                  <h3>A little welcome, ready to go.</h3>
-                  <SummaryRow label="Community">{name}</SummaryRow>
-                  <SummaryRow label="Invitations">{quantity}</SummaryRow>
-                  <SummaryRow label="Per person">${budget}</SummaryRow>
-                  <SummaryRow label="Name length">
-                    {minLength}–{maxLength} characters
-                  </SummaryRow>
-                  <SummaryRow label="Registration">{years} year</SummaryRow>
-                  <SummaryRow label="World ID">{worldId ? "Required" : "Not required"}</SummaryRow>
-                  <SummaryRow label="Total budget">${total.toLocaleString()}</SummaryRow>
-                  <div className="flex gap-3 rounded-xl bg-surface-secondary p-4 text-xs text-muted">
-                    <Icon name="shield" />
-                    <p>
-                      This creates a local campaign preview. No funds will move and no invitations
-                      will be sent.
-                    </p>
-                  </div>
-                </>
-              )}
-              {error ? (
-                <p role="alert" className="text-sm text-danger">
-                  {error}
-                </p>
-              ) : null}
-              <div className="flex justify-between border-t border-separator pt-5">
-                {step ? (
-                  <Button variant="ghost" onPress={() => setStep(0)}>
-                    Back
-                  </Button>
-                ) : null}
-                <Button type="submit" className="ml-auto">
-                  {step ? "Create preview campaign" : "Review your welcome"}
-                  <Icon name="arrow" size={17} />
+
+      <div className="mt-10 grid items-start gap-10 lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-14">
+        <div className="order-2 min-w-0 lg:order-1">
+          <Steps labels={["Your community", "Review"]} step={step} />
+          <Form
+            className="w-full"
+            onSubmit={(event) => {
+              event.preventDefault();
+              submit();
+            }}
+          >
+            <Card className="w-full rounded-3xl border border-rule p-6 shadow-none md:p-8">
+              <AnimatePresence mode="wait" initial={false}>
+                <motion.div
+                  key={step}
+                  className="w-full space-y-6"
+                  initial={reduced ? false : { opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  {...(reduced ? {} : { exit: { opacity: 0, y: -6 } })}
+                  transition={{ duration: 0.18, ease: [0.23, 1, 0.32, 1] }}
+                >
+                  {step === 0 ? (
+                    <>
+                      <Field
+                        label="Community name"
+                        value={name}
+                        onChange={setName}
+                        required
+                        maxLength={80}
+                        placeholder="The Builders Club"
+                        description="Shown to everyone who opens an invitation."
+                      />
+                      <Field
+                        label="Your welcome note"
+                        value={description}
+                        onChange={setDescription}
+                        multiline
+                        rows={3}
+                        maxLength={240}
+                      />
+                      <Separator />
+                      <div className="grid gap-5 sm:grid-cols-2">
+                        <NumberInput
+                          label="Invitations"
+                          value={quantity}
+                          onChange={setQuantity}
+                          min={1}
+                          max={500}
+                          step={10}
+                          required
+                          description="Up to 500 per campaign."
+                        />
+                        <NumberInput
+                          label="Budget per person"
+                          value={budget}
+                          onChange={setBudget}
+                          min={5}
+                          max={1000}
+                          step={5}
+                          required
+                          format={{
+                            style: "currency",
+                            currency: "USD",
+                            maximumFractionDigits: 0,
+                          }}
+                        />
+                      </div>
+                      <SelectField
+                        label="Registration length"
+                        value={String(years)}
+                        onChange={(value) => setYears(Number(value))}
+                        options={[1, 2, 3].map((n) => ({
+                          value: String(n),
+                          label: `${n} year${n > 1 ? "s" : ""}`,
+                        }))}
+                      />
+                      <fieldset className="m-0 border-0 p-0">
+                        <legend className="mb-1 text-sm font-medium">Name length</legend>
+                        <p className="mt-0 mb-3 text-[13px] text-ink-soft">
+                          Keeps each person’s choice inside the budget you set.
+                        </p>
+                        <div className="grid gap-5 sm:grid-cols-2">
+                          <NumberInput
+                            label="Shortest"
+                            value={minLength}
+                            onChange={setMinLength}
+                            min={3}
+                            max={63}
+                            required
+                          />
+                          <NumberInput
+                            label="Longest"
+                            value={maxLength}
+                            onChange={setMaxLength}
+                            min={3}
+                            max={63}
+                            required
+                          />
+                        </div>
+                      </fieldset>
+                      <div className="border-t border-rule pt-6">
+                        <Toggle
+                          label="One person, one name"
+                          selected={worldId}
+                          onChange={setWorldId}
+                          description="Ask for World ID before claiming, so the names reach more people."
+                        />
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <DetailList>
+                        <DetailRow label="Community">{name || "Untitled"}</DetailRow>
+                        <DetailRow label="Invitations">{quantity}</DetailRow>
+                        <DetailRow label="Budget per person">${budget}</DetailRow>
+                        <DetailRow label="Registration">
+                          {years} year{years > 1 ? "s" : ""}
+                        </DetailRow>
+                        <DetailRow label="Name length">
+                          {minLength}–{maxLength} characters
+                        </DetailRow>
+                        <DetailRow label="World ID">
+                          {worldId ? "Required" : "Not required"}
+                        </DetailRow>
+                        <DetailRow label="Total budget">${total.toLocaleString()}</DetailRow>
+                      </DetailList>
+                      <Note title="This is a preview">
+                        No funds move and no invitations are sent. You’ll create and share
+                        invitation links yourself from the campaign page.
+                      </Note>
+                    </>
+                  )}
+
+                  {error ? (
+                    <div role="alert">
+                      <Note status="danger">{error}</Note>
+                    </div>
+                  ) : null}
+                </motion.div>
+              </AnimatePresence>
+
+              <div className="mt-7 flex items-center justify-between gap-4 border-t border-rule pt-6">
+                <Button
+                  variant="ghost"
+                  className={step ? "" : "invisible"}
+                  onPress={() => {
+                    setStep(0);
+                    setError("");
+                  }}
+                >
+                  <Icon name="back" size={16} />
+                  Back
+                </Button>
+                <Button type="submit" size="lg">
+                  {step ? "Create campaign" : "Review"}
+                  <Icon name="arrow" size={18} />
                 </Button>
               </div>
-            </Form>
-          </Card>
+            </Card>
+          </Form>
         </div>
-        <aside className="space-y-6 lg:pt-16">
-          <Card className="rounded-3xl border border-[#e9dfee] bg-[#f4edf9] p-8 shadow-none">
-            <span className="mb-10 inline-flex size-16 items-center justify-center rounded-3xl bg-white/70 font-serif text-3xl text-[#a180b7] italic">
-              {name.trim().charAt(0) || "m"}
+
+        <aside className="order-1 min-w-0 lg:order-2 lg:sticky lg:top-28">
+          <Eyebrow className="mb-4">What members see</Eyebrow>
+          <Card
+            variant="transparent"
+            className="rounded-[28px] border border-lavender-100 bg-linear-140 from-lavender-50 to-blush-50 p-7 shadow-none"
+          >
+            <span className="mb-8 grid size-14 place-content-center rounded-2xl bg-white/80 font-display text-2xl font-semibold text-lavender-600">
+              {name.trim().charAt(0).toUpperCase() || "M"}
             </span>
-            <span className="text-[10px] tracking-widest text-[#9a82ab] uppercase">
-              YOUR COMMUNITY’S NEXT CHAPTER
-            </span>
-            <h2 className="mt-4 text-3xl">{name || "Something good starts here."}</h2>
-            <p className="my-6 text-sm text-muted">{description}</p>
-            <div className="flex items-baseline gap-2 border-t border-[#e3d5ed] pt-5">
-              <span className="font-display text-4xl tracking-tight">{quantity || "0"}</span>
-              <span className="text-xs text-muted">new beginnings</span>
+            <Eyebrow>You’re invited</Eyebrow>
+            <h2 className="mt-3 text-display-md">{name || "Your community"}</h2>
+            <p className="mt-4 mb-0 text-[14px] leading-relaxed text-ink-soft">{description}</p>
+            <Separator className="my-6" />
+            <div className="flex items-baseline gap-2">
+              <span className="font-display text-4xl font-semibold tracking-[-0.04em] tabular-nums">
+                {quantity || 0}
+              </span>
+              <span className="text-[13px] text-ink-soft">names to give away</span>
             </div>
           </Card>
-          <div className="px-5">
-            <SummaryRow label="Your total gift budget">
-              ${Number.isFinite(total) ? total.toLocaleString() : "0"}
-            </SummaryRow>
-            <p className="mt-4 text-xs text-muted">
-              You can create private invitations, track claims, and pause your campaign from its
-              overview.
-            </p>
-          </div>
+          <p className="mt-4 text-xs leading-relaxed text-ink-soft">
+            Total budget{" "}
+            <span className="font-medium text-ink tabular-nums">${total.toLocaleString()}</span>.
+            You can pause or close the campaign at any time.
+          </p>
         </aside>
       </div>
-    </div>
+    </Section>
   );
 }
