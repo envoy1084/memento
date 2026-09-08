@@ -15,10 +15,8 @@ import {
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 
 import { claimCampaign, claimGift, nameAvailability } from "#/atoms/demo";
-import { NameMark } from "#/components/brand";
-import { Field } from "#/components/fields";
-import { GiftArt } from "#/components/gift-art";
-import { Icon } from "#/components/icon";
+import { Field } from "#/components/common/fields";
+import { Icon } from "#/components/common/icon";
 import {
   ButtonLink,
   CopyButton,
@@ -28,10 +26,11 @@ import {
   Eyebrow,
   Note,
   Section,
-} from "#/components/page";
+} from "#/components/common/page";
+import { NameMark } from "#/components/display/brand";
+import { GiftArt } from "#/components/display/gift-art";
+import { ClaimProgress } from "#/features/claim/claim-progress";
 import { useDemo } from "#/hooks/use-demo";
-
-import { ClaimProgress } from "./claim-progress";
 
 type Stage = "sealed" | "choose" | "wallet" | "verify" | "review" | "claiming" | "complete";
 

@@ -7,10 +7,10 @@ import { Button, Chip, Separator, Toast } from "@thenamespace/uikit";
 import { MotionConfig } from "motion/react";
 
 import { storageNoticeAtom } from "#/atoms/demo";
-import { Wordmark } from "#/components/brand";
-import { Icon } from "#/components/icon";
-import { ButtonLink, EmptyPanel, Note, Section } from "#/components/page";
-import { SiteHeader } from "#/components/site-header";
+import { Icon } from "#/components/common/icon";
+import { ButtonLink, EmptyPanel, Note, Section } from "#/components/common/page";
+import { SiteHeader } from "#/components/common/site-header";
+import { Wordmark } from "#/components/display/brand";
 
 export const Route = createRootRouteWithContext<{
   atomRegistry: AtomRegistry.AtomRegistry;

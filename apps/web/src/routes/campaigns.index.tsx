@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 
 import { Card, Meter, Separator } from "@thenamespace/uikit";
 
-import { Icon } from "#/components/icon";
+import { Icon } from "#/components/common/icon";
 import {
   ButtonLink,
   EmptyPanel,
@@ -12,7 +12,7 @@ import {
   RuleHeading,
   Section,
   StatusChip,
-} from "#/components/page";
+} from "#/components/common/page";
 import { useDemo } from "#/hooks/use-demo";
 
 export const Route = createFileRoute("/campaigns/")({ component: Campaigns });

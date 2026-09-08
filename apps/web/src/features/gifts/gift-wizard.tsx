@@ -6,10 +6,8 @@ import { Button, Card, Description, Form, Label, RadioButtonGroup } from "@thena
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 
 import type { Gift } from "#/atoms/demo";
-import { NameMark } from "#/components/brand";
-import { Field, NumberInput, SelectField } from "#/components/fields";
-import { GiftArt } from "#/components/gift-art";
-import { Icon } from "#/components/icon";
+import { Field, NumberInput, SelectField } from "#/components/common/fields";
+import { Icon } from "#/components/common/icon";
 import {
   Back,
   DetailList,
@@ -19,10 +17,11 @@ import {
   PageHeader,
   Section,
   Steps,
-} from "#/components/page";
+} from "#/components/common/page";
+import { ThemePicker, type GiftTheme } from "#/components/common/theme-picker";
+import { NameMark } from "#/components/display/brand";
+import { GiftArt } from "#/components/display/gift-art";
 import { useDemo } from "#/hooks/use-demo";
-
-import { ThemePicker, type GiftTheme } from "./theme-picker";
 
 const stepCopy = [
   {

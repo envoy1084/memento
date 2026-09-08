@@ -15,8 +15,8 @@ import {
   toast,
 } from "@thenamespace/uikit";
 
-import { Field } from "#/components/fields";
-import { Icon } from "#/components/icon";
+import { Field } from "#/components/common/fields";
+import { Icon } from "#/components/common/icon";
 import {
   Back,
   ButtonLink,
@@ -29,7 +29,7 @@ import {
   PageHeader,
   Section,
   StatusChip,
-} from "#/components/page";
+} from "#/components/common/page";
 import { useDemo } from "#/hooks/use-demo";
 
 export const Route = createFileRoute("/campaigns/$campaignId")({ component: CampaignDetail });

@@ -2,9 +2,9 @@ import { useEffect, useRef, useState } from "react";
 
 import { Button, ProgressBar, Spinner, Timeline } from "@thenamespace/uikit";
 
-import { NameMark } from "#/components/brand";
-import { Icon } from "#/components/icon";
-import { Eyebrow } from "#/components/page";
+import { Icon } from "#/components/common/icon";
+import { Eyebrow } from "#/components/common/page";
+import { NameMark } from "#/components/display/brand";
 
 const stages = [
   { title: "Reserving the name", body: "Making sure nobody else can take it while you finish." },

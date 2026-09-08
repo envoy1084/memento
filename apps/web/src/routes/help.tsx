@@ -2,8 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 
 import { Accordion, Card, Separator } from "@thenamespace/uikit";
 
-import { Icon, type IconName } from "#/components/icon";
-import { ButtonLink, Note, PageHeader, RuleHeading, Section } from "#/components/page";
+import { Icon, type IconName } from "#/components/common/icon";
+import { ButtonLink, Note, PageHeader, RuleHeading, Section } from "#/components/common/page";
 
 export const Route = createFileRoute("/help")({ component: Help });
 

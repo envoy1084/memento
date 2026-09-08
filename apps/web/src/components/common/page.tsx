@@ -5,7 +5,7 @@ import { createLink, useCanGoBack, useNavigate, useRouter } from "@tanstack/reac
 import { Alert, Button, Chip, cn, EmptyState, Stepper, toast } from "@thenamespace/uikit";
 import { motion, useReducedMotion } from "motion/react";
 
-import { Icon, type IconName } from "#/components/icon";
+import { Icon, type IconName } from "#/components/common/icon";
 
 const widths = {
   page: "max-w-[1180px]",

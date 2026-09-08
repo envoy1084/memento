@@ -4,10 +4,17 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 
 import { Card, SearchField, Segment, Separator } from "@thenamespace/uikit";
 
-import { NameMark } from "#/components/brand";
-import { GiftArt } from "#/components/gift-art";
-import { Icon } from "#/components/icon";
-import { ButtonLink, EmptyPanel, PageHeader, Reveal, Section, StatusChip } from "#/components/page";
+import { Icon } from "#/components/common/icon";
+import {
+  ButtonLink,
+  EmptyPanel,
+  PageHeader,
+  Reveal,
+  Section,
+  StatusChip,
+} from "#/components/common/page";
+import { NameMark } from "#/components/display/brand";
+import { GiftArt } from "#/components/display/gift-art";
 import { useDemo } from "#/hooks/use-demo";
 
 export const Route = createFileRoute("/gifts/")({ component: Gifts });

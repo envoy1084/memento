@@ -4,10 +4,10 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 
 import { Avatar, Card, Chip, Separator, Timeline } from "@thenamespace/uikit";
 
-import { NameMark } from "#/components/brand";
-import { GiftArt } from "#/components/gift-art";
-import { Icon, type IconName } from "#/components/icon";
-import { ButtonLink, Eyebrow, Reveal, RuleHeading, Section } from "#/components/page";
+import { Icon, type IconName } from "#/components/common/icon";
+import { ButtonLink, Eyebrow, Reveal, RuleHeading, Section } from "#/components/common/page";
+import { NameMark } from "#/components/display/brand";
+import { GiftArt } from "#/components/display/gift-art";
 
 export const Route = createFileRoute("/")({ component: Home });
 

@@ -2,6 +2,8 @@
 
 `apps/web` is a separate Vite SPA following Namera’s source-condition and package-boundary conventions. It uses React 19, TanStack file routes, a router-owned Effect Atom registry shared with React, Namespace UIKit controls, and Tailwind v4 utilities. Only semantic theme tokens and global Tailwind base/component applications live in CSS. Fonts are bundled locally. Paper’s shader is lazy-loaded; the gift illustration remains legible without WebGL and with reduced motion.
 
+Shared controls and page compositions live in `components/common/`; brand marks and keepsake artwork live in `components/display/`. UIKit owns control semantics, while Tailwind theme ramps and utilities preserve the Aura presentation. Wrapping types derive from the protocol preview model.
+
 ## Implemented journeys
 
 - `/`: Aura discovery and entry points for all three gift cases.

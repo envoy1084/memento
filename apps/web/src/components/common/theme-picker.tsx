@@ -1,6 +1,7 @@
+import type { PreviewGift } from "@memento/protocol";
 import { Description, Label, RadioButtonGroup } from "@thenamespace/uikit";
 
-export type GiftTheme = "aura" | "rose" | "mint";
+export type GiftTheme = PreviewGift["theme"];
 
 const wrappings: { id: GiftTheme; label: string; hint: string; swatch: string }[] = [
   {

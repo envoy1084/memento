@@ -4,9 +4,9 @@ import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 
 import { Navbar } from "@thenamespace/uikit";
 
-import { Wordmark } from "#/components/brand";
-import { ConnectDialog } from "#/components/connect-dialog";
-import { Icon } from "#/components/icon";
+import { ConnectDialog } from "#/components/common/connect-dialog";
+import { Icon } from "#/components/common/icon";
+import { Wordmark } from "#/components/display/brand";
 
 const links = [
   { to: "/", label: "Discover", exact: true },

@@ -10,9 +10,7 @@ import {
   toast,
 } from "@thenamespace/uikit";
 
-import { NameMark } from "#/components/brand";
-import { GiftArt } from "#/components/gift-art";
-import { Icon } from "#/components/icon";
+import { Icon } from "#/components/common/icon";
 import {
   Back,
   ButtonLink,
@@ -25,7 +23,9 @@ import {
   PageHeader,
   Section,
   StatusChip,
-} from "#/components/page";
+} from "#/components/common/page";
+import { NameMark } from "#/components/display/brand";
+import { GiftArt } from "#/components/display/gift-art";
 import { useDemo } from "#/hooks/use-demo";
 
 export const Route = createFileRoute("/gifts/$giftId")({

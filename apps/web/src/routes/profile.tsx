@@ -5,9 +5,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import type { PreviewProfile } from "@memento/protocol";
 import { Button, Card, Form, Separator, toast } from "@thenamespace/uikit";
 
-import { NameMark, ShellMark } from "#/components/brand";
-import { Field, SelectField, Toggle } from "#/components/fields";
-import { Icon } from "#/components/icon";
+import { Field, SelectField, Toggle } from "#/components/common/fields";
+import { Icon } from "#/components/common/icon";
 import {
   ButtonLink,
   CopyButton,
@@ -18,8 +17,9 @@ import {
   Note,
   PageHeader,
   Section,
-} from "#/components/page";
-import { ThemePicker, type GiftTheme } from "#/features/gifts/theme-picker";
+} from "#/components/common/page";
+import { ThemePicker, type GiftTheme } from "#/components/common/theme-picker";
+import { NameMark, ShellMark } from "#/components/display/brand";
 import { useDemo } from "#/hooks/use-demo";
 
 export const Route = createFileRoute("/profile")({ component: ProfilePage });

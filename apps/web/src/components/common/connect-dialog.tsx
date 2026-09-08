@@ -2,10 +2,10 @@ import { useState } from "react";
 
 import { Button, Form, Modal, Separator, toast } from "@thenamespace/uikit";
 
-import { ShellMark } from "#/components/brand";
-import { Field } from "#/components/fields";
-import { Icon } from "#/components/icon";
-import { Note } from "#/components/page";
+import { Field } from "#/components/common/fields";
+import { Icon } from "#/components/common/icon";
+import { Note } from "#/components/common/page";
+import { ShellMark } from "#/components/display/brand";
 import { useDemo } from "#/hooks/use-demo";
 
 export function ConnectDialog() {

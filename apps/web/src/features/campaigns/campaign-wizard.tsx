@@ -5,8 +5,8 @@ import { useNavigate } from "@tanstack/react-router";
 import { Button, Card, Form, Separator } from "@thenamespace/uikit";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 
-import { Field, NumberInput, SelectField, Toggle } from "#/components/fields";
-import { Icon } from "#/components/icon";
+import { Field, NumberInput, SelectField, Toggle } from "#/components/common/fields";
+import { Icon } from "#/components/common/icon";
 import {
   Back,
   DetailList,
@@ -16,7 +16,7 @@ import {
   PageHeader,
   Section,
   Steps,
-} from "#/components/page";
+} from "#/components/common/page";
 import { useDemo } from "#/hooks/use-demo";
 
 export function CampaignWizard() {

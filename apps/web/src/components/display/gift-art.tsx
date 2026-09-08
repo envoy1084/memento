@@ -1,5 +1,6 @@
 import { lazy, Suspense, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 
+import type { PreviewGift } from "@memento/protocol";
 import { cn, useMediaQuery } from "@thenamespace/uikit";
 import {
   motion,
@@ -10,11 +11,11 @@ import {
   useTransform,
 } from "motion/react";
 
-import { NameMark, ShellMark } from "#/components/brand";
+import { NameMark, ShellMark } from "#/components/display/brand";
 
-const AuraShader = lazy(() => import("#/components/aura-shader"));
+const AuraShader = lazy(() => import("#/components/display/aura-shader"));
 
-export type Wrapping = "aura" | "rose" | "mint";
+export type Wrapping = PreviewGift["theme"];
 
 /** Wrapping papers. Tints resolve to brand ramp tokens, never raw hex. */
 const wraps: Record<Wrapping, string> = {
