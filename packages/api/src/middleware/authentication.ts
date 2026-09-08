@@ -9,7 +9,7 @@ export class CurrentActor extends Context.Service<CurrentActor, Actor>()(
 
 export class Authentication extends HttpApiMiddleware.Service<
   Authentication,
-  { provides: CurrentActor }
+  { provides: CurrentActor; clientError: Unauthorized }
 >()("@memento/api/Authentication", {
   requiredForClient: true,
   security: { bearer: HttpApiSecurity.bearer },

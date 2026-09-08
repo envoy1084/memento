@@ -36,6 +36,10 @@ export const AuthenticationLive = Layer.effect(
   }),
 );
 
+const Session = HttpApiBuilder.group(Api, "session", (handlers) =>
+  handlers.handle("current", () => CurrentActor),
+);
+
 const Gifts = HttpApiBuilder.group(
   Api,
   "gifts",
@@ -256,11 +260,11 @@ const Health = HttpApiBuilder.group(
   }),
 );
 
-export const ApiHandlers = Layer.mergeAll(Gifts, Claims, Public, Health).pipe(
+export const ApiHandlers = Layer.mergeAll(Session, Gifts, Claims, Public, Health).pipe(
   Layer.provideMerge(AuthenticationLive),
 );
 
 export const ApiRoutes = HttpApiBuilder.layer(Api, { openapiPath: "/openapi.json" }).pipe(
-  Layer.provide([Gifts, Claims, Public, Health]),
+  Layer.provide([Session, Gifts, Claims, Public, Health]),
   Layer.provide(AuthenticationLive),
 );

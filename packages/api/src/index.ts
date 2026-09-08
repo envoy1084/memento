@@ -8,6 +8,7 @@ import {
 } from "effect/unstable/httpapi";
 
 import {
+  Actor,
   CampaignView,
   CampaignDetail,
   CreateGift,
@@ -158,6 +159,11 @@ const Public = Group.make("public")
   .prefix("/v1");
 
 export class Api extends HttpApi.make("memento")
+  .add(
+    Group.make("session")
+      .add(Endpoint.get("current", "/v1/session", { success: Actor }))
+      .middleware(Authentication),
+  )
   .add(Gifts)
   .add(Claims)
   .add(Public)

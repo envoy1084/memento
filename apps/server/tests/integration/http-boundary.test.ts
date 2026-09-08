@@ -174,3 +174,40 @@ it("streams the authenticated claim status and confirms sponsor refunds", async 
     await web.dispose();
   }
 });
+
+it("returns only the verified actor and rejects missing or invalid session tokens", async () => {
+  const web = HttpRouter.toWebHandler(routes, { disableLogger: true });
+
+  try {
+    const denied = await Promise.all(
+      [undefined, "invalid"].map((token) => web.handler(request("/v1/session", token))),
+    );
+
+    for (const response of denied) {
+      expect(response.status).toBe(401);
+      expect(response.headers.get("cache-control")).toBe("no-store");
+    }
+
+    const response = await web.handler(request("/v1/session", "alice"));
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(await response.json()).toEqual(alice);
+
+    const preflight = await web.handler(
+      new Request("http://localhost/v1/session", {
+        method: "OPTIONS",
+        headers: {
+          origin,
+          "access-control-request-method": "GET",
+          "access-control-request-headers": "authorization",
+        },
+      }),
+    );
+
+    expect(preflight.headers.get("access-control-allow-origin")).toBe(origin);
+    expect(preflight.headers.get("access-control-allow-headers")).toContain("authorization");
+  } finally {
+    await web.dispose();
+  }
+});

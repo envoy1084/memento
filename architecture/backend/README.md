@@ -68,3 +68,7 @@ credential. Database uniqueness is scoped to a campaign or individual gift. The 
 configured globally, so this does not promise cross-campaign unlinkability from Memento.
 
 Provider credentials and compatible deployments still require live verification before a public demo.
+
+## Authentication session
+
+`GET /v1/session` runs the same Privy verification as protected workflows and returns the protocol Actor. Login alone writes no database records: Privy owns account/session persistence, and Memento persists domain activity when gifts or claims are created. Session responses are noncacheable. HTTP tests cover valid/missing/invalid credentials and authorization-header CORS preflight.
