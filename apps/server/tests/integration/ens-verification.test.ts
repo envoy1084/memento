@@ -25,6 +25,7 @@ import { makeOwnershipVerification } from "../../src/integrations/ens/verificati
 import { Providers, address, alice, bob, digest } from "../fixtures/providers.js";
 
 const contract = (digit: string): Hex => `0x${digit.repeat(40)}`;
+
 const config = EnsConfig.of({
   rpcUrl: Redacted.make("http://unused.test"),
   coordinatorKey: Redacted.make(generatePrivateKey()),
@@ -43,18 +44,23 @@ const config = EnsConfig.of({
   reverseAdapter: contract("d"),
   confirmations: 1,
 });
+
 const infrastructure = Layer.mergeAll(
   Providers,
   RepositoriesLive.pipe(Layer.provideMerge(TestDatabase.layer)),
 );
+
 const application = Application.layer.pipe(Layer.provideMerge(infrastructure));
+
 layer(application)("ENSv2 final ownership verification", (it) => {
   it.effect(
     "uses ENSIP-10 resolution and checks starter records and primary name before completion",
     () =>
       Effect.gen(function* () {
         yield* (yield* TestDatabase).reset;
+
         const app = yield* Application;
+
         const plan = yield* app.createGift(alice, {
           sponsorWallet: alice.wallets[0] ?? "",
           kind: "chosen_name",
@@ -73,18 +79,24 @@ layer(application)("ENSv2 final ownership verification", (it) => {
           records: [{ key: "url", value: "https://example.test" }],
           label: null,
         });
+
         const link = yield* app.confirmGift(alice, plan.id, digest);
+
         const prepared = yield* app.prepareClaim(bob, plan.id, {
           secret: new URL(link.url).hash.slice(1),
           recipientWallet: bob.wallets[0] ?? "",
           label: "bobbbb",
         });
+
         const gift = yield* (yield* GiftRepository).find(plan.id);
         const claim = yield* (yield* ClaimRepository).find(prepared.id);
+
         if (!gift || !claim) return yield* Effect.die("Missing test gift");
+
         let primary = "bobbbb.eth";
         let text = "https://example.test";
         let resolves = 0;
+
         const publicClient = createPublicClient({
           chain: sepolia,
           transport: http("http://unused.test", {
@@ -92,11 +104,15 @@ layer(application)("ENSv2 final ownership verification", (it) => {
               const rpc = JSON.parse(
                 input instanceof Request ? await input.text() : String(init?.body),
               ) as { id: number; method: string; params: [{ to: string; data: Hex }] };
+
               expect(rpc.method).toBe("eth_call");
+
               const call = rpc.params[0];
               let result: Hex;
+
               if (call.to.toLowerCase() === config.registry) {
                 const decoded = decodeFunctionData({ abi: registryAbi, data: call.data });
+
                 result =
                   decoded.functionName === "getOwner"
                     ? encodeFunctionResult({
@@ -129,7 +145,9 @@ layer(application)("ENSv2 final ownership verification", (it) => {
                 });
               } else {
                 expect(call.to).toBe(address);
+
                 const decoded = decodeFunctionData({ abi: resolverAbi, data: call.data });
+
                 if (decoded.functionName === "roles")
                   result = encodeFunctionResult({
                     abi: resolverAbi,
@@ -139,8 +157,11 @@ layer(application)("ENSv2 final ownership verification", (it) => {
                 else {
                   if (decoded.functionName !== "resolve")
                     throw new Error("Expected ENSIP-10 resolution");
+
                   resolves++;
+
                   const profile = decodeFunctionData({ abi: profileAbi, data: decoded.args[1] });
+
                   const value =
                     profile.functionName === "addr"
                       ? encodeFunctionResult({
@@ -153,6 +174,7 @@ layer(application)("ENSv2 final ownership verification", (it) => {
                           functionName: "text",
                           result: text,
                         });
+
                   result = encodeFunctionResult({
                     abi: resolverAbi,
                     functionName: "resolve",
@@ -160,14 +182,17 @@ layer(application)("ENSv2 final ownership verification", (it) => {
                   });
                 }
               }
+
               return Response.json({ jsonrpc: "2.0", id: rpc.id, result });
             },
           }),
         });
+
         const ethereum = Layer.effect(
           Ethereum,
           Ethereum.pipe(Effect.map((live) => ({ ...live, publicClient }))),
         ).pipe(Layer.provide(Ethereum.layer), Layer.provide(Layer.succeed(EnsConfig, config)));
+
         const dependencies = Layer.mergeAll(
           ethereum,
           Layer.succeed(EnsConfig, config),
@@ -175,9 +200,11 @@ layer(application)("ENSv2 final ownership verification", (it) => {
             accountFor: async () => {
               throw new Error("Unexpected account construction");
             },
+
             verify: () => Effect.succeed(0n),
           }),
         );
+
         const liveChain = yield* Chain.pipe(
           Effect.provide(
             ChainLive.pipe(
@@ -186,7 +213,9 @@ layer(application)("ENSv2 final ownership verification", (it) => {
             ),
           ),
         );
+
         const encodedIntent = JSON.stringify(liveChain.typedIntent(gift, prepared.intent));
+
         expect(JSON.parse(encodedIntent)).toMatchObject({
           message: {
             giftId: gift.id,
@@ -194,20 +223,26 @@ layer(application)("ENSv2 final ownership verification", (it) => {
             deadline: String(prepared.intent.deadline),
           },
         });
+
         const verify = makeOwnershipVerification.pipe(
           Effect.flatMap((checkOwnership) => checkOwnership(gift, claim)),
           Effect.provide(dependencies),
         );
+
         yield* verify;
         expect(resolves).toBe(2);
         primary = "wrong.eth";
+
         const wrongPrimary = yield* verify.pipe(Effect.flip);
+
         expect(wrongPrimary._tag === "Conflict" && wrongPrimary.code).toBe(
           "PRIMARY_NAME_NOT_CONFIRMED",
         );
         primary = "bobbbb.eth";
         text = "wrong";
+
         const wrongRecord = yield* verify.pipe(Effect.flip);
+
         expect(wrongRecord._tag === "Conflict" && wrongRecord.code).toBe("RECORDS_NOT_CONFIRMED");
       }),
   );

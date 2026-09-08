@@ -16,14 +16,18 @@ import { TestDatabase } from "@memento/database/testing";
 
 import { ApiHandlers } from "../../src/routes/api.js";
 import { Providers, TestProviders, alice, bob, carol, digest } from "../fixtures/providers.js";
+
 const dependencies = Layer.mergeAll(
   Providers,
   RepositoriesLive.pipe(Layer.provideMerge(TestDatabase.layer)),
 );
+
 const app = Layer.mergeAll(Application.layer, Worker.layer).pipe(Layer.provideMerge(dependencies));
+
 const testLayer = Layer.mergeAll(ApiHandlers, HttpServer.layerServices).pipe(
   Layer.provideMerge(app),
 );
+
 const client = (token: string) =>
   HttpApiTest.groups(Api, ["gifts", "claims", "public", "system"]).pipe(
     Effect.provide(
@@ -32,6 +36,7 @@ const client = (token: string) =>
       ),
     ),
   );
+
 const input = {
   sponsorWallet: alice.wallets[0] ?? "",
   kind: "chosen_name",
@@ -50,6 +55,7 @@ const input = {
   records: [],
   label: null,
 } as const;
+
 const create = Effect.gen(function* () {
   const sender = yield* client("alice");
   const plan = yield* sender.gifts.prepare({ payload: input });
@@ -57,18 +63,22 @@ const create = Effect.gen(function* () {
     params: { id: plan.id },
     payload: { transactionHash: digest },
   });
+
   return { id: plan.id, secret: new URL(link.url).hash.slice(1), sender };
 });
+
 layer(testLayer)("backend HTTP workflows with migrated PGlite", (it) => {
   it.effect("funds, opens, authorizes and completes a chosen-name gift", () =>
     Effect.gen(function* () {
       yield* (yield* TestDatabase).reset;
+
       const gift = yield* create;
       const recipient = yield* client("bob");
       const opened = yield* recipient.public.open({
         params: { id: gift.id },
         payload: { secret: gift.secret },
       });
+
       expect(opened.message).toBe("Happy birthday!");
       expect("secretCiphertext" in opened).toBe(false);
       expect(
@@ -76,6 +86,7 @@ layer(testLayer)("backend HTTP workflows with migrated PGlite", (it) => {
           .open({ params: { id: gift.id }, payload: { secret: claimSecret(gift.secret) } })
           .pipe(Effect.flip))._tag,
       ).toBe("Forbidden");
+
       const prepared = yield* recipient.claims.prepare({
         params: { id: gift.id },
         payload: {
@@ -84,15 +95,19 @@ layer(testLayer)("backend HTTP workflows with migrated PGlite", (it) => {
           label: "bobbbb.eth",
         },
       });
+
       yield* recipient.claims.authorize({
         params: { id: prepared.id },
         payload: { signature: "0x1234", sessionAuthorization: {} },
       });
+
       for (let i = 0; i < 7; i++) {
         yield* (yield* Worker).tick();
         yield* TestClock.adjust("2 seconds");
       }
+
       const completed = yield* recipient.claims.get({ params: { id: prepared.id } });
+
       expect(completed.state).toBe("complete");
       expect((yield* (yield* ClaimRepository).find(prepared.id))?.sessionKeyCiphertext).toBeNull();
       expect((yield* (yield* GiftRepository).find(gift.id))?.status).toBe("complete");
@@ -101,11 +116,15 @@ layer(testLayer)("backend HTTP workflows with migrated PGlite", (it) => {
   it.effect("rejects unauthenticated senders and unlinked sponsor wallets", () =>
     Effect.gen(function* () {
       yield* (yield* TestDatabase).reset;
+
       const anonymous = yield* client("invalid");
+
       expect((yield* anonymous.gifts.prepare({ payload: input }).pipe(Effect.flip))._tag).toBe(
         "Unauthorized",
       );
+
       const recipient = yield* client("bob");
+
       expect((yield* recipient.gifts.prepare({ payload: input }).pipe(Effect.flip))._tag).toBe(
         "Forbidden",
       );
@@ -114,8 +133,10 @@ layer(testLayer)("backend HTTP workflows with migrated PGlite", (it) => {
   it.effect("does not activate a gift on an unrelated funding transaction", () =>
     Effect.gen(function* () {
       yield* (yield* TestDatabase).reset;
+
       const sender = yield* client("alice");
       const plan = yield* sender.gifts.prepare({ payload: input });
+
       expect(
         (yield* sender.gifts
           .confirm({
@@ -130,6 +151,7 @@ layer(testLayer)("backend HTTP workflows with migrated PGlite", (it) => {
   it.effect("rejects leaked secrets for email-restricted gifts", () =>
     Effect.gen(function* () {
       yield* (yield* TestDatabase).reset;
+
       const sender = yield* client("alice");
       const plan = yield* sender.gifts.prepare({
         payload: { ...input, recipient: { kind: "email", value: "bob@example.test" } },
@@ -139,6 +161,7 @@ layer(testLayer)("backend HTTP workflows with migrated PGlite", (it) => {
         payload: { transactionHash: digest },
       });
       const receiver = yield* client("carol");
+
       expect(
         (yield* receiver.claims
           .prepare({
@@ -151,15 +174,19 @@ layer(testLayer)("backend HTTP workflows with migrated PGlite", (it) => {
           })
           .pipe(Effect.flip))._tag,
       ).toBe("Forbidden");
+
       const stored = yield* (yield* GiftRepository).find(plan.id);
+
       expect(stored?.recipient.value).not.toContain("bob@");
     }),
   );
   it.effect("rejects wrong claim secrets and excessive name prices", () =>
     Effect.gen(function* () {
       yield* (yield* TestDatabase).reset;
+
       const gift = yield* create;
       const recipient = yield* client("bob");
+
       expect(
         (yield* recipient.public
           .open({ params: { id: gift.id }, payload: { secret: digest } })
@@ -182,6 +209,7 @@ layer(testLayer)("backend HTTP workflows with migrated PGlite", (it) => {
   it.effect("keeps a claim private and rejects an invalid recipient signature", () =>
     Effect.gen(function* () {
       yield* (yield* TestDatabase).reset;
+
       const gift = yield* create;
       const recipient = yield* client("bob");
       const prepared = yield* recipient.claims.prepare({
@@ -189,6 +217,7 @@ layer(testLayer)("backend HTTP workflows with migrated PGlite", (it) => {
         payload: { secret: gift.secret, recipientWallet: bob.wallets[0] ?? "", label: "bobbbb" },
       });
       const stranger = yield* client("carol");
+
       expect(
         (yield* stranger.claims.get({ params: { id: prepared.id } }).pipe(Effect.flip))._tag,
       ).toBe("Forbidden");
@@ -206,13 +235,17 @@ layer(testLayer)("backend HTTP workflows with migrated PGlite", (it) => {
   it.effect("deduplicates explicit email delivery jobs", () =>
     Effect.gen(function* () {
       yield* (yield* TestDatabase).reset;
+
       const gift = yield* create;
+
       yield* Ref.set((yield* TestProviders).emails, []);
+
       for (let i = 0; i < 2; i++)
         yield* gift.sender.gifts.email({
           params: { id: gift.id },
           payload: { to: "bob@example.test" },
         });
+
       yield* (yield* Worker).tick();
       yield* (yield* Worker).tick();
       expect(yield* Ref.get((yield* TestProviders).emails)).toHaveLength(1);
@@ -221,7 +254,9 @@ layer(testLayer)("backend HTTP workflows with migrated PGlite", (it) => {
   it.effect("completes the exact existing-name gift", () =>
     Effect.gen(function* () {
       yield* (yield* TestDatabase).reset;
+
       const sender = yield* client("alice");
+
       const plan = yield* sender.gifts.prepare({
         payload: {
           ...input,
@@ -231,24 +266,29 @@ layer(testLayer)("backend HTTP workflows with migrated PGlite", (it) => {
           policy: { ...input.policy, setPrimaryName: false },
         },
       });
+
       const link = yield* sender.gifts.confirm({
         params: { id: plan.id },
         payload: { transactionHash: digest },
       });
       const recipient = yield* client("bob");
+
       const payload = {
         secret: new URL(link.url).hash.slice(1),
         recipientWallet: bob.wallets[0] ?? "",
         label: "alice",
       };
+
       expect(
         (yield* recipient.claims.prepare({ params: { id: plan.id }, payload }).pipe(Effect.flip))
           ._tag,
       ).toBe("InvalidRequest");
+
       const prepared = yield* recipient.claims.prepare({
         params: { id: plan.id },
         payload: { ...payload, label: "bob" },
       });
+
       yield* recipient.claims.authorize({
         params: { id: prepared.id },
         payload: { signature: "0x1234", sessionAuthorization: null },
@@ -260,7 +300,9 @@ layer(testLayer)("backend HTTP workflows with migrated PGlite", (it) => {
   it.effect("protects campaign links and consumes one World nullifier per campaign", () =>
     Effect.gen(function* () {
       yield* (yield* TestDatabase).reset;
+
       const sender = yield* client("alice");
+
       const campaign = yield* sender.gifts.prepareCampaign({
         payload: {
           sponsorWallet: input.sponsorWallet,
@@ -273,18 +315,25 @@ layer(testLayer)("backend HTTP workflows with migrated PGlite", (it) => {
           ],
         },
       });
+
       yield* sender.gifts.confirmCampaign({
         params: { id: campaign.id },
         payload: { transactionHash: digest },
       });
+
       const recipient = yield* client("bob");
+
       expect(
         (yield* recipient.gifts.invitations({ params: { id: campaign.id } }).pipe(Effect.flip))
           ._tag,
       ).toBe("Forbidden");
+
       const invitations = yield* sender.gifts.invitations({ params: { id: campaign.id } });
+
       expect(invitations).toHaveLength(2);
+
       const claimIds: string[] = [];
+
       for (const invitation of invitations) {
         const prepared = yield* recipient.claims.prepare({
           params: { id: invitation.id },
@@ -294,11 +343,14 @@ layer(testLayer)("backend HTTP workflows with migrated PGlite", (it) => {
             label: `bob${claimIds.length}`,
           },
         });
+
         claimIds.push(prepared.id);
         yield* recipient.claims.worldRequest({ params: { id: prepared.id } });
       }
+
       const first = claimIds[0] ?? "";
       const second = claimIds[1] ?? "";
+
       expect(
         (yield* recipient.claims
           .authorize({
@@ -321,18 +373,25 @@ layer(testLayer)("backend HTTP workflows with migrated PGlite", (it) => {
     () =>
       Effect.gen(function* () {
         yield* (yield* TestDatabase).reset;
+
         const first = yield* create;
         const second = yield* create;
+
         expect((yield* first.sender.gifts.link({ params: { id: first.id } })).url).toContain(
           first.secret,
         );
+
         const page = yield* first.sender.gifts.list({ query: { offset: 1 } });
+
         expect(page).toHaveLength(1);
         expect([first.id, second.id]).toContain(page[0]?.id);
+
         const stranger = yield* client("carol");
+
         expect(
           (yield* stranger.gifts.link({ params: { id: first.id } }).pipe(Effect.flip))._tag,
         ).toBe("Forbidden");
+
         const campaign = yield* first.sender.gifts.prepareCampaign({
           payload: {
             sponsorWallet: input.sponsorWallet,
@@ -342,9 +401,13 @@ layer(testLayer)("backend HTTP workflows with migrated PGlite", (it) => {
             recipients: [{ kind: "any", value: "" }],
           },
         });
+
         const listed = yield* first.sender.gifts.listCampaigns({ query: {} });
+
         expect(listed[0]?.id).toBe(campaign.id);
+
         const detail = yield* first.sender.gifts.getCampaign({ params: { id: campaign.id } });
+
         expect(detail.invitations).toHaveLength(1);
         expect(detail.invitations[0]?.campaignId).toBe(campaign.id);
         expect(JSON.stringify(detail)).not.toContain("Ciphertext");
@@ -360,7 +423,9 @@ layer(testLayer)("backend HTTP workflows with migrated PGlite", (it) => {
           params: { id: campaign.id },
           payload: { transactionHash: digest },
         });
+
         const refunded = yield* first.sender.gifts.getCampaign({ params: { id: campaign.id } });
+
         expect(refunded.campaign.status).toBe("refunded");
         expect(refunded.invitations[0]?.status).toBe("refunded");
       }),
@@ -369,15 +434,20 @@ layer(testLayer)("backend HTTP workflows with migrated PGlite", (it) => {
     Effect.gen(function* () {
       yield* (yield* TestDatabase).reset;
       yield* Ref.set((yield* TestProviders).emails, []);
+
       const gift = yield* create;
       const payload = { params: { id: gift.id }, payload: { to: "bob@example.test" } };
+
       yield* gift.sender.gifts.email(payload);
+
       const jobs = yield* JobRepository;
       const leased = yield* jobs.lease(
         yield* DateTime.now.pipe(Effect.map(DateTime.toEpochMillis)),
         "test-worker",
       );
+
       if (!leased) return yield* Effect.die("Missing email job");
+
       yield* jobs.finish(leased.id, "test-worker", "failed", 0, "Mail temporarily unavailable");
       yield* gift.sender.gifts.email(payload);
       yield* (yield* Worker).tick();
@@ -387,7 +457,9 @@ layer(testLayer)("backend HTTP workflows with migrated PGlite", (it) => {
   it.effect("rejects duplicate starter record keys before preparing funding", () =>
     Effect.gen(function* () {
       yield* (yield* TestDatabase).reset;
+
       const sender = yield* client("alice");
+
       const error = yield* sender.gifts
         .prepare({
           payload: {
@@ -399,6 +471,7 @@ layer(testLayer)("backend HTTP workflows with migrated PGlite", (it) => {
           },
         })
         .pipe(Effect.flip);
+
       expect(error._tag === "InvalidRequest" && error.code).toBe("DUPLICATE_RECORD");
     }),
   );
@@ -407,20 +480,26 @@ layer(testLayer)("backend HTTP workflows with migrated PGlite", (it) => {
     () =>
       Effect.gen(function* () {
         yield* (yield* TestDatabase).reset;
+
         const gift = yield* create;
         const recipient = yield* client("bob");
         const prepared = yield* recipient.claims.prepare({
           params: { id: gift.id },
           payload: { secret: gift.secret, recipientWallet: bob.wallets[0] ?? "", label: "bobbbb" },
         });
+
         yield* recipient.claims.authorize({
           params: { id: prepared.id },
           payload: { signature: "0x1234", sessionAuthorization: {} },
         });
+
         const test = yield* TestProviders;
+
         yield* Ref.set(test.hangChain, true);
+
         const worker = yield* Worker;
         const running = yield* worker.tick().pipe(Effect.forkChild);
+
         yield* TestClock.adjust("91 seconds");
         yield* Fiber.join(running);
         expect((yield* recipient.claims.get({ params: { id: prepared.id } })).lastError).toContain(
@@ -437,12 +516,14 @@ layer(testLayer)("backend HTTP workflows with migrated PGlite", (it) => {
   it.effect("keeps failed claims resumable through durable jobs", () =>
     Effect.gen(function* () {
       yield* (yield* TestDatabase).reset;
+
       const gift = yield* create;
       const recipient = yield* client("bob");
       const prepared = yield* recipient.claims.prepare({
         params: { id: gift.id },
         payload: { secret: gift.secret, recipientWallet: bob.wallets[0] ?? "", label: "bobbbb" },
       });
+
       yield* recipient.claims.authorize({
         params: { id: prepared.id },
         payload: { signature: "0x1234", sessionAuthorization: {} },
