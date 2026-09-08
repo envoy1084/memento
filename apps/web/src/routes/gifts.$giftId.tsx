@@ -1,128 +1,200 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 
-import { Button, Card, Modal, toast } from "@thenamespace/uikit";
+import {
+  AlertDialog,
+  Button,
+  Card,
+  Separator,
+  Timeline,
+  type TimelineStatus,
+  toast,
+} from "@thenamespace/uikit";
 
+import { NameMark } from "#/components/brand";
 import { GiftArt } from "#/components/gift-art";
 import { Icon } from "#/components/icon";
-import { Back, CopyButton, Empty, PageTitle, Status, SummaryRow } from "#/components/page";
+import {
+  Back,
+  ButtonLink,
+  CopyButton,
+  DetailList,
+  DetailRow,
+  EmptyPanel,
+  Eyebrow,
+  Note,
+  PageHeader,
+  Section,
+  StatusChip,
+} from "#/components/page";
 import { useDemo } from "#/hooks/use-demo";
+
 export const Route = createFileRoute("/gifts/$giftId")({
   validateSearch: (search: Record<string, unknown>): { created?: boolean } =>
     search.created === true ? { created: true } : {},
   component: GiftDetail,
 });
+
 function GiftDetail() {
   const { giftId } = Route.useParams();
   const { created } = Route.useSearch();
   const [state, setState] = useDemo();
   const gift = state.gifts.find((entry) => entry.id === giftId);
+
   if (!gift)
     return (
-      <div className="mx-auto w-[calc(100%-40px)] max-w-[1200px] md:w-[calc(100%-96px)] py-14">
-        <Empty
-          title="This gift isn’t here."
-          description="It may belong to another preview session."
-          to="/gifts"
-          action="See your gifts"
+      <Section className="py-16">
+        <EmptyPanel
+          icon="search"
+          title="This gift isn’t in this browser."
+          description="Preview gifts are saved locally, so a link created elsewhere won’t open here."
+          action={<ButtonLink to="/gifts">Back to your gifts</ButtonLink>}
         />
-      </div>
+      </Section>
     );
+
   const url = `${window.location.origin}/claim/${gift.id}`;
+  const claimed = gift.state === "claimed";
+  const returnable = gift.state === "ready" || gift.state === "expired";
+
+  const lifecycle: { title: string; body: string; status: TimelineStatus }[] = [
+    { title: "Created", body: gift.created, status: "success" },
+    {
+      title: "Invitation ready",
+      body: "The link works as soon as you share it.",
+      status: claimed ? "success" : "current",
+    },
+    {
+      title: claimed ? "Claimed" : "Waiting to be opened",
+      body: claimed
+        ? `${gift.recipient} made this name their own.`
+        : "Nothing happens until they open it.",
+      status: claimed ? "success" : "muted",
+    },
+  ];
+
   return (
-    <div className="mx-auto w-[calc(100%-40px)] max-w-[1200px] md:w-[calc(100%-96px)] py-10">
-      <Back to="/gifts" />
-      <PageTitle
-        eyebrow={created ? "A LITTLE JOY, READY TO GO" : "THE STORY OF YOUR GIFT"}
-        title={
-          created ? "Good things are on their way." : `A little something for ${gift.recipient}.`
-        }
+    <Section className="py-10">
+      <Back to="/gifts" label="Your gifts" />
+      <PageHeader
+        eyebrow={created ? "Ready to send" : "Gift"}
+        title={created ? "Your gift is wrapped." : `A name for ${gift.recipient}.`}
         description={
           created
-            ? "Your gift is wrapped. All it needs now is a hello."
-            : "Follow their beginning, from your first thought to their new name."
+            ? "All it needs now is a hello. Share the private link below however you like."
+            : "Everything about this gift, and the link that opens it."
         }
+        action={<StatusChip state={gift.state} />}
       />
-      <div className="mt-10 grid gap-10 lg:grid-cols-2">
-        <Card className="overflow-hidden rounded-[28px] border border-separator bg-surface p-7 shadow-none">
-          <Status state={gift.state} />
-          <GiftArt
-            name={gift.name || "theirname.eth"}
-            theme={gift.theme}
-            opened={gift.state === "claimed"}
-          />
-          <div className="text-center">
-            <h2 className="text-2xl">{gift.name || "A name of their own"}</h2>
-            <p className="mx-auto my-5 max-w-sm font-serif text-lg italic text-muted">
-              “{gift.message}”
-            </p>
-            <span className="text-xs text-muted">From alice.eth, with love.</span>
+
+      <div className="mt-10 grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] lg:gap-12">
+        <div>
+          <div className="overflow-hidden rounded-[28px] border border-rule bg-paper-raised shadow-lift">
+            <GiftArt
+              name={gift.name || "theirname.eth"}
+              theme={gift.theme}
+              size="md"
+              opened={claimed}
+              sender="alice.eth"
+            />
+            <div className="border-t border-rule px-7 py-6 text-center">
+              {gift.name ? (
+                <NameMark name={gift.name} size="lg" />
+              ) : (
+                <h2 className="m-0">A name they choose</h2>
+              )}
+              <p className="mx-auto mt-4 mb-0 max-w-[36ch] text-[15px] leading-relaxed text-ink-soft">
+                “{gift.message}”
+              </p>
+              <p className="mt-4 mb-0 text-xs tracking-[0.12em] text-ink-faint uppercase">
+                From alice.eth
+              </p>
+            </div>
           </div>
-        </Card>
+        </div>
+
         <div className="space-y-6">
-          <Card className="rounded-3xl border border-separator p-7 shadow-none">
-            <h3>
-              {gift.state === "claimed"
-                ? "A new chapter has begun."
-                : "Their invitation, from you."}
-            </h3>
-            <p className="mt-3 text-sm text-muted">
-              {gift.state === "claimed"
-                ? `${gift.recipient} has made this name their own.`
-                : "Send this private link in a message. They can open it at their own pace."}
+          <Card className="rounded-3xl border border-rule p-6 shadow-none md:p-7">
+            <h3 className="m-0">{claimed ? "The invitation is closed" : "Their invitation"}</h3>
+            <p className="mt-2 mb-5 text-[13px] leading-6 text-ink-soft">
+              {claimed
+                ? `${gift.recipient} has already claimed this name. The link no longer opens.`
+                : "Send this private link in a message. They can open it whenever they’re ready."}
             </p>
-            <div className="my-5 overflow-hidden rounded-xl border border-separator bg-background p-4">
-              <p className="select-all break-all text-xs text-muted">{url}</p>
+            <div className="rounded-2xl border border-rule bg-paper-sunken px-4 py-3.5">
+              <p className="m-0 font-mono text-[12px] break-all text-ink-soft select-all">{url}</p>
             </div>
-            <div className="flex flex-wrap gap-3">
-              <CopyButton value={url} />
-              <Link
-                to="/claim/$giftId"
-                params={{ giftId: gift.id }}
-                className="button button--secondary"
-              >
-                Preview invitation
-                <Icon name="external" size={16} />
-              </Link>
-            </div>
-            <p className="mt-5 text-[11px] text-muted">
-              Preview links work in this browser’s saved demo. Nothing has been sent or registered.
-            </p>
+            {!claimed ? (
+              <div className="mt-4 flex flex-wrap gap-3">
+                <CopyButton value={url} />
+                <ButtonLink to="/claim/$giftId" params={{ giftId: gift.id }} variant="tertiary">
+                  Preview what they see
+                  <Icon name="external" size={16} />
+                </ButtonLink>
+              </div>
+            ) : null}
           </Card>
-          <Card className="rounded-3xl border border-separator p-7 shadow-none">
-            <h3 className="mb-4">The thoughtful details</h3>
-            <SummaryRow label="Gift type">
-              {gift.kind === "choice" ? "They choose" : "An exact name"}
-            </SummaryRow>
-            <SummaryRow label="Gift budget">
-              {gift.kind === "choice" ? `$${gift.budget}` : "Existing name"}
-            </SummaryRow>
-            <SummaryRow label="Registration">{gift.years} year</SummaryRow>
-            <SummaryRow label="For the recipient">$0</SummaryRow>
-            <SummaryRow label="Status">
-              <Status state={gift.state} />
-            </SummaryRow>
+
+          <Card className="rounded-3xl border border-rule p-6 shadow-none md:p-7">
+            <Eyebrow className="mb-5">Details</Eyebrow>
+            <DetailList>
+              <DetailRow label="Gift type">
+                {gift.kind === "choice" ? "They choose the name" : "A name you own"}
+              </DetailRow>
+              <DetailRow label="Your budget">
+                {gift.kind === "choice" ? `$${gift.budget}` : "An existing name"}
+              </DetailRow>
+              {gift.kind === "choice" ? (
+                <DetailRow label="Name length">
+                  {gift.minLength}–{gift.maxLength} characters
+                </DetailRow>
+              ) : null}
+              <DetailRow label="Registration">
+                {gift.years} year{gift.years > 1 ? "s" : ""}
+              </DetailRow>
+              <DetailRow label="They pay">$0</DetailRow>
+            </DetailList>
+            <Separator className="my-6" />
+            <Eyebrow className="mb-5">Progress</Eyebrow>
+            <Timeline density="compact" size="sm">
+              {lifecycle.map((entry) => (
+                <Timeline.Item key={entry.title} status={entry.status}>
+                  <Timeline.Marker aria-hidden="true" />
+                  <Timeline.Content>
+                    <p className="m-0 text-[13px] font-medium">{entry.title}</p>
+                    <p className="m-0 mt-0.5 text-[12px] text-ink-soft">{entry.body}</p>
+                  </Timeline.Content>
+                </Timeline.Item>
+              ))}
+            </Timeline>
           </Card>
-          {gift.state === "expired" || gift.state === "ready" ? (
-            <Modal>
-              <Button variant="ghost" className="text-muted">
-                Cancel and return gift
+
+          <Note>
+            This gift lives in this browser only. Nothing has been sent, charged or registered.
+          </Note>
+
+          {returnable ? (
+            <AlertDialog>
+              <Button variant="ghost" size="sm" className="text-ink-soft">
+                Cancel and return this gift
               </Button>
-              <Modal.Backdrop>
-                <Modal.Container>
-                  <Modal.Dialog className="max-w-md">
-                    <Modal.CloseTrigger />
-                    <Modal.Header>
-                      <Modal.Heading>Return this gift?</Modal.Heading>
-                    </Modal.Header>
-                    <Modal.Body>
-                      <p className="text-sm text-muted">
-                        Its invitation will stop working. In this preview, the gift will be marked
-                        as returned. No funds move.
+              <AlertDialog.Backdrop>
+                <AlertDialog.Container size="sm">
+                  <AlertDialog.Dialog>
+                    <AlertDialog.Header>
+                      <AlertDialog.Icon status="danger">
+                        <Icon name="alert" size={20} />
+                      </AlertDialog.Icon>
+                      <AlertDialog.Heading>Return this gift?</AlertDialog.Heading>
+                    </AlertDialog.Header>
+                    <AlertDialog.Body>
+                      <p className="m-0 text-sm text-ink-soft">
+                        The invitation link will stop working and {gift.recipient} won’t be able to
+                        claim it. In this preview no funds move.
                       </p>
-                    </Modal.Body>
-                    <Modal.Footer>
+                    </AlertDialog.Body>
+                    <AlertDialog.Footer>
                       <Button slot="close" variant="secondary">
-                        Keep gift
+                        Keep it
                       </Button>
                       <Button
                         slot="close"
@@ -137,19 +209,19 @@ function GiftDetail() {
                                 : entry,
                             ),
                           }));
-                          toast.success("Gift returned in your preview");
+                          toast.success("Gift returned");
                         }}
                       >
                         Return gift
                       </Button>
-                    </Modal.Footer>
-                  </Modal.Dialog>
-                </Modal.Container>
-              </Modal.Backdrop>
-            </Modal>
+                    </AlertDialog.Footer>
+                  </AlertDialog.Dialog>
+                </AlertDialog.Container>
+              </AlertDialog.Backdrop>
+            </AlertDialog>
           ) : null}
         </div>
       </div>
-    </div>
+    </Section>
   );
 }

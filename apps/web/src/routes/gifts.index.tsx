@@ -2,107 +2,138 @@ import { useState } from "react";
 
 import { createFileRoute, Link } from "@tanstack/react-router";
 
-import { Button, Card, Input, TextField } from "@thenamespace/uikit";
+import { Card, SearchField, Segment, Separator } from "@thenamespace/uikit";
 
+import { NameMark } from "#/components/brand";
 import { GiftArt } from "#/components/gift-art";
 import { Icon } from "#/components/icon";
-import { Empty, PageTitle, Reveal, Status } from "#/components/page";
+import { ButtonLink, EmptyPanel, PageHeader, Reveal, Section, StatusChip } from "#/components/page";
 import { useDemo } from "#/hooks/use-demo";
+
 export const Route = createFileRoute("/gifts/")({ component: Gifts });
+
+const filters = [
+  { id: "all", label: "All" },
+  { id: "open", label: "Unopened" },
+  { id: "claimed", label: "Claimed" },
+] as const;
+
 function Gifts() {
   const [state] = useDemo();
-  const [filter, setFilter] = useState("All gifts");
+  const [filter, setFilter] = useState<string>("all");
   const [query, setQuery] = useState("");
-  const gifts = state.gifts.filter(
-    (gift) =>
-      (filter === "All gifts" ||
-        (filter === "Unopened" ? gift.state === "ready" : gift.state === "claimed")) &&
-      `${gift.recipient} ${gift.name}`.toLowerCase().includes(query.toLowerCase()),
-  );
+
+  const gifts = state.gifts.filter((gift) => {
+    const matchesFilter =
+      filter === "all" || (filter === "open" ? gift.state === "ready" : gift.state === "claimed");
+    const haystack = `${gift.recipient} ${gift.name}`.toLowerCase();
+    return matchesFilter && haystack.includes(query.trim().toLowerCase());
+  });
+
   return (
-    <div className="mx-auto w-[calc(100%-40px)] max-w-[1200px] md:w-[calc(100%-96px)] py-12">
-      <PageTitle
-        eyebrow="THE LITTLE THINGS YOU GIVE"
-        title="Good things, sent with love."
-        description="Every name has a story. These are the ones you’ve started."
+    <Section className="py-12">
+      <PageHeader
+        eyebrow="Your gifts"
+        title="Everything you’ve sent."
+        description="Each gift is a private invitation. Share it when you’re ready, and follow it from here."
         action={
-          <Link to="/send" className="button button--primary">
+          <ButtonLink to="/send">
             <Icon name="plus" size={17} />
-            Create a gift
-          </Link>
+            Give a name
+          </ButtonLink>
         }
       />
-      <div className="my-9 flex flex-wrap items-center justify-between gap-4">
-        <div className="flex gap-1 rounded-full bg-surface-secondary p-1" aria-label="Filter gifts">
-          {["All gifts", "Unopened", "Claimed"].map((label) => (
-            <Button
-              key={label}
-              size="sm"
-              variant={filter === label ? "primary" : "ghost"}
-              aria-pressed={filter === label}
-              onPress={() => setFilter(label)}
-            >
-              {label}
-            </Button>
+
+      <div className="mt-9 flex flex-wrap items-center justify-between gap-4">
+        <Segment
+          size="sm"
+          selectedKey={filter}
+          onSelectionChange={(key) => setFilter(String(key))}
+          aria-label="Filter gifts"
+        >
+          {filters.map((entry) => (
+            <Segment.Item id={entry.id} key={entry.id}>
+              {entry.label}
+            </Segment.Item>
           ))}
-        </div>
-        <TextField
-          aria-label="Search gifts"
+        </Segment>
+        <SearchField
+          aria-label="Search your gifts"
           value={query}
           onChange={setQuery}
-          className="w-full sm:w-60"
+          className="w-full sm:w-72"
         >
-          <Input placeholder="Find a person or name…" />
-        </TextField>
+          <SearchField.Group>
+            <SearchField.SearchIcon />
+            <SearchField.Input placeholder="Find a person or name" />
+            <SearchField.ClearButton />
+          </SearchField.Group>
+        </SearchField>
       </div>
+
+      <Separator className="mt-6 mb-8" />
+
       {gifts.length ? (
         <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
           {gifts.map((gift, index) => (
-            <Reveal key={gift.id} delay={index * 0.04}>
-              <Card className="group h-full rounded-3xl border border-separator p-5 shadow-none transition duration-300 hover:-translate-y-1 hover:shadow-lg hover:shadow-accent/5">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-muted">For {gift.recipient}</span>
-                  <Status state={gift.state} />
+            <Reveal key={gift.id} className="h-full" delay={Math.min(index, 5) * 0.04}>
+              <Card
+                variant="transparent"
+                className="group flex h-full flex-col rounded-3xl border border-rule p-0 shadow-none transition-shadow duration-200 ease-swift hover:shadow-lift"
+              >
+                <div className="flex items-center justify-between px-5 pt-5">
+                  <span className="truncate text-xs text-ink-soft">For {gift.recipient}</span>
+                  <StatusChip state={gift.state} />
                 </div>
-                <GiftArt
-                  compact
-                  name={gift.name || "theirname.eth"}
-                  theme={gift.theme}
-                  opened={gift.state === "claimed"}
-                />
-                <h3 className="mt-2 text-lg">{gift.name || "A name of their own"}</h3>
-                <p className="mt-2 text-xs text-muted">
-                  {gift.kind === "owned"
-                    ? "A name you chose just for them"
-                    : `$${gift.budget} to find their beginning`}{" "}
-                  · {gift.years} year
-                </p>
-                <div className="mt-6 flex items-center justify-between border-t border-separator pt-4">
-                  <span className="text-[10px] text-muted">{gift.created}</span>
-                  <Link
-                    to="/gifts/$giftId"
-                    params={{ giftId: gift.id }}
-                    search={{}}
-                    className="inline-flex items-center gap-2.5 text-xs font-medium text-[#786087] [&_svg]:transition-transform hover:[&_svg]:translate-x-0.5"
-                  >
-                    View gift
-                    <Icon name="arrow" size={16} />
-                  </Link>
+                <div className="px-2">
+                  <GiftArt
+                    size="sm"
+                    name={gift.name || "theirname.eth"}
+                    theme={gift.theme}
+                    opened={gift.state === "claimed"}
+                  />
+                </div>
+                <div className="px-5 pb-5">
+                  {gift.name ? (
+                    <NameMark name={gift.name} size="md" />
+                  ) : (
+                    <p className="m-0 font-display text-xl font-semibold tracking-[-0.03em]">
+                      A name they choose
+                    </p>
+                  )}
+                  <p className="m-0 mt-2 text-[13px] text-ink-soft">
+                    {gift.kind === "owned" ? "A name you already own" : `$${gift.budget} budget`} ·{" "}
+                    {gift.years} year{gift.years > 1 ? "s" : ""}
+                  </p>
+                  <div className="mt-5 flex items-center justify-between border-t border-rule pt-4">
+                    <span className="text-[11px] text-ink-faint">{gift.created}</span>
+                    <Link
+                      to="/gifts/$giftId"
+                      params={{ giftId: gift.id }}
+                      search={{}}
+                      className="inline-flex items-center gap-2 rounded-lg text-[13px] font-medium text-lavender-700 [&_svg]:transition-transform [&_svg]:duration-150 [&_svg]:ease-swift group-hover:[&_svg]:translate-x-1"
+                    >
+                      Open
+                      <Icon name="arrow" size={16} />
+                    </Link>
+                  </div>
                 </div>
               </Card>
             </Reveal>
           ))}
         </div>
       ) : (
-        <Empty
-          title="A little room for possibility."
+        <EmptyPanel
+          icon={query ? "search" : "gift"}
+          title={query ? "Nothing matches that." : "No gifts yet."}
           description={
             query
-              ? "No gifts match your search. Try another name."
-              : "Your next thoughtful gesture starts here."
+              ? "Try a different name, or clear the search to see everything."
+              : "When you give someone a name, it shows up here with its invitation link."
           }
+          action={query ? undefined : <ButtonLink to="/send">Give your first name</ButtonLink>}
         />
       )}
-    </div>
+    </Section>
   );
 }
