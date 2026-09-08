@@ -19,12 +19,22 @@
       "memento-source": "./src/abi/ens.ts",
       "default": "./dist/abi/ens.js"
     },
+    "./deployments/sepolia": {
+      "memento-source": "./src/deployments/sepolia.ts",
+      "default": "./dist/deployments/sepolia.js"
+    },
+    "./network": {
+      "memento-source": "./src/network.ts",
+      "default": "./dist/network.js"
+    },
     "./package.json": "./package.json"
   },
   "publishConfig": {
     "exports": {
       ".": "./dist/index.js",
       "./abi/ens": "./dist/abi/ens.js",
+      "./deployments/sepolia": "./dist/deployments/sepolia.js",
+      "./network": "./dist/network.js",
       "./package.json": "./package.json"
     }
   },

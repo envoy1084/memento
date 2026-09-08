@@ -11,3 +11,7 @@ Existing-name deposits require no other token-level delegates. The vault creates
 `packages/contracts/script/Deploy.s.sol` deploys both Memento contracts on Sepolia. It does not deploy ENS itself. Keep the admin separate from the coordinator, and run `pnpm --filter @memento/chain generate` after Solidity changes.
 
 `packages/contracts` owns Solidity, Foundry tests and deployment scripts only. `packages/chain` owns browser-safe TypeScript ABIs and pinned ENS integration signatures. The contracts build verifies checked-in ABIs against its artifacts; the server and frontend can build their TypeScript dependencies without Foundry.
+
+## Public deployment configuration
+
+`packages/chain/src/deployments/sepolia.json` is the shared public manifest used by the Node adapter and Foundry deployment script. The protocol schema pins Sepolia and the ENS revision and rejects incomplete or zero-address deployments. Two confirmations are fixed in `@memento/chain/network`. Live bytecode, immutable bindings and ownership checks still run after configuration decoding. No deployment addresses have been verified yet; null entries explicitly record that outstanding integration work.

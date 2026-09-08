@@ -95,3 +95,5 @@ export const Job = Schema.Struct({
 export type Job = typeof Job.Type;
 
 export * from "./preview.js";
+
+export * from "./deployment.js";

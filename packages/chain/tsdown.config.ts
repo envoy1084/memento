@@ -2,7 +2,12 @@ import defineConfig from "klarity/tsdown/library";
 
 export default defineConfig({
   alias: { "#/": "./src/" },
-  entry: { index: "src/index.ts", "abi/ens": "src/abi/ens.ts" },
+  entry: {
+    index: "src/index.ts",
+    "abi/ens": "src/abi/ens.ts",
+    network: "src/network.ts",
+    "deployments/sepolia": "src/deployments/sepolia.ts",
+  },
   exports: { devExports: "memento-source" },
   target: "es2022",
   unbundle: true,

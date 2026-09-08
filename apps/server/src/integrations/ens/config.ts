@@ -1,30 +1,39 @@
-import { Config, Context, type Effect, Layer, Schema } from "effect";
+import { Config, Context, Effect, Layer, Schema } from "effect";
 
-import { Address } from "@memento/protocol";
+import { sepoliaDeployment } from "@memento/chain/deployments/sepolia";
+import { chainConfirmations } from "@memento/chain/network";
+import { ProviderError, SepoliaDeployment } from "@memento/protocol";
 
-const address = (name: string) =>
-  Config.schema(Address, name).pipe(Config.map((value) => value as `0x${string}`));
+export const configuredDeployment = Effect.fn("EnsConfig.deployment")(function* (
+  manifest: unknown,
+) {
+  const deployment = yield* Schema.decodeUnknownEffect(SepoliaDeployment)(manifest).pipe(
+    Effect.mapError(
+      () =>
+        new ProviderError({
+          provider: "deployment",
+          retryable: false,
+          message:
+            "Configure verified Sepolia addresses in packages/chain/src/deployments/sepolia.json",
+        }),
+    ),
+  );
 
-const make = Config.all({
-  rpcUrl: Config.redacted("RPC_URL"),
-  coordinatorKey: Config.redacted("COORDINATOR_PRIVATE_KEY"),
-  rhinestoneKey: Config.redacted("RHINESTONE_API_KEY"),
-  registrar: address("ENS_REGISTRAR"),
-  registry: address("ENS_REGISTRY"),
-  token: address("PAYMENT_TOKEN"),
-  sponsorship: address("MEMENTO_SPONSORSHIP"),
-  vault: address("MEMENTO_NAME_VAULT"),
-  hcaFactory: address("HCA_FACTORY"),
-  hcaImplementation: address("HCA_IMPLEMENTATION"),
-  validator: address("HCA_VALIDATOR"),
-  verifiableFactory: address("VERIFIABLE_FACTORY"),
-  proxyLogic: address("PROXY_LOGIC"),
-  resolverImplementation: address("PERMISSIONED_RESOLVER_IMPLEMENTATION"),
-  reverseAdapter: address("REVERSE_ADAPTER"),
-  confirmations: Config.schema(
-    Schema.Int.check(Schema.isBetween({ minimum: 1, maximum: 64 })),
-    "CHAIN_CONFIRMATIONS",
-  ).pipe(Config.withDefault(2)),
+  // The shared schema has checked every nonzero address before applying viem's template type.
+  return deployment.contracts as {
+    readonly [K in keyof typeof deployment.contracts]: `0x${string}`;
+  };
+});
+
+const make = Effect.gen(function* () {
+  const deployment = yield* configuredDeployment(sepoliaDeployment);
+  const secrets = yield* Config.all({
+    rpcUrl: Config.redacted("RPC_URL"),
+    coordinatorKey: Config.redacted("COORDINATOR_PRIVATE_KEY"),
+    rhinestoneKey: Config.redacted("RHINESTONE_API_KEY"),
+  });
+
+  return { ...deployment, ...secrets, confirmations: chainConfirmations };
 });
 
 export class EnsConfig extends Context.Service<EnsConfig, Effect.Success<typeof make>>()(

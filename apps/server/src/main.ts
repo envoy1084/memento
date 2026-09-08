@@ -11,6 +11,7 @@ import { Database, MigrationsLive, RepositoriesLive } from "@memento/database";
 import { Privy } from "@memento/privy";
 import { WorldId } from "@memento/world-id";
 
+import { productPolicy } from "./config/product.js";
 import { MailerLive } from "./integrations/email.js";
 import { ChainLive } from "./integrations/ens/chain.js";
 import { Ethereum } from "./integrations/ens/client.js";
@@ -46,7 +47,6 @@ Effect.gen(function* () {
   const privySecret = yield* Config.redacted("PRIVY_APP_SECRET");
   const worldId = yield* Config.string("WORLD_APP_ID");
   const rpId = yield* Config.string("WORLD_RP_ID");
-  const worldAction = yield* Config.string("WORLD_ACTION");
   const worldKey = yield* Config.redacted("WORLD_SIGNING_KEY");
   const environment = yield* Config.schema(
     Schema.Literals(["staging", "production"]),
@@ -69,9 +69,19 @@ Effect.gen(function* () {
 
   const dependencies = Layer.mergeAll(
     chain,
-    WorldId.live({ appId: worldId, rpId, action: worldAction, signingKey: worldKey, environment }),
+    WorldId.live({
+      appId: worldId,
+      rpId,
+      action: productPolicy.worldAction,
+      signingKey: worldKey,
+      environment,
+    }),
     MailerLive(resendKey, from),
-    Layer.succeed(Product, { webOrigin, maximumBudget: 100_000_000n, maximumLifetime: 90 * 86400 }),
+    Layer.succeed(Product, {
+      webOrigin,
+      maximumBudget: productPolicy.maximumBudget,
+      maximumLifetime: productPolicy.maximumLifetime,
+    }),
   );
 
   const services = Layer.mergeAll(Application.layer, Worker.layer).pipe(

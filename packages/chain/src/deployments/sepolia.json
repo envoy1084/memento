@@ -1,0 +1,18 @@
+{
+  "chainId": 11155111,
+  "ensRevision": "6cd019f567c8eb0ca306c78851d4d58876a8e1df",
+  "contracts": {
+    "registrar": null,
+    "registry": null,
+    "token": null,
+    "sponsorship": null,
+    "vault": null,
+    "hcaFactory": null,
+    "hcaImplementation": null,
+    "validator": null,
+    "verifiableFactory": null,
+    "proxyLogic": null,
+    "resolverImplementation": null,
+    "reverseAdapter": null
+  }
+}

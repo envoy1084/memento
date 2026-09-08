@@ -9,6 +9,18 @@ import {MementoNameVault} from "../src/MementoNameVault.sol";
 interface DeployVm {
     function envAddress(string calldata name) external returns (address);
 
+    function readFile(string calldata path) external view returns (string memory);
+
+    function parseJsonAddress(string calldata json, string calldata key)
+        external
+        pure
+        returns (address);
+
+    function parseJsonUint(string calldata json, string calldata key)
+        external
+        pure
+        returns (uint256);
+
     function startBroadcast() external;
 
     function stopBroadcast() external;
@@ -19,14 +31,20 @@ contract Deploy {
         DeployVm(address(uint160(uint256(keccak256("hevm cheat code")))));
 
     function run() external returns (MementoSponsorship sponsorship, MementoNameVault vault) {
-        require(block.chainid == 11155111, "Use the configured Sepolia chain");
+        string memory manifest = VM.readFile("../chain/src/deployments/sepolia.json");
+        require(
+            block.chainid == VM.parseJsonUint(manifest, ".chainId"),
+            "Use the configured Sepolia chain"
+        );
+
         address admin = VM.envAddress("CONTRACT_ADMIN");
         address coordinator = VM.envAddress("COORDINATOR_ADDRESS");
-        IEnsRegistry registry = IEnsRegistry(VM.envAddress("ENS_REGISTRY"));
-        IHcaFactory hcaFactory = IHcaFactory(VM.envAddress("HCA_FACTORY"));
-        IVerifiableFactory factory = IVerifiableFactory(VM.envAddress("VERIFIABLE_FACTORY"));
-        IERC20 token = IERC20(VM.envAddress("PAYMENT_TOKEN"));
-        address resolver = VM.envAddress("PERMISSIONED_RESOLVER_IMPLEMENTATION");
+        IEnsRegistry registry = IEnsRegistry(VM.parseJsonAddress(manifest, ".contracts.registry"));
+        IHcaFactory hcaFactory = IHcaFactory(VM.parseJsonAddress(manifest, ".contracts.hcaFactory"));
+        IVerifiableFactory factory =
+            IVerifiableFactory(VM.parseJsonAddress(manifest, ".contracts.verifiableFactory"));
+        IERC20 token = IERC20(VM.parseJsonAddress(manifest, ".contracts.token"));
+        address resolver = VM.parseJsonAddress(manifest, ".contracts.resolverImplementation");
 
         VM.startBroadcast();
         sponsorship = new MementoSponsorship(token, hcaFactory, registry, admin, coordinator);

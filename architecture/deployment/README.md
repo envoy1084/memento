@@ -7,20 +7,20 @@ terminates TLS for `api.memento.envoy1084.xyz`. The frontend origin is
 ## Setup
 
 1. Install Docker Compose. Point the API hostname's DNS A/AAAA records at the VPS.
-2. Copy `.env.example` to `.env`, fill the provider settings and deployment addresses, and use a
-   random hex PostgreSQL password. Generate separate encryption and email HMAC keys with
+2. Copy `.env.example` to `.env`, fill the provider settings, and use a
+   random hex PostgreSQL password. Contract addresses belong in `packages/chain/src/deployments/sepolia.json`. Generate separate encryption and email HMAC keys with
    `openssl rand -hex 32`. Back up those keys securely with the database.
 3. Configure Privy for the frontend origin. Enable Selfie Check for the World app and configure the
-   matching RP ID, signing key, and action. Use `staging` only with the simulator. Configure a verified
+   matching RP ID and signing key. The action is `memento-claim`, defined in server product policy. Use `staging` only with the simulator. Configure a verified
    sender domain in Resend and sponsored gas access in Rhinestone.
 4. Use compatible ENSv2 Sepolia deployments from `post-audit-2` revision
    `6cd019f567c8eb0ca306c78851d4d58876a8e1df`. Historical deployment manifests are insufficient:
-   startup checks the HCA version, approved implementation, immutable bindings, Memento contract
+   Record verified addresses in the shared Sepolia manifest. Unset or zero addresses stop startup with an explicit configuration error. The repository does not currently contain verified deployment addresses. Runtime startup checks the HCA version, approved implementation, immutable bindings, Memento contract
    configuration, and coordinator address.
 5. Import the separate deployer wallet into an encrypted Foundry keystore with `cast wallet import memento-deployer --interactive`. Never place the deployer key in the server environment. Deploy Memento contracts with Foundry. From
    `packages/contracts`, with deployment variables exported, run
    `forge script script/Deploy.s.sol --account memento-deployer --rpc-url "$RPC_URL" --broadcast`. Put the two returned addresses
-   in `MEMENTO_SPONSORSHIP` and `MEMENTO_NAME_VAULT`. Supply native Sepolia ETH to the coordinator for
+   in the manifest’s `contracts.sponsorship` and `contracts.vault` fields. The deployment script reads its ENS/token addresses from that same manifest; only `CONTRACT_ADMIN` and `COORDINATOR_ADDRESS` remain deployment-time environment inputs. Supply native Sepolia ETH to the coordinator for
    escrow/vault transactions. Registration costs use the configured six-decimal payment token;
    Rhinestone sponsors HCA execution gas separately.
 6. Run `docker compose up -d --build`. Inspect `docker compose logs server` and
@@ -41,6 +41,8 @@ pnpm install
 docker compose -f compose.yaml -f compose.dev.yaml up -d db
 pnpm --filter @memento/server dev
 ```
+
+Set `WEB_ORIGIN=http://localhost:3000` for local browser integration. Keep the Alchemy Ethereum Sepolia HTTPS URL in server-only `RPC_URL`; browser clients use `http://localhost:3001/rpc/sepolia`. Production clients use the API origin plus `/rpc/sepolia`.
 
 The API needs working provider configuration and compatible contracts. Tests run with scoped test
 Layers and migrated PGlite, without live provider credentials. No bypass authentication mode exists.

@@ -1,6 +1,6 @@
 import type { RpcRequest, RpcResponse } from "@memento/protocol";
 
-export const rpcPath = "/rpc/sepolia";
+export { rpcProxyPath as rpcPath } from "@memento/chain/network";
 export const maximumBatchSize = 20;
 
 const methods = new Set([

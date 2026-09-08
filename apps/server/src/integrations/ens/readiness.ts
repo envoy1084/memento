@@ -5,6 +5,7 @@ import {
   MementoNameVaultAbi as vaultAbi,
 } from "@memento/chain";
 import { hcaAbi, factoryAbi, hcaFactoryAbi } from "@memento/chain/abi/ens";
+import { sepolia } from "@memento/chain/network";
 import { ProviderError } from "@memento/protocol";
 import { erc20Abi, parseAbi, type Address } from "viem";
 
@@ -18,7 +19,7 @@ export const checkDeployment = Effect.gen(function* () {
   const config = yield* EnsConfig;
   const { publicClient, account } = yield* Ethereum;
 
-  if ((yield* provider("rpc", () => publicClient.getChainId())) !== 11155111)
+  if ((yield* provider("rpc", () => publicClient.getChainId())) !== sepolia.id)
     return yield* fail("RPC must use the configured Sepolia chain");
 
   for (const address of [
