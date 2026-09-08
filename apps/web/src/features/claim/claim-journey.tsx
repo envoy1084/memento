@@ -1,20 +1,42 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { Link } from "@tanstack/react-router";
 
-import { Button, Card, Chip, Form, Label, RadioButtonGroup } from "@thenamespace/uikit";
-import { AnimatePresence, motion } from "motion/react";
+import {
+  Button,
+  Card,
+  Chip,
+  Description,
+  Form,
+  Label,
+  RadioButtonGroup,
+  Separator,
+} from "@thenamespace/uikit";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 
 import { claimCampaign, claimGift, nameAvailability } from "#/atoms/demo";
+import { NameMark } from "#/components/brand";
 import { Field } from "#/components/fields";
 import { GiftArt } from "#/components/gift-art";
 import { Icon } from "#/components/icon";
-import { CopyButton, Empty, SummaryRow } from "#/components/page";
+import {
+  ButtonLink,
+  CopyButton,
+  DetailList,
+  DetailRow,
+  EmptyPanel,
+  Eyebrow,
+  Note,
+  Section,
+} from "#/components/page";
 import { useDemo } from "#/hooks/use-demo";
 
 import { ClaimProgress } from "./claim-progress";
 
 type Stage = "sealed" | "choose" | "wallet" | "verify" | "review" | "claiming" | "complete";
+
+const suggestions = ["heyfriend", "littlewonder", "hellobobby"];
+
 export function ClaimJourney({
   giftId,
   campaignId,
@@ -25,26 +47,38 @@ export function ClaimJourney({
   invitationId?: string;
 }) {
   const [state, setState] = useDemo();
+  const reduced = useReducedMotion();
   const gift = state.gifts.find((entry) => entry.id === giftId);
   const campaign = state.campaigns.find((entry) => entry.id === campaignId);
   const invitation = campaign?.invitations.find((entry) => entry.id === invitationId);
+
   const [stage, setStage] = useState<Stage>("sealed");
   const [name, setName] = useState("");
   const [wallet, setWallet] = useState("email");
   const [email, setEmail] = useState("");
   const [verified, setVerified] = useState(false);
   const [error, setError] = useState("");
+  const panel = useRef<HTMLDivElement>(null);
+  const first = useRef(true);
+
+  // A multi-stage flow replaces the whole panel, so move focus with it.
+  useEffect(() => {
+    if (first.current) {
+      first.current = false;
+      return;
+    }
+    panel.current?.focus();
+  }, [stage]);
+
   const isOwned = gift?.kind === "owned";
   const budget = gift?.budget ?? campaign?.budget ?? 20;
   const years = gift?.years ?? campaign?.years ?? 1;
-  const quote = nameAvailability(
-    name,
-    gift?.minLength ?? campaign?.minLength,
-    gift?.maxLength ?? campaign?.maxLength,
-    budget,
-    years,
-  );
+  const minLength = gift?.minLength ?? campaign?.minLength;
+  const maxLength = gift?.maxLength ?? campaign?.maxLength;
+  const quote = nameAvailability(name, minLength, maxLength, budget, years);
   const fullName = isOwned ? gift.name : `${quote.name || "yourname"}.eth`;
+  const sender = campaign?.name ?? "alice.eth";
+
   const unavailable = campaignId
     ? !campaign ||
       !invitation ||
@@ -53,6 +87,7 @@ export function ClaimJourney({
       campaign.paused ||
       campaign.claimed >= campaign.quantity
     : !gift || gift.state !== "ready";
+
   const complete = () => {
     try {
       const next =
@@ -63,125 +98,124 @@ export function ClaimJourney({
       setStage("complete");
     } catch (cause) {
       setError(
-        cause instanceof Error
-          ? cause.message
-          : "Your claim could not be completed. Please try again.",
+        cause instanceof Error ? cause.message : "This claim couldn’t be completed. Try again.",
       );
       setStage("review");
     }
   };
-  if (unavailable && stage !== "complete" && stage !== "claiming")
+
+  if (unavailable && stage !== "complete" && stage !== "claiming") {
+    const alreadyClaimed = gift?.state === "claimed" || invitation?.claimed;
     return (
-      <div className="mx-auto w-[calc(100%-40px)] max-w-[1200px] md:w-[calc(100%-96px)] py-20">
-        <Empty
+      <Section className="py-20">
+        <EmptyPanel
+          icon={alreadyClaimed ? "check" : "clock"}
           title={
-            gift?.state === "claimed" || invitation?.claimed
-              ? "This gift has found its home."
-              : "This invitation is resting."
+            alreadyClaimed ? "This one has already been claimed." : "This invitation isn’t open."
           }
           description={
-            gift?.state === "claimed" || invitation?.claimed
-              ? "This name has already been claimed. Every good beginning is one of a kind."
-              : "It may have expired, been returned, or the community may be taking a pause. Ask the sender for a fresh invitation."
+            alreadyClaimed
+              ? "Every name can only be claimed once, and this one has found its person."
+              : "It may have expired, been returned, or the community may have paused. Ask whoever sent it for a fresh link."
           }
-          to="/"
-          action="Explore Memento"
+          action={<ButtonLink to="/">See what Memento is</ButtonLink>}
         />
-      </div>
+      </Section>
     );
-  const sender = campaign?.name ?? "alice.eth";
+  }
+
   return (
-    <div className="mx-auto w-[calc(100%-40px)] max-w-[1200px] md:w-[calc(100%-96px)] py-10 md:py-16">
-      <div className="grid items-center gap-8 lg:grid-cols-2 lg:gap-20">
-        <div className="order-2 lg:order-1">
-          <div className="overflow-hidden rounded-[32px] border border-white bg-gradient-to-br from-[#f5eefa] via-[#fcf5fa] to-[#eee7fa] p-5 shadow-[0_20px_80px_#ad8bb710]">
+    <Section className="py-10 md:py-16">
+      <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-16">
+        <div className="order-2 min-w-0 lg:order-1">
+          <div className="overflow-hidden rounded-[32px] border border-rule bg-linear-160 from-lavender-50 via-paper-raised to-blush-50 shadow-lift">
             <GiftArt
-              name={stage === "sealed" ? (isOwned ? fullName : "a little possibility") : fullName}
+              name={stage === "sealed" && !isOwned ? "a name of your own" : fullName}
               theme={gift?.theme ?? "aura"}
+              size="lg"
               opened={stage !== "sealed"}
+              sender={sender}
             />
-            <div className="pb-8 text-center">
-              <p className="font-serif text-xl italic text-[#8f759f]">
+            <div className="border-t border-white/70 px-7 py-7 text-center">
+              <p className="mx-auto m-0 max-w-[36ch] text-[17px] leading-relaxed text-ink">
                 “{gift?.message ?? campaign?.description}”
               </p>
-              <span className="mt-4 inline-block text-xs text-muted">A Memento from {sender}</span>
+              <p className="mt-4 mb-0 text-xs tracking-[0.12em] text-ink-soft uppercase">
+                From {sender}
+              </p>
             </div>
           </div>
-          <div className="mt-5 flex justify-center gap-5 text-[10px] text-muted">
-            <span className="flex items-center gap-1.5">
-              <Icon name="shield" size={13} />
-              Yours to own
-            </span>
-            <span className="flex items-center gap-1.5">
-              <Icon name="gift" size={13} />
-              Nothing to pay
-            </span>
-            <span className="flex items-center gap-1.5">
-              <Icon name="globe" size={13} />A name for everywhere
-            </span>
+          <div className="mt-5 flex flex-wrap justify-center gap-x-6 gap-y-2 text-xs text-ink-soft">
+            {[
+              { icon: "shield" as const, label: "Yours to own" },
+              { icon: "gift" as const, label: "Nothing to pay" },
+              { icon: "globe" as const, label: "Works everywhere" },
+            ].map((item) => (
+              <span key={item.label} className="flex items-center gap-1.5">
+                <Icon name={item.icon} size={14} className="text-lavender-500" />
+                {item.label}
+              </span>
+            ))}
           </div>
         </div>
+
         <div className="order-1 min-w-0 lg:order-2">
-          <AnimatePresence mode="wait">
+          <AnimatePresence mode="wait" initial={false}>
             <motion.div
               key={stage}
-              initial={{ opacity: 0, y: 12 }}
+              ref={panel}
+              tabIndex={-1}
+              className="outline-none"
+              initial={reduced ? false : { opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.3 }}
+              {...(reduced ? {} : { exit: { opacity: 0, y: -6 } })}
+              transition={{
+                duration: stage === "complete" ? 0.42 : 0.2,
+                ease: [0.23, 1, 0.32, 1],
+              }}
             >
               {stage === "sealed" ? (
                 <>
-                  <Chip variant="soft" color="accent" className="mb-6">
-                    {campaign ? "YOU’RE ONE OF US" : "SOMEONE THOUGHT OF YOU"}
+                  <Chip variant="soft" color="accent" size="sm" className="mb-6">
+                    {campaign ? "You’re invited" : "Someone thought of you"}
                   </Chip>
-                  <h1>
+                  <h1 className="text-display-lg">
+                    {isOwned ? "This one has your name on it." : "A name of your own is waiting."}
+                  </h1>
+                  <p className="my-6 max-w-[46ch] text-[15px] leading-[1.8] text-ink-soft">
                     {isOwned ? (
                       <>
-                        Some things just
-                        <br />
-                        have your name on them.
+                        {sender} set aside <NameMark name={fullName} size="sm" /> for you. It’s an
+                        .eth name — a single, human name you can use online instead of a wallet
+                        address.
                       </>
                     ) : (
                       <>
-                        Your next chapter
-                        <br />
-                        has a{" "}
-                        <span className="font-serif font-normal tracking-[-0.05em] text-[#9d7bb4] italic">
-                          name.
-                        </span>
+                        {sender} is giving you your first .eth name — one human name you can use
+                        online instead of a long wallet address. Choose the one that sounds like
+                        you; the cost is already covered.
                       </>
                     )}
-                  </h1>
-                  <p className="my-6 max-w-md text-sm leading-7 text-muted">
-                    {isOwned
-                      ? `${sender} set aside ${fullName}, just for you. A little corner of the internet that’s yours to keep.`
-                      : `${sender} has given you a new beginning. Choose an .eth name that feels like you—we’ll take care of the rest.`}
                   </p>
                   <Button size="lg" onPress={() => setStage(isOwned ? "wallet" : "choose")}>
-                    Unwrap your gift
+                    Open your gift
                     <Icon name="gift" size={18} />
                   </Button>
-                  <p className="mt-5 text-xs text-muted">No crypto. No experience. Just you.</p>
+                  <p className="mt-5 text-[13px] text-ink-soft">
+                    No crypto, no wallet and no payment needed to start.
+                  </p>
                 </>
               ) : null}
+
               {stage === "choose" ? (
                 <>
-                  <div className="mb-5 text-[10px] font-semibold tracking-[0.17em] text-[#8c749f] uppercase">
-                    01 / FIND YOUR NAME
-                  </div>
-                  <h1>
-                    What feels{" "}
-                    <span className="font-serif font-normal tracking-[-0.05em] text-[#9d7bb4] italic">
-                      like you?
-                    </span>
-                  </h1>
-                  <p className="my-5 text-sm text-muted">
-                    Your name, a nickname, a little alter ego.
-                    <br />
-                    Make it something you’ll love to introduce yourself with.
+                  <Eyebrow className="mb-4">Step 1 of 3 · Choose your name</Eyebrow>
+                  <h1 className="text-display-md">What should people call you?</h1>
+                  <p className="mt-3 mb-6 max-w-[44ch] text-[15px] text-ink-soft">
+                    Your name, a nickname, or something new. You’ll introduce yourself with it.
                   </p>
                   <Form
+                    className="space-y-5"
                     onSubmit={(event) => {
                       event.preventDefault();
                       if (quote.available) setStage("wallet");
@@ -191,19 +225,20 @@ export function ClaimJourney({
                       label="Your name"
                       value={name}
                       onChange={setName}
-                      placeholder="somethingyou.eth"
-                      maxLength={67}
+                      placeholder="somethingyou"
+                      maxLength={63}
                       required
+                      description="We’ll add .eth to the end."
                     />
                     <p
                       role="status"
-                      className={`mt-3 text-xs ${quote.available ? "text-success" : "text-muted"}`}
+                      className={`m-0 flex items-center gap-2 text-[13px] ${quote.available ? "text-success" : "text-ink-soft"}`}
                     >
-                      {quote.available ? "✓ " : ""}
+                      {quote.available ? <Icon name="check" size={15} /> : null}
                       {quote.reason}
                     </p>
-                    <div className="my-6 flex flex-wrap gap-2">
-                      {["heyfriend", "littlewonder", "hellobobby"].map((suggestion) => (
+                    <div className="flex flex-wrap gap-2">
+                      {suggestions.map((suggestion) => (
                         <Button
                           key={suggestion}
                           size="sm"
@@ -214,40 +249,38 @@ export function ClaimJourney({
                         </Button>
                       ))}
                     </div>
-                    <Card className="mb-6 rounded-2xl bg-surface-secondary p-4 shadow-none">
-                      <SummaryRow label="Covered by your gift">Up to ${budget}</SummaryRow>
-                      <SummaryRow label="Registration">
-                        {years} year{years > 1 ? "s" : ""}
-                      </SummaryRow>
-                      <p className="mt-2 text-[10px] text-muted">
-                        {gift?.minLength ?? campaign?.minLength}–
-                        {gift?.maxLength ?? campaign?.maxLength} characters · Illustrative
-                        availability and prices
+                    <Card variant="secondary" className="rounded-2xl p-5 shadow-none">
+                      <DetailList>
+                        <DetailRow label="Covered by this gift">Up to ${budget}</DetailRow>
+                        <DetailRow label="Paid up for">
+                          {years} year{years > 1 ? "s" : ""}
+                        </DetailRow>
+                        <DetailRow label="Name length">
+                          {minLength}–{maxLength} characters
+                        </DetailRow>
+                      </DetailList>
+                      <p className="mt-3 mb-0 text-[11px] text-ink-faint">
+                        Availability and prices are illustrative in this preview.
                       </p>
                     </Card>
-                    <Button type="submit" isDisabled={!quote.available} fullWidth>
-                      That’s my name
-                      <Icon name="arrow" size={17} />
+                    <Button type="submit" isDisabled={!quote.available} fullWidth size="lg">
+                      That’s the one
+                      <Icon name="arrow" size={18} />
                     </Button>
                   </Form>
                 </>
               ) : null}
+
               {stage === "wallet" ? (
                 <>
-                  <div className="mb-5 text-[10px] font-semibold tracking-[0.17em] text-[#8c749f] uppercase">
-                    02 / A HOME FOR YOUR NAME
-                  </div>
-                  <h1>
-                    Yours,{" "}
-                    <span className="font-serif font-normal tracking-[-0.05em] text-[#9d7bb4] italic">
-                      wherever you go.
-                    </span>
-                  </h1>
-                  <p className="my-5 text-sm text-muted">
-                    A wallet is a home for your name. Start with your email, or bring one you
-                    already have.
+                  <Eyebrow className="mb-4">Step 2 of 3 · Where it lives</Eyebrow>
+                  <h1 className="text-display-md">Where should your name live?</h1>
+                  <p className="mt-3 mb-6 max-w-[44ch] text-[15px] text-ink-soft">
+                    A wallet is just the account that holds it. Start with an email, or use a wallet
+                    you already have.
                   </p>
                   <Form
+                    className="space-y-5"
                     onSubmit={(event) => {
                       event.preventDefault();
                       setStage(campaign?.worldId ? "verify" : "review");
@@ -256,29 +289,34 @@ export function ClaimJourney({
                     <RadioButtonGroup
                       value={wallet}
                       onChange={setWallet}
-                      aria-label="Choose a wallet"
-                      className="mb-5"
+                      variant="secondary"
+                      aria-label="Where your name lives"
+                      className="w-full"
                     >
-                      <RadioButtonGroup.Item value="email">
-                        <Icon name="mail" />
-                        <RadioButtonGroup.ItemContent>
-                          <Label>Start with an email</Label>
-                          <p className="text-[11px] leading-relaxed text-muted">
-                            A simple place to begin. No wallet needed.
-                          </p>
-                        </RadioButtonGroup.ItemContent>
-                        <RadioButtonGroup.Indicator />
-                      </RadioButtonGroup.Item>
-                      <RadioButtonGroup.Item value="wallet">
-                        <Icon name="wallet" />
-                        <RadioButtonGroup.ItemContent>
-                          <Label>I have a wallet</Label>
-                          <p className="text-[11px] leading-relaxed text-muted">
-                            Keep your name with the things you own.
-                          </p>
-                        </RadioButtonGroup.ItemContent>
-                        <RadioButtonGroup.Indicator />
-                      </RadioButtonGroup.Item>
+                      <div className="grid w-full gap-3">
+                        <RadioButtonGroup.Item value="email">
+                          <RadioButtonGroup.ItemIcon>
+                            <Icon name="mail" size={19} />
+                          </RadioButtonGroup.ItemIcon>
+                          <RadioButtonGroup.ItemContent>
+                            <Label>Start with an email</Label>
+                            <Description>
+                              We’ll make a wallet for you. Nothing to install.
+                            </Description>
+                          </RadioButtonGroup.ItemContent>
+                          <RadioButtonGroup.Indicator />
+                        </RadioButtonGroup.Item>
+                        <RadioButtonGroup.Item value="wallet">
+                          <RadioButtonGroup.ItemIcon>
+                            <Icon name="wallet" size={19} />
+                          </RadioButtonGroup.ItemIcon>
+                          <RadioButtonGroup.ItemContent>
+                            <Label>I already have a wallet</Label>
+                            <Description>Keep your name with everything else you own.</Description>
+                          </RadioButtonGroup.ItemContent>
+                          <RadioButtonGroup.Indicator />
+                        </RadioButtonGroup.Item>
+                      </div>
                     </RadioButtonGroup>
                     {wallet === "email" ? (
                       <Field
@@ -288,108 +326,102 @@ export function ClaimJourney({
                         value={email}
                         onChange={setEmail}
                         placeholder="you@example.com"
+                        autoComplete="email"
+                        description="Used to sign back in. No email is sent in this preview."
                       />
                     ) : (
-                      <div className="rounded-xl bg-surface-secondary p-4 text-xs text-muted">
-                        Demo wallet · 0x71C…4F2A
-                        <br />
-                        No wallet connection will be requested.
-                      </div>
+                      <Card variant="secondary" className="rounded-2xl p-4 shadow-none">
+                        <p className="m-0 font-mono text-[13px]">0x71C…4F2A</p>
+                        <p className="m-0 mt-1 text-xs text-ink-soft">
+                          Demo wallet. No connection will be requested.
+                        </p>
+                      </Card>
                     )}
-                    <Button type="submit" fullWidth className="mt-6">
-                      Continue
-                      <Icon name="arrow" size={18} />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="mt-3"
-                      onPress={() => setStage(isOwned ? "sealed" : "choose")}
-                    >
-                      Back
-                    </Button>
+                    <div className="flex flex-wrap items-center gap-3">
+                      <Button type="submit" size="lg" className="flex-1">
+                        Continue
+                        <Icon name="arrow" size={18} />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        onPress={() => setStage(isOwned ? "sealed" : "choose")}
+                      >
+                        Back
+                      </Button>
+                    </div>
                   </Form>
-                  <p className="mt-3 text-[11px] text-muted">
-                    This preview won’t send an email or create a wallet.
-                  </p>
                 </>
               ) : null}
+
               {stage === "verify" ? (
                 <>
-                  <span className="mb-6 inline-flex rounded-2xl bg-accent-soft p-4 text-accent-soft-foreground">
-                    <Icon name="shield" size={30} />
-                  </span>
-                  <div className="mb-5 text-[10px] font-semibold tracking-[0.17em] text-[#8c749f] uppercase">
-                    A FAIR START FOR EVERYONE
-                  </div>
-                  <h1>
-                    One human.
-                    <br />
-                    One{" "}
-                    <span className="font-serif font-normal tracking-[-0.05em] text-[#9d7bb4] italic">
-                      new beginning.
-                    </span>
-                  </h1>
-                  <p className="my-5 text-sm text-muted">
-                    {sender} asks for World ID so more people get their first name. A small check to
-                    keep this gift one per person.
+                  <Eyebrow className="mb-4">One person, one name</Eyebrow>
+                  <h1 className="text-display-md">A fair start for everyone.</h1>
+                  <p className="mt-3 mb-6 max-w-[46ch] text-[15px] text-ink-soft">
+                    {sender} asks each person to verify once, so the names go to as many different
+                    people as possible. Your identity isn’t shared with the community.
                   </p>
-                  <div className="my-6 rounded-2xl bg-surface-secondary p-5 text-sm">
-                    <Icon name={verified ? "check" : "shield"} />
-                    <p className="mt-3">
+                  <Card
+                    variant={verified ? "secondary" : "default"}
+                    className="mb-6 flex-row items-start gap-4 rounded-2xl p-5 shadow-none"
+                  >
+                    <span
+                      className={`grid size-10 shrink-0 place-content-center rounded-xl ${verified ? "bg-success/10 text-success" : "bg-lavender-50 text-lavender-600"}`}
+                    >
+                      <Icon name={verified ? "check" : "shield"} size={19} />
+                    </span>
+                    <p className="m-0 text-sm text-ink-soft">
                       {verified
-                        ? "You’re all set. Your beginning is waiting."
-                        : "Your identity stays private. The community only needs to know you’re eligible."}
+                        ? "You’re verified. Your name is ready to claim."
+                        : "World ID confirms you’re a unique person without revealing who you are."}
                     </p>
-                  </div>
+                  </Card>
                   <Button
                     fullWidth
-                    onPress={() => {
-                      if (verified) setStage("review");
-                      else setVerified(true);
-                    }}
+                    size="lg"
+                    onPress={() => (verified ? setStage("review") : setVerified(true))}
                   >
-                    {verified ? "Continue to your name" : "Preview World ID verification"}
-                    <Icon name={verified ? "arrow" : "shield"} size={17} />
+                    {verified ? "Continue" : "Verify with World ID"}
+                    <Icon name={verified ? "arrow" : "shield"} size={18} />
                   </Button>
-                  <p className="mt-4 text-[11px] text-muted">
-                    Simulated verification. No personal proof is collected.
+                  <p className="mt-4 text-[13px] text-ink-soft">
+                    Simulated. No proof is generated or collected.
                   </p>
                 </>
               ) : null}
+
               {stage === "review" ? (
                 <>
-                  <div className="mb-5 text-[10px] font-semibold tracking-[0.17em] text-[#8c749f] uppercase">
-                    A NAME. ALL YOURS.
-                  </div>
-                  <h1>
-                    Hello,{" "}
-                    <span className="font-serif font-normal tracking-[-0.05em] text-[#9d7bb4] italic">
-                      {fullName}
-                    </span>
+                  <Eyebrow className="mb-4">Step 3 of 3 · Confirm</Eyebrow>
+                  <h1 className="text-display-md">
+                    Hello, <NameMark name={fullName} size="lg" tone="lavender" />
                   </h1>
-                  <p className="my-5 text-sm text-muted">
-                    Looks good on you. One last look before you make it yours.
+                  <p className="mt-3 mb-6 max-w-[44ch] text-[15px] text-ink-soft">
+                    One last look before it becomes yours.
                   </p>
-                  <Card className="my-6 rounded-3xl border border-separator p-6 shadow-none">
-                    <SummaryRow label="Your name">{fullName}</SummaryRow>
-                    <SummaryRow label="Home">
-                      {wallet === "email" ? email : "0x71C…4F2A"}
-                    </SummaryRow>
-                    <SummaryRow label="A gift from">{sender}</SummaryRow>
-                    <SummaryRow label="You pay">
-                      <span className="text-success">$0 · completely covered</span>
-                    </SummaryRow>
-                    {campaign?.worldId ? (
-                      <SummaryRow label="Eligibility">
-                        {verified ? "Verified in preview" : "Not verified"}
-                      </SummaryRow>
-                    ) : null}
+                  <Card className="mb-6 rounded-3xl border border-rule p-6 shadow-none">
+                    <DetailList>
+                      <DetailRow label="Your name">
+                        <NameMark name={fullName} size="sm" />
+                      </DetailRow>
+                      <DetailRow label="Lives in">
+                        {wallet === "email" ? email || "a new wallet" : "0x71C…4F2A"}
+                      </DetailRow>
+                      <DetailRow label="Gift from">{sender}</DetailRow>
+                      <DetailRow label="You pay">
+                        <span className="text-success">$0 — fully covered</span>
+                      </DetailRow>
+                      {campaign?.worldId ? (
+                        <DetailRow label="Eligibility">
+                          {verified ? "Verified" : "Not verified"}
+                        </DetailRow>
+                      ) : null}
+                    </DetailList>
                   </Card>
                   {error ? (
-                    <p role="alert" className="mb-4 text-sm text-danger">
-                      {error}
-                    </p>
+                    <div role="alert" className="mb-4">
+                      <Note status="danger">{error}</Note>
+                    </div>
                   ) : null}
                   <Button
                     fullWidth
@@ -401,7 +433,7 @@ export function ClaimJourney({
                     }}
                   >
                     Make it mine
-                    <Icon name="sparkle" />
+                    <Icon name="sparkle" size={18} />
                   </Button>
                   <Button
                     fullWidth
@@ -409,60 +441,52 @@ export function ClaimJourney({
                     className="mt-2"
                     onPress={() => setStage("wallet")}
                   >
-                    Change wallet
+                    Change where it lives
                   </Button>
-                  <p className="mt-3 text-center text-[11px] text-muted">
-                    Preview only. Your name won’t be registered onchain.
+                  <p className="mt-4 text-center text-[13px] text-ink-soft">
+                    Preview only. Nothing is registered onchain.
                   </p>
                 </>
               ) : null}
+
               {stage === "claiming" ? (
                 <ClaimProgress name={fullName} onComplete={complete} />
               ) : null}
+
               {stage === "complete" ? (
                 <>
-                  <motion.div
-                    initial={{ scale: 0.7 }}
-                    animate={{ scale: 1 }}
-                    transition={{ type: "spring", stiffness: 200, damping: 12 }}
-                    className="mb-6 inline-flex rounded-full bg-success/10 p-4 text-success"
+                  <motion.span
+                    className="mb-6 inline-flex rounded-2xl bg-success/10 p-3.5 text-success"
+                    initial={reduced ? false : { scale: 0.92, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ type: "spring", duration: 0.55, bounce: 0.28, delay: 0.05 }}
                   >
-                    <Icon name="check" size={32} />
-                  </motion.div>
-                  <div className="mb-5 text-[10px] font-semibold tracking-[0.17em] text-[#8c749f] uppercase">
-                    THIS IS YOUR BEGINNING
-                  </div>
-                  <h1>
-                    The world can
-                    <br />
-                    call you{" "}
-                    <span className="font-serif font-normal tracking-[-0.05em] text-[#9d7bb4] italic">
-                      {fullName}.
-                    </span>
+                    <Icon name="check" size={28} />
+                  </motion.span>
+                  <Eyebrow className="mb-4">It’s yours</Eyebrow>
+                  <h1 className="text-display-lg">
+                    The world can call you <NameMark name={fullName} size="xl" tone="lavender" />
                   </h1>
-                  <p className="my-6 text-sm leading-7 text-muted">
-                    Your name. Your next chapter.
-                    <br />A little gift you can take anywhere.
+                  <p className="my-6 max-w-[44ch] text-[15px] leading-[1.8] text-ink-soft">
+                    This name belongs to you now. Use it anywhere that speaks ENS, and take it with
+                    you wherever you go next.
                   </p>
                   <div className="flex flex-wrap gap-3">
-                    <Link to="/profile" className="button button--primary">
+                    <ButtonLink to="/profile">
                       Make it feel like you
                       <Icon name="arrow" size={18} />
-                    </Link>
+                    </ButtonLink>
                     <CopyButton value={fullName} label="Copy name" />
                   </div>
-                  <Card className="mt-8 rounded-2xl bg-surface-secondary p-5 shadow-none">
-                    <h3 className="text-base">A name is just the beginning.</h3>
-                    <p className="mt-2 text-xs text-muted">
-                      Add a bio and a little color to your new identity. Your preview has been saved
-                      in this browser.
-                    </p>
-                  </Card>
+                  <Separator className="my-8" />
+                  <Note title="Saved in this browser">
+                    Your claimed name lives in this browser’s preview. Clearing site data resets it.
+                  </Note>
                   <Link
                     to="/send"
-                    className="inline-flex items-center gap-2.5 text-xs font-medium text-[#786087] [&_svg]:transition-transform hover:[&_svg]:translate-x-0.5 mt-6"
+                    className="mt-6 inline-flex items-center gap-2 rounded-lg text-[13px] font-medium text-lavender-700"
                   >
-                    Pass on a little possibility
+                    Pass one on to someone else
                     <Icon name="gift" size={16} />
                   </Link>
                 </>
@@ -471,6 +495,6 @@ export function ClaimJourney({
           </AnimatePresence>
         </div>
       </div>
-    </div>
+    </Section>
   );
 }

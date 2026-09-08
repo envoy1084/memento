@@ -1,65 +1,95 @@
 import { useEffect, useRef, useState } from "react";
 
-import { Button, ProgressBar } from "@thenamespace/uikit";
-import { motion } from "motion/react";
+import { Button, ProgressBar, Spinner, Timeline } from "@thenamespace/uikit";
 
+import { NameMark } from "#/components/brand";
 import { Icon } from "#/components/icon";
+import { Eyebrow } from "#/components/page";
+
+const stages = [
+  { title: "Reserving the name", body: "Making sure nobody else can take it while you finish." },
+  { title: "Setting up your wallet", body: "Creating the place your name will live." },
+  { title: "Signing it over to you", body: "The registration is paid for by the gift." },
+];
+
 export function ClaimProgress({ name, onComplete }: { name: string; onComplete: () => void }) {
   const [progress, setProgress] = useState(0);
   const complete = useRef(onComplete);
   complete.current = onComplete;
   const finished = useRef(false);
+
   useEffect(() => {
-    const timer = window.setInterval(() => setProgress((value) => Math.min(3, value + 1)), 1400);
+    const timer = window.setInterval(
+      () => setProgress((value) => Math.min(stages.length, value + 1)),
+      1300,
+    );
     return () => window.clearInterval(timer);
   }, []);
+
   useEffect(() => {
-    if (progress === 3 && !finished.current) {
+    if (progress === stages.length && !finished.current) {
       finished.current = true;
       complete.current();
     }
   }, [progress]);
+
   return (
-    <div aria-live="polite" className="py-5">
-      <span className="mb-7 inline-flex rounded-2xl bg-accent-soft p-4 text-accent-soft-foreground">
-        <Icon name="sparkle" size={32} />
-      </span>
-      <h2>Making it yours.</h2>
-      <p className="mt-4 text-sm text-muted">
-        A little moment for a whole new beginning.
-        <br />
-        We’re getting {name} ready for you.
+    <div>
+      <Eyebrow className="mb-4">Almost yours</Eyebrow>
+      <h1>Getting things ready.</h1>
+      <p className="mt-3 max-w-[44ch] text-[15px] text-ink-soft">
+        A short moment while we set up <NameMark name={name} size="sm" /> for you.
       </p>
-      <div className="my-8 space-y-5">
-        {["Keeping your name safe", "Finding its home", "Adding the finishing touches"].map(
-          (label, index) => (
-            <div
-              key={label}
-              className={`flex items-center gap-3 text-sm ${progress >= index ? "text-foreground" : "text-muted/50"}`}
+
+      <Timeline className="my-8" density="comfortable" size="sm" aria-live="polite">
+        {stages.map((stage, index) => {
+          const done = progress > index;
+          const active = progress === index;
+          return (
+            <Timeline.Item
+              key={stage.title}
+              status={done ? "success" : active ? "current" : "muted"}
             >
-              <motion.span
-                animate={{ scale: progress === index ? [1, 1.12, 1] : 1 }}
-                transition={{ repeat: progress === index ? Infinity : 0, duration: 1.4 }}
-                className={`flex size-7 items-center justify-center rounded-full ${progress > index ? "bg-success/10 text-success" : "bg-accent-soft"}`}
-              >
-                {progress > index ? <Icon name="check" size={16} /> : index + 1}
-              </motion.span>
-              {label}
-            </div>
-          ),
-        )}
-      </div>
-      <ProgressBar aria-label="Preparing your demo name" value={(progress / 3) * 100}>
+              <Timeline.Marker aria-hidden="true">
+                {done ? (
+                  <Icon name="check" size={14} />
+                ) : active ? (
+                  <Spinner size="sm" />
+                ) : (
+                  index + 1
+                )}
+              </Timeline.Marker>
+              <Timeline.Content>
+                <p
+                  className={`m-0 text-sm font-medium ${done || active ? "text-ink" : "text-ink-faint"}`}
+                >
+                  {stage.title}
+                </p>
+                <p className="m-0 mt-1 max-w-[40ch] text-[13px] leading-6 text-ink-soft">
+                  {stage.body}
+                </p>
+              </Timeline.Content>
+            </Timeline.Item>
+          );
+        })}
+      </Timeline>
+
+      <ProgressBar
+        aria-label="Preparing your name"
+        value={(progress / stages.length) * 100}
+        size="sm"
+      >
         <ProgressBar.Track>
           <ProgressBar.Fill />
         </ProgressBar.Track>
       </ProgressBar>
-      <p className="mt-6 text-xs text-muted">
-        This is a simulated claim. No transaction is being sent.
-      </p>
-      <Button variant="ghost" size="sm" className="mt-4" onPress={() => setProgress(3)}>
-        Skip preview animation
-      </Button>
+
+      <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
+        <p className="m-0 text-xs text-ink-soft">Simulated. No transaction is being sent.</p>
+        <Button variant="ghost" size="sm" onPress={() => setProgress(stages.length)}>
+          Skip ahead
+        </Button>
+      </div>
     </div>
   );
 }
