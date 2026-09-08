@@ -20,6 +20,7 @@ export const makeOwnershipVerification = Effect.gen(function* () {
   const config = yield* EnsConfig;
   const { publicClient } = yield* Ethereum;
   const hca = yield* Hca;
+
   return Effect.fn("Chain.verifyOwnership")(function* (gift: Gift, claim: Claim) {
     const owner = yield* provider("rpc", () =>
       publicClient.readContract({
@@ -29,6 +30,7 @@ export const makeOwnershipVerification = Effect.gen(function* () {
         args: [BigInt(claim.labelhash)],
       }),
     );
+
     const resolver = yield* provider("rpc", () =>
       publicClient.readContract({
         address: config.registry,
@@ -37,6 +39,7 @@ export const makeOwnershipVerification = Effect.gen(function* () {
         args: [claim.label],
       }),
     );
+
     if (
       owner.toLowerCase() !== claim.recipientWallet ||
       resolver.toLowerCase() !== claim.resolver.toLowerCase()
@@ -45,6 +48,7 @@ export const makeOwnershipVerification = Effect.gen(function* () {
         code: "OWNERSHIP_NOT_CONFIRMED",
         message: "Recipient ownership and resolver are not confirmed",
       });
+
     const implementation = yield* provider("rpc", () =>
       publicClient.readContract({
         address: config.verifiableFactory,
@@ -53,6 +57,7 @@ export const makeOwnershipVerification = Effect.gen(function* () {
         args: [resolver],
       }),
     );
+
     const roles = yield* provider("rpc", () =>
       publicClient.readContract({
         address: resolver,
@@ -61,10 +66,12 @@ export const makeOwnershipVerification = Effect.gen(function* () {
         args: [0n, claim.recipientWallet as Address],
       }),
     );
+
     // ENSv2's resolver reads profiles through ENSIP-10 resolve(), not direct v1 addr/text calls.
     const name = `${claim.label}.eth`;
     const node = namehash(name);
     const dnsName = toHex(packetToBytes(name));
+
     const address = yield* provider("rpc", async () =>
       decodeFunctionResult({
         abi: profileAbi,
@@ -80,6 +87,7 @@ export const makeOwnershipVerification = Effect.gen(function* () {
         }),
       }),
     );
+
     if (
       implementation.toLowerCase() !== config.resolverImplementation.toLowerCase() ||
       address.toLowerCase() !== claim.recipientWallet ||
@@ -89,6 +97,7 @@ export const makeOwnershipVerification = Effect.gen(function* () {
         code: "RESOLVER_HANDOFF_FAILED",
         message: "Recipient resolver control is not confirmed",
       });
+
     for (const record of gift.records) {
       const value = yield* provider("rpc", async () =>
         decodeFunctionResult({
@@ -109,14 +118,17 @@ export const makeOwnershipVerification = Effect.gen(function* () {
           }),
         }),
       );
+
       if (value !== record.value)
         return yield* new Conflict({
           code: "RECORDS_NOT_CONFIRMED",
           message: "Starter records are not confirmed",
         });
     }
+
     if (gift.kind === "chosen_name") {
       yield* hca.verify(claim.hca as Address, claim.recipientWallet as Address);
+
       if (gift.policy.setPrimaryName) {
         const registrar = yield* provider("rpc", () =>
           publicClient.readContract({
@@ -125,6 +137,7 @@ export const makeOwnershipVerification = Effect.gen(function* () {
             functionName: "DEFAULT_REVERSE_REGISTRAR",
           }),
         );
+
         const primary = yield* provider("rpc", () =>
           publicClient.readContract({
             address: registrar,
@@ -133,6 +146,7 @@ export const makeOwnershipVerification = Effect.gen(function* () {
             args: [claim.recipientWallet as Address],
           }),
         );
+
         if (primary !== name)
           return yield* new Conflict({
             code: "PRIMARY_NAME_NOT_CONFIRMED",

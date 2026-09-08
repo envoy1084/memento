@@ -1,8 +1,10 @@
 import { Config, Context, type Effect, Layer, Schema } from "effect";
 
 import { Address } from "@memento/protocol";
+
 const address = (name: string) =>
   Config.schema(Address, name).pipe(Config.map((value) => value as `0x${string}`));
+
 const make = Config.all({
   rpcUrl: Config.redacted("RPC_URL"),
   coordinatorKey: Config.redacted("COORDINATOR_PRIVATE_KEY"),
@@ -24,6 +26,7 @@ const make = Config.all({
     "CHAIN_CONFIRMATIONS",
   ).pipe(Config.withDefault(2)),
 });
+
 export class EnsConfig extends Context.Service<EnsConfig, Effect.Success<typeof make>>()(
   "@memento/server/EnsConfig",
 ) {

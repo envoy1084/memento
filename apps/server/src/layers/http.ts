@@ -5,14 +5,17 @@ import {
   HttpServerRequest,
   HttpServerResponse,
 } from "effect/unstable/http";
+
 export const HttpPolicy = (origin: string) =>
   Layer.unwrap(
     Effect.sync(() => {
       const buckets = new Map<string, { count: number; until: number }>();
+
       const safety = HttpRouter.middleware(
         (httpEffect) =>
           Effect.gen(function* () {
             const request = yield* HttpServerRequest.HttpServerRequest;
+
             yield* HttpEffect.appendPreResponseHandler((_, response) =>
               Effect.succeed(
                 HttpServerResponse.setHeaders(response, {
@@ -28,21 +31,28 @@ export const HttpPolicy = (origin: string) =>
             const ip =
               request.headers["x-memento-client-ip"] ??
               Option.getOrElse(request.remoteAddress, () => "unknown");
+
             for (const [key, bucket] of buckets) if (bucket.until <= now) buckets.delete(key);
+
             const bucket = buckets.get(ip) ?? { count: 0, until: now + 60000 };
+
             bucket.count++;
+
             if (bucket.count > 180 || (!buckets.has(ip) && buckets.size >= 10000))
               return HttpServerResponse.text("Too many requests", {
                 status: 429,
                 headers: { "retry-after": "60", "cache-control": "no-store" },
               });
+
             buckets.set(ip, bucket);
+
             return yield* httpEffect.pipe(
               Effect.provideService(HttpServerRequest.MaxBodySize, FileSystem.Size(131072)),
             );
           }),
         { global: true },
       );
+
       return Layer.mergeAll(
         safety,
         HttpRouter.cors({

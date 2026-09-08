@@ -39,6 +39,7 @@ import { Hca, proxyAddress } from "./hca.js";
 import { TransactionJournal, jsonValue } from "./journal.js";
 import { makePlans, restriction } from "./plans.js";
 import { makeOwnershipVerification } from "./verification.js";
+
 const intentTypes = {
   ClaimIntent: [
     { name: "giftId", type: "bytes32" },
@@ -50,6 +51,7 @@ const intentTypes = {
     { name: "deadline", type: "uint64" },
   ],
 } as const;
+
 const authorizationTypes = {
   ClaimAuthorization: [
     { name: "intentHash", type: "bytes32" },
@@ -57,6 +59,7 @@ const authorizationTypes = {
     { name: "eligible", type: "bool" },
   ],
 } as const;
+
 const contractIntent = (intent: ClaimIntent) => ({
   giftId: intent.giftId as Hex,
   recipient: intent.recipient as Address,
@@ -66,6 +69,7 @@ const contractIntent = (intent: ClaimIntent) => ({
   nonce: intent.nonce as Hex,
   deadline: BigInt(intent.deadline),
 });
+
 const make = Effect.gen(function* () {
   const config = yield* EnsConfig;
   const { publicClient, account, ensforge } = yield* Ethereum;
@@ -73,18 +77,21 @@ const make = Effect.gen(function* () {
   const journal = yield* TransactionJournal;
   const hca = yield* Hca;
   const plans = yield* makePlans;
+
   const domain = (gift: Gift) => ({
     name: gift.kind === "chosen_name" ? "MementoSponsorship" : "MementoNameVault",
     version: "1",
     chainId: sepolia.id,
     verifyingContract: gift.kind === "chosen_name" ? config.sponsorship : config.vault,
   });
+
   const typedIntent = (gift: Gift, intent: ClaimIntent) => ({
     domain: domain(gift),
     primaryType: "ClaimIntent" as const,
     types: intentTypes,
     message: contractIntent(intent),
   });
+
   const quote = Effect.fn("Chain.quote")(function* (label: string, duration: number) {
     const minimum = yield* provider("rpc", () =>
       publicClient.readContract({
@@ -93,6 +100,7 @@ const make = Effect.gen(function* () {
         functionName: "MIN_REGISTER_DURATION",
       }),
     );
+
     if (BigInt(duration) < minimum)
       return yield* new InvalidRequest({
         code: "REGISTRATION_DURATION_TOO_SHORT",
@@ -112,15 +120,19 @@ const make = Effect.gen(function* () {
           paymentToken: config.token,
         }),
       );
+
       if (price.status === "available")
         return { label, duration, available: true, price: price.total.toString() };
+
       if (price.status === "unavailable") return { label, duration, available: false, price: "0" };
+
       return yield* new ProviderError({
         provider: "ensforge",
         retryable: false,
         message: "Configured payment token is unsupported by the registrar",
       });
     }
+
     const available = yield* provider("rpc", () =>
       publicClient.readContract({
         address: config.registrar,
@@ -129,7 +141,9 @@ const make = Effect.gen(function* () {
         args: [label],
       }),
     );
+
     if (!available) return { label, duration, available: false, price: "0" };
+
     const [base, premium] = yield* provider("rpc", () =>
       publicClient.readContract({
         address: config.registrar,
@@ -138,9 +152,12 @@ const make = Effect.gen(function* () {
         args: [label, BigInt(duration), config.token],
       }),
     );
+
     return { label, duration, available, price: (base + premium).toString() };
   });
+
   const verifyOwnership = yield* makeOwnershipVerification;
+
   const auth = Effect.fn("Chain.storedAuthorization")(function* (gift: Gift, claim: Claim) {
     if (
       !gift.secretCiphertext ||
@@ -152,6 +169,7 @@ const make = Effect.gen(function* () {
         code: "AUTHORIZATION_UNAVAILABLE",
         message: "Claim authorization is incomplete",
       });
+
     return {
       intent: contractIntent(claimIntent(claim)),
       secret: claimSecret(yield* crypto.open(gift.secretCiphertext, `gift:${gift.id}:secret`)),
@@ -166,11 +184,14 @@ const make = Effect.gen(function* () {
       )) as Hex,
     };
   });
+
   return Chain.of({
     ...plans,
     chainId: sepolia.id,
     quote,
+
     typedIntent: (gift, intent) => jsonValue(typedIntent(gift, intent)),
+
     prepare: (gift, recipient, label, _nonce, deadline) =>
       gift.kind === "chosen_name"
         ? hca.prepare(gift, recipient as Address, label, deadline)
@@ -189,9 +210,11 @@ const make = Effect.gen(function* () {
             commitment: zeroHash,
             typedData: null,
           }),
+
     authorize: Effect.fn("Chain.authorize")(
       function* (gift, claim, signature, sessionAuthorization) {
         const typed = typedIntent(gift, claimIntent(claim));
+
         const valid = yield* provider("rpc", () =>
           publicClient.verifyTypedData({
             ...typed,
@@ -199,9 +222,12 @@ const make = Effect.gen(function* () {
             signature: signature as Hex,
           }),
         );
+
         if (!valid) return yield* new Forbidden({ message: "Invalid recipient claim signature" });
+
         const session =
           gift.kind === "chosen_name" ? yield* hca.authorize(claim, sessionAuthorization) : "";
+
         const authorization = (eligible: boolean) =>
           account.signTypedData({
             domain: domain(gift),
@@ -213,6 +239,7 @@ const make = Effect.gen(function* () {
               eligible,
             },
           });
+
         return {
           session,
           recipientAuthorization:
@@ -225,12 +252,15 @@ const make = Effect.gen(function* () {
         };
       },
     ),
+
     advance: Effect.fn("Chain.advance")(function* (gift, claim): Effect.fn.Return<
       ChainProgress,
       ApplicationError
     > {
       if (claim.state === "complete" || claim.state === "refunded") return { state: claim.state };
+
       const block = yield* provider("rpc", () => publicClient.getBlock());
+
       const owner = yield* provider("rpc", () =>
         publicClient.readContract({
           address: config.registry,
@@ -239,19 +269,26 @@ const make = Effect.gen(function* () {
           args: [BigInt(claim.labelhash)],
         }),
       );
+
       if (gift.kind === "existing_name") {
         const actual = yield* plans.vaultGift(gift);
+
         if (actual[2] === 4) return { state: "refunded" };
+
         if (actual[2] === 3) {
           yield* verifyOwnership(gift, claim);
+
           return { state: "complete" };
         }
+
         if (block.timestamp > BigInt(gift.policy.expiresAt))
           return yield* new Conflict({
             code: "GIFT_EXPIRED",
             message: "Gift expired; sponsor can recover the name",
           });
+
         const signed = yield* auth(gift, claim);
+
         yield* journal.send(
           claim.id,
           "vault:claim",
@@ -271,9 +308,12 @@ const make = Effect.gen(function* () {
           }),
         );
         yield* verifyOwnership(gift, claim);
+
         return { state: "complete" };
       }
+
       const actual = yield* plans.escrowGift(gift);
+
       if (gift.campaignId && actual[9] === 0) {
         const campaign = yield* provider("rpc", () =>
           publicClient.readContract({
@@ -283,9 +323,12 @@ const make = Effect.gen(function* () {
             args: [gift.campaignId as Hex],
           }),
         );
+
         if (campaign[6]) return { state: "refunded" };
       }
+
       if (actual[9] === 5) return { state: "refunded" };
+
       if (
         actual[9] >= 2 &&
         (actual[5].toLowerCase() !== claim.recipientWallet ||
@@ -293,8 +336,10 @@ const make = Effect.gen(function* () {
           actual[7] !== claim.labelhash)
       )
         return yield* new Forbidden({ message: "Onchain reservation differs from this claim" });
+
       if (owner.toLowerCase() === claim.recipientWallet && actual[9] >= 2) {
         yield* verifyOwnership(gift, claim);
+
         if (actual[9] !== 4)
           yield* journal.send(
             claim.id,
@@ -306,16 +351,20 @@ const make = Effect.gen(function* () {
               args: [gift.id as Hex],
             }),
           );
+
         return { state: "complete" };
       }
+
       if (block.timestamp > BigInt(claim.deadline))
         return yield* new Conflict({
           code: "HCA_SESSION_EXPIRED",
           message:
             "Claim authorization expired; sponsor can recover unspent escrow after gift expiry",
         });
+
       if (actual[9] < 2) {
         const signed = yield* auth(gift, claim);
+
         const data =
           gift.campaignId && gift.invitationIndex !== null
             ? encodeFunctionData({
@@ -344,9 +393,12 @@ const make = Effect.gen(function* () {
                   signed.eligibility,
                 ],
               });
+
         yield* journal.send(claim.id, "escrow:reserve", config.sponsorship, data);
+
         return { state: "reserved" };
       }
+
       const committedAt = yield* provider("rpc", () =>
         publicClient.readContract({
           address: config.registrar,
@@ -355,10 +407,13 @@ const make = Effect.gen(function* () {
           args: [claim.commitment as Hex],
         }),
       );
+
       if (committedAt === 0n) {
         yield* hca.execute(gift, claim, "commit");
+
         return { state: "committing" };
       }
+
       const minimum = yield* provider("rpc", () =>
         publicClient.readContract({
           address: config.registrar,
@@ -366,6 +421,7 @@ const make = Effect.gen(function* () {
           functionName: "MIN_COMMITMENT_AGE",
         }),
       );
+
       const maximum = yield* provider("rpc", () =>
         publicClient.readContract({
           address: config.registrar,
@@ -373,35 +429,43 @@ const make = Effect.gen(function* () {
           functionName: "MAX_COMMITMENT_AGE",
         }),
       );
+
       if (block.timestamp >= committedAt + maximum)
         return yield* new Conflict({
           code: "COMMITMENT_EXPIRED",
           message: "Commitment expired; recover unspent escrow after gift expiry",
         });
+
       if (block.timestamp < committedAt + minimum)
         return {
           state: "waiting",
           commitmentAt: Number(committedAt),
           retryAt: Number(committedAt + minimum) * 1000 + 1000,
         };
+
       const fresh = yield* quote(claim.label, gift.policy.duration);
+
       if (!fresh.available)
         return yield* new Conflict({
           code: "NAME_UNAVAILABLE",
           message: "Name was registered by someone else",
         });
+
       if (BigInt(fresh.price) > BigInt(gift.policy.maxPrice))
         return yield* new Conflict({
           code: "PRICE_EXCEEDS_BUDGET",
           message: "Current registrar price exceeds the gift budget",
         });
+
       if (actual[9] === 2) {
         yield* hca.verify(claim.hca as Address, claim.recipientWallet as Address);
+
         if (BigInt(fresh.price) === 0n)
           return yield* new Conflict({
             code: "ZERO_QUOTE",
             message: "Registrar returned an unsupported zero quote",
           });
+
         yield* journal.send(
           claim.id,
           "escrow:release",
@@ -412,17 +476,23 @@ const make = Effect.gen(function* () {
             args: [gift.id as Hex, BigInt(fresh.price)],
           }),
         );
+
         return { state: "registering", price: fresh.price, commitmentAt: Number(committedAt) };
       }
+
       const released = BigInt(gift.policy.maxPrice) - actual[8];
+
       if (BigInt(fresh.price) > released)
         return yield* new Conflict({
           code: "PRICE_CHANGED_AFTER_FUNDING",
           message: "Price increased after funding; recipient can recover their HCA balance",
         });
+
       yield* hca.execute(gift, { ...claim, price: released.toString() }, "register");
+
       return { state: "verifying", price: released.toString(), commitmentAt: Number(committedAt) };
     }),
   });
 });
+
 export const ChainLive = Layer.effect(Chain, make);

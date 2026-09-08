@@ -3,9 +3,11 @@ import { Effect, Layer, Redacted } from "effect";
 import { Mailer } from "@memento/application";
 import { ProviderError } from "@memento/protocol";
 import { Resend } from "resend";
+
 export const MailerLive = (apiKey: Redacted.Redacted<string>, from: string) =>
   Layer.sync(Mailer, () => {
     const resend = new Resend(Redacted.value(apiKey));
+
     return Mailer.of({
       send: Effect.fn("Mailer.send")(function* ({ to, url, idempotencyKey }) {
         const result = yield* Effect.tryPromise({
@@ -19,6 +21,7 @@ export const MailerLive = (apiKey: Redacted.Redacted<string>, from: string) =>
               },
               { idempotencyKey },
             ),
+
           catch: () =>
             new ProviderError({
               provider: "email",
@@ -26,6 +29,7 @@ export const MailerLive = (apiKey: Redacted.Redacted<string>, from: string) =>
               message: "Email delivery unavailable",
             }),
         });
+
         if (result.error)
           return yield* new ProviderError({
             provider: "email",

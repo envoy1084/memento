@@ -20,9 +20,11 @@ import { TransactionJournal } from "./integrations/ens/journal.js";
 import { checkDeployment } from "./integrations/ens/readiness.js";
 import { HttpPolicy } from "./layers/http.js";
 import { ApiRoutes } from "./routes/api.js";
+
 const WorkerRuntime = Layer.effectDiscard(
   Effect.gen(function* () {
     const worker = yield* Worker;
+
     yield* worker.tick().pipe(
       Effect.catchCause(() => Effect.logError("Worker tick failed; durable jobs will be retried")),
       Effect.andThen(Effect.sleep("1 second")),
@@ -31,6 +33,7 @@ const WorkerRuntime = Layer.effectDiscard(
     );
   }),
 );
+
 Effect.gen(function* () {
   const port = yield* Config.port("PORT").pipe(Config.withDefault(3001));
   const url = yield* Config.redacted("DATABASE_URL");
@@ -51,29 +54,36 @@ Effect.gen(function* () {
   const from = yield* Config.string("EMAIL_FROM");
   const database = MigrationsLive.pipe(Layer.provideMerge(Database.live(url)));
   const persistence = RepositoriesLive.pipe(Layer.provideMerge(database));
+
   const infrastructure = Layer.mergeAll(
     persistence,
     Cryptography.live(encryptionKey, emailKey),
     Ethereum.layer.pipe(Layer.provideMerge(EnsConfig.layer)),
   );
+
   const journal = TransactionJournal.layer.pipe(Layer.provideMerge(infrastructure));
   const hca = Hca.layer.pipe(Layer.provideMerge(journal));
   const chain = ChainLive.pipe(Layer.provideMerge(hca));
+
   const dependencies = Layer.mergeAll(
     chain,
     WorldId.live({ appId: worldId, rpId, action: worldAction, signingKey: worldKey, environment }),
     MailerLive(resendKey, from),
     Layer.succeed(Product, { webOrigin, maximumBudget: 100_000_000n, maximumLifetime: 90 * 86400 }),
   );
+
   const services = Layer.mergeAll(Application.layer, Worker.layer).pipe(
     Layer.provideMerge(dependencies),
   );
+
   const routes = Layer.mergeAll(
     ApiRoutes,
     HttpPolicy(webOrigin),
     HttpApiScalar.layer(Api, { path: "/docs" }),
   );
+
   const startup = Layer.effectDiscard(checkDeployment).pipe(Layer.provideMerge(services));
+
   yield* Layer.launch(
     Layer.mergeAll(HttpRouter.serve(routes, { disableLogger: true }), WorkerRuntime).pipe(
       Layer.provide(startup),

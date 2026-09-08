@@ -25,6 +25,7 @@ import { registryAbi } from "./abi.js";
 import { Ethereum, provider } from "./client.js";
 import { EnsConfig } from "./config.js";
 import { TransactionJournal } from "./journal.js";
+
 export const onchainPolicy = (policy: GiftPolicy) => ({
   maxPrice: BigInt(policy.maxPrice),
   duration: BigInt(policy.duration),
@@ -33,10 +34,12 @@ export const onchainPolicy = (policy: GiftPolicy) => ({
   maxLength: policy.maxLength,
   worldRequired: policy.worldRequired,
 });
+
 export const restriction = (gift: Gift) => ({
   kind: recipientKind(gift.recipient),
   id: recipientId(gift.recipient),
 });
+
 export const recordsHash = (gift: Gift) =>
   keccak256(
     encodeAbiParameters(
@@ -52,11 +55,14 @@ export const recordsHash = (gift: Gift) =>
       [gift.records],
     ),
   );
+
 const samePolicy = (expected: GiftPolicy, actual: ReturnType<typeof onchainPolicy>) =>
   Object.entries(onchainPolicy(expected)).every(
     ([key, value]) => actual[key as keyof typeof actual] === value,
   );
+
 const call = (to: Hex, data: Hex) => ({ to, data, value: "0" });
+
 export const makePlans = Effect.gen(function* () {
   const config = yield* EnsConfig;
   const { publicClient } = yield* Ethereum;
@@ -71,6 +77,7 @@ export const makePlans = Effect.gen(function* () {
         args: [gift.id as Hex],
       }),
     );
+
   const vaultGift = (gift: Gift) =>
     provider("rpc", () =>
       publicClient.readContract({
@@ -80,9 +87,11 @@ export const makePlans = Effect.gen(function* () {
         args: [gift.id as Hex],
       }),
     );
+
   return {
     escrowGift,
     vaultGift,
+
     giftPlan: Effect.fn("Chain.giftPlan")(function* (gift: Gift) {
       if (gift.kind === "chosen_name")
         return [
@@ -109,17 +118,21 @@ export const makePlans = Effect.gen(function* () {
             }),
           ),
         ];
+
       if (!gift.label)
         return yield* new InvalidRequest({
           code: "MISSING_NAME",
           message: "Existing name is required",
         });
+
       if (gift.policy.setPrimaryName)
         return yield* new InvalidRequest({
           code: "PRIMARY_NAME_REQUIRES_RECIPIENT",
           message: "For existing-name gifts, the recipient sets their primary name after claiming",
         });
+
       const labelhash = hashText(gift.label);
+
       const owner = yield* provider("rpc", () =>
         publicClient.readContract({
           address: config.registry,
@@ -128,11 +141,13 @@ export const makePlans = Effect.gen(function* () {
           args: [BigInt(labelhash)],
         }),
       );
+
       if (owner.toLowerCase() !== gift.sponsorWallet)
         return yield* new Conflict({
           code: "NOT_NAME_OWNER",
           message: "Sponsor does not own this ENSv2 name",
         });
+
       const resource = yield* provider("rpc", () =>
         publicClient.readContract({
           address: config.registry,
@@ -141,6 +156,7 @@ export const makePlans = Effect.gen(function* () {
           args: [BigInt(labelhash)],
         }),
       );
+
       const counts = yield* provider("rpc", () =>
         publicClient.readContract({
           address: config.registry,
@@ -149,6 +165,7 @@ export const makePlans = Effect.gen(function* () {
           args: [resource],
         }),
       );
+
       const roles = yield* provider("rpc", () =>
         publicClient.readContract({
           address: config.registry,
@@ -157,13 +174,16 @@ export const makePlans = Effect.gen(function* () {
           args: [resource, owner],
         }),
       );
+
       const required = (1n << 24n) | (1n << 156n);
+
       if (counts !== roles || (roles & required) !== required)
         return yield* new Conflict({
           code: "REGISTRY_DELEGATES_PRESENT",
           message:
             "Revoke delegated name permissions and enable resolver changes and transfers before gifting",
         });
+
       const tokenId = yield* provider("rpc", () =>
         publicClient.readContract({
           address: config.registry,
@@ -172,6 +192,7 @@ export const makePlans = Effect.gen(function* () {
           args: [BigInt(labelhash)],
         }),
       );
+
       return [
         call(
           config.vault,
@@ -207,6 +228,7 @@ export const makePlans = Effect.gen(function* () {
         ),
       ];
     }),
+
     campaignPlan: (campaign: Campaign) =>
       Effect.succeed([
         call(
@@ -231,8 +253,10 @@ export const makePlans = Effect.gen(function* () {
           }),
         ),
       ]),
+
     confirmGift: Effect.fn("Chain.confirmGift")(function* (gift: Gift, hash: string) {
       const receipt = yield* journal.receipt(hash as Hex);
+
       if (gift.kind === "chosen_name") {
         const event = parseEventLogs({
           abi: escrowAbi,
@@ -243,8 +267,10 @@ export const makePlans = Effect.gen(function* () {
             log.address.toLowerCase() === config.sponsorship.toLowerCase() &&
             log.args.id === gift.id,
         );
+
         const actual = yield* escrowGift(gift);
         const expectedRestriction = restriction(gift);
+
         if (
           !event ||
           event.args.sponsor.toLowerCase() !== gift.sponsorWallet ||
@@ -270,8 +296,10 @@ export const makePlans = Effect.gen(function* () {
           (log) =>
             log.address.toLowerCase() === config.vault.toLowerCase() && log.args.id === gift.id,
         );
+
         const [sponsor, input, status] = yield* vaultGift(gift);
         const expectedRestriction = restriction(gift);
+
         const owner = yield* provider("rpc", () =>
           publicClient.readContract({
             address: config.registry,
@@ -280,6 +308,7 @@ export const makePlans = Effect.gen(function* () {
             args: [BigInt(input.labelhash)],
           }),
         );
+
         if (
           !event ||
           sponsor.toLowerCase() !== gift.sponsorWallet ||
@@ -299,11 +328,13 @@ export const makePlans = Effect.gen(function* () {
           });
       }
     }),
+
     confirmCampaign: Effect.fn("Chain.confirmCampaign")(function* (
       campaign: Campaign,
       hash: string,
     ) {
       const receipt = yield* journal.receipt(hash as Hex);
+
       const event = parseEventLogs({
         abi: escrowAbi,
         logs: receipt.logs,
@@ -313,6 +344,7 @@ export const makePlans = Effect.gen(function* () {
           log.address.toLowerCase() === config.sponsorship.toLowerCase() &&
           log.args.id === campaign.id,
       );
+
       const actual = yield* provider("rpc", () =>
         publicClient.readContract({
           address: config.sponsorship,
@@ -321,6 +353,7 @@ export const makePlans = Effect.gen(function* () {
           args: [campaign.id as Hex],
         }),
       );
+
       if (
         !event ||
         actual[0].toLowerCase() !== campaign.sponsorWallet ||
@@ -335,8 +368,10 @@ export const makePlans = Effect.gen(function* () {
           message: "Transaction does not fund this campaign",
         });
     }),
+
     confirmRefund: Effect.fn("Chain.confirmRefund")(function* (gift: Gift, hash: string) {
       const receipt = yield* journal.receipt(hash as Hex);
+
       if (gift.kind === "existing_name") {
         const event = parseEventLogs({
           abi: vaultAbi,
@@ -346,6 +381,7 @@ export const makePlans = Effect.gen(function* () {
           (log) =>
             log.address.toLowerCase() === config.vault.toLowerCase() && log.args.id === gift.id,
         );
+
         if (!event || (yield* vaultGift(gift))[2] !== 4)
           return yield* new Conflict({
             code: "REFUND_NOT_CONFIRMED",
@@ -361,6 +397,7 @@ export const makePlans = Effect.gen(function* () {
             log.address.toLowerCase() === config.sponsorship.toLowerCase() &&
             log.args.id === gift.id,
         );
+
         if (!event || (yield* escrowGift(gift))[9] !== 5)
           return yield* new Conflict({
             code: "REFUND_NOT_CONFIRMED",
@@ -368,11 +405,13 @@ export const makePlans = Effect.gen(function* () {
           });
       }
     }),
+
     confirmCampaignRefund: Effect.fn("Chain.confirmCampaignRefund")(function* (
       campaign: Campaign,
       hash: string,
     ) {
       const receipt = yield* journal.receipt(hash as Hex);
+
       const event = parseEventLogs({
         abi: escrowAbi,
         logs: receipt.logs,
@@ -382,6 +421,7 @@ export const makePlans = Effect.gen(function* () {
           log.address.toLowerCase() === config.sponsorship.toLowerCase() &&
           log.args.id === campaign.id,
       );
+
       const actual = yield* provider("rpc", () =>
         publicClient.readContract({
           address: config.sponsorship,
@@ -390,21 +430,25 @@ export const makePlans = Effect.gen(function* () {
           args: [campaign.id as Hex],
         }),
       );
+
       if (!event || !actual[6])
         return yield* new Conflict({
           code: "REFUND_NOT_CONFIRMED",
           message: "Campaign refund is not confirmed",
         });
     }),
+
     refundPlan: Effect.fn("Chain.refundPlan")(function* (gift: Gift) {
       const block = yield* provider("rpc", () => publicClient.getBlock());
       const expired = block.timestamp > BigInt(gift.policy.expiresAt);
+
       if (gift.kind === "existing_name") {
         if (!expired)
           return yield* new Conflict({
             code: "GIFT_NOT_EXPIRED",
             message: "An existing name can be recovered after expiry",
           });
+
         return [
           call(
             config.vault,
@@ -416,11 +460,13 @@ export const makePlans = Effect.gen(function* () {
           ),
         ];
       }
+
       if (gift.campaignId && !expired)
         return yield* new Conflict({
           code: "USE_CAMPAIGN_REFUND",
           message: "Refund unused campaign invitations from the campaign",
         });
+
       return [
         call(
           config.sponsorship,
@@ -438,6 +484,7 @@ export const makePlans = Effect.gen(function* () {
         ),
       ];
     }),
+
     campaignRefundPlan: (campaign: Campaign) =>
       Effect.succeed([
         call(
