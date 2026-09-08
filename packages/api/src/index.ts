@@ -35,11 +35,15 @@ import {
 } from "@memento/protocol";
 
 import { Authentication } from "./middleware/authentication.js";
+
 const error = [InvalidRequest, Forbidden, NotFound, Conflict, ProviderError, Unauthorized];
+
 const params = { id: Digest };
+
 const page = {
   offset: Schema.optional(Schema.Int.check(Schema.isBetween({ minimum: 0, maximum: 1000000 }))),
 };
+
 const Gifts = Group.make("gifts")
   .add(
     Endpoint.get("list", "/gifts", { query: page, success: Schema.Array(GiftView), error }),
@@ -97,6 +101,7 @@ const Gifts = Group.make("gifts")
   )
   .middleware(Authentication)
   .prefix("/v1");
+
 const Claims = Group.make("claims")
   .add(
     Endpoint.post("prepare", "/gifts/:id/claims", {
@@ -132,6 +137,7 @@ const Claims = Group.make("claims")
   )
   .middleware(Authentication)
   .prefix("/v1");
+
 const Public = Group.make("public")
   .add(
     Endpoint.post("open", "/mementos/:id/open", {
@@ -150,6 +156,7 @@ const Public = Group.make("public")
     }),
   )
   .prefix("/v1");
+
 export class Api extends HttpApi.make("memento")
   .add(Gifts)
   .add(Claims)
@@ -166,4 +173,5 @@ export class Api extends HttpApi.make("memento")
     ),
   )
   .annotateMerge(OpenApi.annotations({ title: "Memento API", version: "0.1.0" })) {}
+
 export * from "./middleware/authentication.js";

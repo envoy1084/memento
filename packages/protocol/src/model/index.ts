@@ -36,6 +36,7 @@ export const Gift = Schema.Struct({
   createdAt: Timestamp,
 });
 export type Gift = typeof Gift.Type;
+
 export const Campaign = Schema.Struct({
   id: Digest,
   sponsorWallet: Address,
@@ -47,6 +48,7 @@ export const Campaign = Schema.Struct({
   createdAt: Timestamp,
 });
 export type Campaign = typeof Campaign.Type;
+
 export const Claim = Schema.Struct({
   id: Digest,
   giftId: Digest,
@@ -76,6 +78,7 @@ export const Claim = Schema.Struct({
   createdAt: Timestamp,
 });
 export type Claim = typeof Claim.Type;
+
 export const Job = Schema.Struct({
   id: Schema.String,
   kind: JobKind,

@@ -26,6 +26,7 @@ export const CreateGift = Schema.Struct({
   label: Schema.NullOr(Schema.String),
 });
 export type CreateGift = typeof CreateGift.Type;
+
 export const CreateCampaign = Schema.Struct({
   sponsorWallet: Address,
   policy: GiftPolicy,
@@ -37,6 +38,7 @@ export const CreateCampaign = Schema.Struct({
   theme: Schema.String.check(Schema.isMaxLength(64)),
 });
 export type CreateCampaign = typeof CreateCampaign.Type;
+
 export const GiftView = Schema.Struct({
   id: Digest,
   campaignId: Schema.NullOr(Digest),
@@ -48,6 +50,7 @@ export const GiftView = Schema.Struct({
   label: Schema.NullOr(Schema.String),
   message: Schema.String,
 });
+
 export const CampaignView = Schema.Struct({
   id: Digest,
   sponsorWallet: Address,
@@ -57,24 +60,31 @@ export const CampaignView = Schema.Struct({
   fundingHash: Schema.NullOr(Digest),
   createdAt: Timestamp,
 });
+
 export const CampaignDetail = Schema.Struct({
   campaign: CampaignView,
   invitations: Schema.Array(GiftView),
 });
+
 export const GiftPlan = Schema.Struct({
   id: Digest,
   chainId: Schema.Int,
   calls: Schema.Array(Call),
 });
+
 export const GiftLink = Schema.Struct({ id: Digest, url: Schema.String });
+
 export const ConfirmFunding = Schema.Struct({ transactionHash: Digest });
+
 export const OpenGift = Schema.Struct({ secret: Digest });
+
 export const PrepareClaim = Schema.Struct({
   secret: Digest,
   recipientWallet: Address,
   label: Schema.String,
 });
 export type PrepareClaim = typeof PrepareClaim.Type;
+
 export const ClaimIntent = Schema.Struct({
   giftId: Digest,
   recipient: Address,
@@ -85,6 +95,7 @@ export const ClaimIntent = Schema.Struct({
   deadline: Timestamp,
 });
 export type ClaimIntent = typeof ClaimIntent.Type;
+
 export const ClaimPreparation = Schema.Struct({
   id: Digest,
   intent: ClaimIntent,
@@ -92,10 +103,12 @@ export const ClaimPreparation = Schema.Struct({
   session: Schema.Unknown,
   sessionExpiry: Timestamp,
 });
+
 export const AuthorizeClaim = Schema.Struct({
   signature: Hex,
   sessionAuthorization: Schema.Unknown,
 });
+
 export const ClaimView = Schema.Struct({
   id: Digest,
   giftId: Digest,
@@ -107,6 +120,7 @@ export const ClaimView = Schema.Struct({
   lastError: Schema.NullOr(Schema.String),
   commitmentAt: Schema.NullOr(Timestamp),
 });
+
 export const Quote = Schema.Struct({
   label: Schema.String,
   available: Schema.Boolean,
@@ -114,6 +128,9 @@ export const Quote = Schema.Struct({
   duration: Schema.Int,
 });
 export type Quote = typeof Quote.Type;
+
 export const EmailRequest = Schema.Struct({ to: Schema.String.check(Schema.isMaxLength(254)) });
+
 export const WorldProof = Schema.Struct({ proof: Schema.Unknown });
+
 export const Success = Schema.Struct({ ok: Schema.Boolean });

@@ -15,6 +15,7 @@ export const PreviewGift = Schema.Struct({
   created: Schema.String,
 });
 export type PreviewGift = typeof PreviewGift.Type;
+
 export const PreviewCampaign = Schema.Struct({
   id: Schema.String,
   name: Schema.String,
@@ -33,6 +34,7 @@ export const PreviewCampaign = Schema.Struct({
   ),
 });
 export type PreviewCampaign = typeof PreviewCampaign.Type;
+
 export const PreviewProfile = Schema.Struct({
   name: Schema.String,
   bio: Schema.String,
@@ -41,6 +43,7 @@ export const PreviewProfile = Schema.Struct({
   primary: Schema.Boolean,
 });
 export type PreviewProfile = typeof PreviewProfile.Type;
+
 export const PreviewState = Schema.Struct({
   version: Schema.Literal(1),
   connected: Schema.Boolean,

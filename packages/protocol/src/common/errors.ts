@@ -8,6 +8,7 @@ export class InvalidRequest extends Schema.TaggedError<InvalidRequest>()(
   },
   { httpApiStatus: 400 },
 ) {}
+
 export class NotFound extends Schema.TaggedError<NotFound>()(
   "NotFound",
   {
@@ -15,6 +16,7 @@ export class NotFound extends Schema.TaggedError<NotFound>()(
   },
   { httpApiStatus: 404 },
 ) {}
+
 export class Forbidden extends Schema.TaggedError<Forbidden>()(
   "Forbidden",
   {
@@ -22,6 +24,7 @@ export class Forbidden extends Schema.TaggedError<Forbidden>()(
   },
   { httpApiStatus: 403 },
 ) {}
+
 export class Conflict extends Schema.TaggedError<Conflict>()(
   "Conflict",
   {
@@ -30,6 +33,7 @@ export class Conflict extends Schema.TaggedError<Conflict>()(
   },
   { httpApiStatus: 409 },
 ) {}
+
 export class Unauthorized extends Schema.TaggedError<Unauthorized>()(
   "Unauthorized",
   {
@@ -37,6 +41,7 @@ export class Unauthorized extends Schema.TaggedError<Unauthorized>()(
   },
   { httpApiStatus: 401 },
 ) {}
+
 export class ProviderError extends Schema.TaggedError<ProviderError>()(
   "ProviderError",
   {
@@ -46,6 +51,7 @@ export class ProviderError extends Schema.TaggedError<ProviderError>()(
   },
   { httpApiStatus: 503 },
 ) {}
+
 export class DatabaseError extends Schema.TaggedError<DatabaseError>()(
   "DatabaseError",
   {
@@ -54,6 +60,7 @@ export class DatabaseError extends Schema.TaggedError<DatabaseError>()(
   },
   { httpApiStatus: 500 },
 ) {}
+
 export type ApplicationError =
   | InvalidRequest
   | NotFound
