@@ -1,74 +1,133 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 
-import { Accordion } from "@thenamespace/uikit";
+import { Accordion, Card, Separator } from "@thenamespace/uikit";
 
-import { Icon } from "#/components/icon";
-import { PageTitle } from "#/components/page";
+import { Icon, type IconName } from "#/components/icon";
+import { ButtonLink, Note, PageHeader, RuleHeading, Section } from "#/components/page";
+
 export const Route = createFileRoute("/help")({ component: Help });
-const questions = [
+
+const basics: { icon: IconName; title: string; body: string }[] = [
+  {
+    icon: "person",
+    title: "A name, not an address",
+    body: "Instead of 0x71C…4F2A, people see heyjamie.eth. Same account, human name.",
+  },
+  {
+    icon: "shield",
+    title: "It belongs to whoever claims it",
+    body: "The name lands in the recipient's wallet. The sender can't take it back.",
+  },
+  {
+    icon: "gift",
+    title: "The sender covers the cost",
+    body: "Registration is paid by the gift. The recipient pays nothing to claim.",
+  },
+];
+
+const questions: [string, string][] = [
   [
     "What is an .eth name?",
-    "Think of it as your name for the onchain internet. Instead of introducing yourself with a long wallet address, you can use a name like heyjamie.eth. ENS is the naming system behind it.",
+    "It's your name for the onchain internet. Rather than introducing yourself with a long wallet address, you use something like heyjamie.eth. ENS is the naming system behind it, and the name works across a growing number of apps and wallets.",
   ],
   [
-    "Do I need a wallet or crypto?",
-    "You can start with an email and create a wallet when the live app is connected. The person sending your gift covers the registration. In this preview, both wallet creation and claiming are simulated.",
+    "Do I need a wallet or any crypto?",
+    "No. You can start with an email address, and a wallet is created for you along the way. The person sending the gift covers the registration. In this preview both wallet creation and claiming are simulated.",
   ],
   [
-    "Who owns the name?",
-    "The recipient chooses the wallet that receives it. Once a live claim is complete, the name belongs to that wallet. The sender doesn’t keep control.",
+    "Who actually owns the name?",
+    "The recipient. They choose the wallet that receives it, and once the claim is complete the name belongs to that wallet. The sender keeps no control over it.",
   ],
   [
-    "Can I choose any name?",
-    "Your gift comes with a budget and a few simple rules, like name length and registration duration. You can choose an available name within those rules. If someone gifted you a name they already own, that exact name is reserved for you.",
+    "Can I choose any name I want?",
+    "Within the gift's rules. Each gift comes with a budget, a name-length range and a registration period. Any available name inside those limits is yours. If someone gifted a name they already own, that exact name is reserved for you instead.",
   ],
   [
-    "Is a name mine forever?",
-    "Your identity can grow with you, but an ENS registration needs to be renewed. Your gift covers the initial registration period. You’re responsible for future renewals.",
+    "Is the name mine forever?",
+    "The name is yours, but an ENS registration is a lease that needs renewing. Your gift covers the first registration period. Renewals after that are up to you.",
   ],
   [
-    "What happens to unused gifts?",
-    "The sender can return an unclaimed gift. Expired invitations can no longer be claimed. Community campaigns can also be paused or closed, while names already claimed stay with their recipients.",
+    "What happens to a gift nobody opens?",
+    "The sender can return an unclaimed gift, and expired invitations stop working. Community campaigns can be paused or closed too — names already claimed always stay with the people who claimed them.",
   ],
   [
-    "Why does a community ask for World ID?",
-    "Some communities want to give one name per person. World ID helps check that a person is eligible without sharing their identity with the campaign. Verification is simulated in this preview.",
+    "Why do some communities ask for World ID?",
+    "So the names reach as many different people as possible. World ID confirms that a person is unique without revealing who they are to the community. Verification is simulated here.",
   ],
   [
-    "What works in this preview?",
-    "You can create gifts and campaigns, generate local invitation links, claim demo names, and customize a profile. Everything is saved in this browser. No real funds, emails, wallet connections, identity checks, or registrations are involved.",
+    "What actually works in this preview?",
+    "You can create gifts and campaigns, generate local invitation links, claim demo names and customise a profile. Everything is saved in this browser. No real funds, emails, wallet connections, identity checks or registrations are involved.",
   ],
 ];
+
 function Help() {
   return (
-    <div className="mx-auto w-[calc(100%-40px)] max-w-[800px] py-14">
-      <PageTitle
-        eyebrow="NEW HERE? YOU’RE IN GOOD COMPANY."
-        title="A little guidance goes a long way."
-        description="No jargon needed. Just a few things worth knowing before your next beginning."
+    <Section width="reading" className="py-14">
+      <PageHeader
+        eyebrow="How it works"
+        title="New here? Start with these."
+        description="No jargon. Just the handful of things worth knowing before you give or claim a name."
       />
-      <Accordion className="my-10" allowsMultipleExpanded>
+
+      <div className="mt-10 grid gap-4 sm:grid-cols-3">
+        {basics.map((basic) => (
+          <Card
+            key={basic.title}
+            variant="secondary"
+            className="rounded-3xl border-0 p-5 shadow-none"
+          >
+            <span className="mb-4 grid size-10 place-content-center rounded-xl bg-paper-raised text-lavender-600">
+              <Icon name={basic.icon} size={19} />
+            </span>
+            <p className="m-0 text-sm font-medium">{basic.title}</p>
+            <p className="m-0 mt-1.5 text-[13px] leading-6 text-ink-soft">{basic.body}</p>
+          </Card>
+        ))}
+      </div>
+
+      <RuleHeading className="mt-14 mb-2">Questions people ask</RuleHeading>
+      <Accordion allowsMultipleExpanded>
         {questions.map(([question, answer]) => (
-          <Accordion.Item key={question} id={question ?? ""}>
+          <Accordion.Item key={question} id={question}>
             <Accordion.Heading>
-              <Accordion.Trigger className="py-6 text-base">
+              <Accordion.Trigger className="py-6 text-[17px]">
                 {question}
                 <Accordion.Indicator />
               </Accordion.Trigger>
             </Accordion.Heading>
             <Accordion.Panel>
-              <p className="pb-6 text-sm leading-7 text-muted">{answer}</p>
+              <p className="mt-0 mb-6 max-w-[62ch] text-[15px] leading-[1.75] text-ink-soft">
+                {answer}
+              </p>
             </Accordion.Panel>
           </Accordion.Item>
         ))}
       </Accordion>
-      <div className="rounded-3xl bg-surface-secondary p-7 text-center">
-        <h3>Ready for a little possibility?</h3>
-        <Link to="/send" className="button button--primary mt-5">
-          Give a name
-          <Icon name="arrow" size={17} />
-        </Link>
+
+      <div className="mt-10">
+        <Note title="This is an interactive preview">
+          Nothing here touches a blockchain, a payment provider or your inbox. It exists so you can
+          feel the whole journey before any of it is real.
+        </Note>
       </div>
-    </div>
+
+      <Separator className="my-12" />
+
+      <div className="rounded-3xl border border-lavender-100 bg-linear-135 from-lavender-50 to-blush-50 p-8 text-center">
+        <h2 className="m-0 text-display-md">Ready to give someone a name?</h2>
+        <p className="mx-auto mt-3 mb-6 max-w-[42ch] text-[15px] text-ink-soft">
+          It takes about a minute, and they’ll have it for as long as they want it.
+        </p>
+        <div className="flex flex-wrap justify-center gap-3">
+          <ButtonLink to="/send" size="lg">
+            Give a name
+            <Icon name="arrow" size={18} />
+          </ButtonLink>
+          <ButtonLink to="/campaigns/new" variant="secondary" size="lg">
+            Welcome a community
+          </ButtonLink>
+        </div>
+      </div>
+    </Section>
   );
 }
