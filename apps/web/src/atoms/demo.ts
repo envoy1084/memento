@@ -12,7 +12,6 @@ export type {
 
 export const initialDemo: DemoState = {
   version: 1,
-  connected: false,
   gifts: [
     {
       id: "a-little-beginning",
@@ -95,7 +94,6 @@ export const demoAtom = Atom.make<DemoState>(initialDemo).pipe(Atom.keepAlive);
 export const storageNoticeAtom = Atom.make<string | undefined>(undefined).pipe(Atom.keepAlive);
 export const giftsAtom = Atom.make((get) => get(demoAtom).gifts);
 export const campaignsAtom = Atom.make((get) => get(demoAtom).campaigns);
-export const connectedAtom = Atom.make((get) => get(demoAtom).connected);
 
 export function decodeDemo(value: string): DemoState {
   return Schema.decodeUnknownSync(Schema.fromJsonString(PreviewState))(value);

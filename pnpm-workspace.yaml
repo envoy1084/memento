@@ -39,6 +39,10 @@ allowBuilds:
   lefthook: true
   msgpackr-extract: false
   esbuild: true
+  "@reown/appkit": false
+  bufferutil: false
+  keccak: false
+  utf-8-validate: false
 
 patchedDependencies:
   drizzle-orm@1.0.0-rc.4: patches/drizzle-orm@1.0.0-rc.4.patch

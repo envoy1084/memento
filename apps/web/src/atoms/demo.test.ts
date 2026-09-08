@@ -52,6 +52,7 @@ describe("local preview journeys", () => {
   });
   it("restores only the versioned preview schema", () => {
     expect(decodeDemo(JSON.stringify(initialDemo))).toEqual(initialDemo);
+    expect(decodeDemo(JSON.stringify({ ...initialDemo, connected: true }))).toEqual(initialDemo);
     expect(() => decodeDemo('{"version":0}')).toThrow();
     expect(() => decodeDemo("broken")).toThrow();
     expect(() =>

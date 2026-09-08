@@ -123,7 +123,7 @@ export function GiftWizard({ initialKind }: { initialKind: "choice" | "owned" })
       }).format(new Date()),
     };
 
-    setState((current) => ({ ...current, gifts: [gift, ...current.gifts], connected: true }));
+    setState((current) => ({ ...current, gifts: [gift, ...current.gifts] }));
     void navigate({ to: "/gifts/$giftId", params: { giftId: id }, search: { created: true } });
   };
 

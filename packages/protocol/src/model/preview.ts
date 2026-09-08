@@ -46,7 +46,6 @@ export type PreviewProfile = typeof PreviewProfile.Type;
 
 export const PreviewState = Schema.Struct({
   version: Schema.Literal(1),
-  connected: Schema.Boolean,
   gifts: Schema.Array(PreviewGift),
   campaigns: Schema.Array(PreviewCampaign),
   profiles: Schema.Array(PreviewProfile),

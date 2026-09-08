@@ -10,7 +10,7 @@ Memento’s Aura frontend: React 19, Vite, TanStack Router, Effect Atom, Namespa
 - `pnpm --filter @memento/web typecheck` and `test` — validate types and preview transitions.
 - `pnpm check` — all workspace checks, required before commits.
 
-No environment variables, backend, credentials, or wallet extensions are required for the existing preview UI. The app intentionally makes no API calls. Names, prices, authentication, World ID, payments, and registrations are simulated.
+Names, prices, World ID, payments, and registrations remain previews. Authentication uses real Privy email/wallet login when configured. Without a public Privy App ID, browsing remains available and sign-in explains that it is unavailable.
 
 ## Ownership
 
@@ -25,3 +25,13 @@ Static hosting must fall back to `index.html` for route paths. The backend Docke
 `src/config/chain.ts` exposes the Sepolia `chain` for wallet providers and a shared viem `publicClient` for real-data atoms. Both use the Memento `/rpc/sepolia` proxy with no direct RPC fallback. Existing preview screens remain local until their integration is implemented.
 
 Set public `VITE_API_URL` in `apps/web/.env` to the API origin when overriding the defaults: `http://localhost:3001` in development and `https://api.memento.envoy1084.xyz` in production. No paths, credentials, queries, or fragments are accepted. Keep Alchemy in server-only `RPC_URL` and use matching `WEB_ORIGIN` for CORS. The frontend tests verify that viem sends its JSON-RPC requests to the proxy.
+
+## Privy authentication
+
+Set `VITE_PRIVY_APP_ID` in `apps/web/.env` to the same public App ID as the server’s `PRIVY_APP_ID`. Keep `PRIVY_APP_SECRET` server-only. In the Privy dashboard enable email and wallet login and allow `http://localhost:3000` plus the deployed web origin. The provider creates an Ethereum embedded wallet on login for users without wallets and uses the shared Sepolia chain/proxy. External wallets may use their own provider transport.
+
+The shared connect dialog offers real login, verified account details, wallet reconnection, verification retry, and logout. An Effect Atom fetches `GET /v1/session` through the generated API client; it retrieves a fresh Privy access token per protected request. Memento does not copy tokens or authenticated identity into preview localStorage. Privy manages its own session persistence. Login itself creates no Memento database row. Claim preview continuation requires a connected wallet present in the server-verified actor.
+
+`@privy-io/react-auth` owns authentication and wallet lifecycle. Optional native acceleration/install scripts from its transitive dependencies are disabled; browser builds use their JavaScript implementations. Vite preserves default browser export conditions alongside `memento-source` so SDK dependencies resolve correctly. Public environment inputs participate in the web build cache.
+
+Tests cover bearer-token refresh, missing/expired credentials, malformed responses, and isolation between accounts and logout. Complete an email and external-wallet sign-in against the configured Privy app and running backend before considering the live login verified; a local test provider cannot validate dashboard settings or deliver an OTP.

@@ -2,16 +2,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { Link } from "@tanstack/react-router";
 
-import {
-  Button,
-  Card,
-  Chip,
-  Description,
-  Form,
-  Label,
-  RadioButtonGroup,
-  Separator,
-} from "@thenamespace/uikit";
+import { Button, Card, Chip, Form, Separator } from "@thenamespace/uikit";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 
 import { claimCampaign, claimGift, nameAvailability } from "#/atoms/demo";
@@ -29,8 +20,10 @@ import {
 } from "#/components/common/page";
 import { NameMark } from "#/components/display/brand";
 import { GiftArt } from "#/components/display/gift-art";
+import { useAuth } from "#/hooks/use-auth";
 import { useDemo } from "#/hooks/use-demo";
 import { ClaimProgress } from "#/routes/claim/_components/claim-progress";
+import { ClaimWallet } from "#/routes/claim/_components/claim-wallet";
 
 type Stage = "sealed" | "choose" | "wallet" | "verify" | "review" | "claiming" | "complete";
 
@@ -53,8 +46,7 @@ export function ClaimJourney({
 
   const [stage, setStage] = useState<Stage>("sealed");
   const [name, setName] = useState("");
-  const [wallet, setWallet] = useState("email");
-  const [email, setEmail] = useState("");
+  const auth = useAuth();
   const [verified, setVerified] = useState(false);
   const [error, setError] = useState("");
   const panel = useRef<HTMLDivElement>(null);
@@ -283,77 +275,10 @@ export function ClaimJourney({
                     A wallet is just the account that holds it. Start with an email, or use a wallet
                     you already have.
                   </p>
-                  <Form
-                    className="space-y-5"
-                    onSubmit={(event) => {
-                      event.preventDefault();
-                      setStage(campaign?.worldId ? "verify" : "review");
-                    }}
-                  >
-                    <RadioButtonGroup
-                      value={wallet}
-                      onChange={setWallet}
-                      variant="secondary"
-                      aria-label="Where your name lives"
-                      className="w-full"
-                    >
-                      <div className="grid w-full gap-3">
-                        <RadioButtonGroup.Item value="email">
-                          <RadioButtonGroup.ItemIcon>
-                            <Icon name="mail" size={19} />
-                          </RadioButtonGroup.ItemIcon>
-                          <RadioButtonGroup.ItemContent>
-                            <Label>Start with an email</Label>
-                            <Description>
-                              We’ll make a wallet for you. Nothing to install.
-                            </Description>
-                          </RadioButtonGroup.ItemContent>
-                          <RadioButtonGroup.Indicator />
-                        </RadioButtonGroup.Item>
-                        <RadioButtonGroup.Item value="wallet">
-                          <RadioButtonGroup.ItemIcon>
-                            <Icon name="wallet" size={19} />
-                          </RadioButtonGroup.ItemIcon>
-                          <RadioButtonGroup.ItemContent>
-                            <Label>I already have a wallet</Label>
-                            <Description>Keep your name with everything else you own.</Description>
-                          </RadioButtonGroup.ItemContent>
-                          <RadioButtonGroup.Indicator />
-                        </RadioButtonGroup.Item>
-                      </div>
-                    </RadioButtonGroup>
-                    {wallet === "email" ? (
-                      <Field
-                        label="Your email"
-                        type="email"
-                        required
-                        value={email}
-                        onChange={setEmail}
-                        placeholder="you@example.com"
-                        autoComplete="email"
-                        description="Used to sign back in. No email is sent in this preview."
-                      />
-                    ) : (
-                      <Card variant="secondary" className="rounded-2xl p-4 shadow-none">
-                        <p className="m-0 font-mono text-[13px]">0x71C…4F2A</p>
-                        <p className="m-0 mt-1 text-xs text-ink-soft">
-                          Demo wallet. No connection will be requested.
-                        </p>
-                      </Card>
-                    )}
-                    <div className="flex flex-wrap items-center gap-3">
-                      <Button type="submit" size="lg" className="flex-1">
-                        Continue
-                        <Icon name="arrow" size={18} />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        onPress={() => setStage(isOwned ? "sealed" : "choose")}
-                      >
-                        Back
-                      </Button>
-                    </div>
-                  </Form>
+                  <ClaimWallet
+                    onContinue={() => setStage(campaign?.worldId ? "verify" : "review")}
+                    onBack={() => setStage(isOwned ? "sealed" : "choose")}
+                  />
                 </>
               ) : null}
 
@@ -409,7 +334,7 @@ export function ClaimJourney({
                         <NameMark name={fullName} size="sm" />
                       </DetailRow>
                       <DetailRow label="Lives in">
-                        {wallet === "email" ? email || "a new wallet" : "0x71C…4F2A"}
+                        {auth.address ?? "Reconnect your wallet"}
                       </DetailRow>
                       <DetailRow label="Gift from">{sender}</DetailRow>
                       <DetailRow label="You pay">

@@ -1,0 +1,6 @@
+{
+  "extends": ["//"],
+  "tasks": {
+    "build": { "env": ["VITE_API_URL", "VITE_PRIVY_APP_ID"] }
+  }
+}

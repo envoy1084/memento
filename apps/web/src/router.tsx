@@ -4,6 +4,7 @@ import { RegistryContext, scheduleTask } from "@effect/atom-react";
 import { AtomRegistry } from "effect/unstable/reactivity";
 
 import { demoAtom, decodeDemo, storageNoticeAtom } from "#/atoms/demo";
+import { AuthProvider } from "#/components/common/auth-provider";
 
 import { routeTree } from "./routeTree.gen";
 
@@ -52,7 +53,9 @@ export function getRouter() {
     defaultPreloadStaleTime: 30_000,
 
     Wrap: ({ children }) => (
-      <RegistryContext.Provider value={atomRegistry}>{children}</RegistryContext.Provider>
+      <RegistryContext.Provider value={atomRegistry}>
+        <AuthProvider>{children}</AuthProvider>
+      </RegistryContext.Provider>
     ),
   });
 }

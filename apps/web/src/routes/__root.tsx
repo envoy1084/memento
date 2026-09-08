@@ -87,8 +87,8 @@ function Root() {
             </div>
           </div>
           <p className="mt-6 max-w-[62ch] text-xs leading-relaxed text-ink-faint">
-            Everything here runs in your browser. No names are registered, no payments are taken and
-            no messages are sent.{" "}
+            Sign-in connects your real account. Gifts and claims are previews: no names are
+            registered, no payments are taken and no messages are sent.{" "}
             <Link to="/help" className="underline underline-offset-2">
               What that means
               <Icon name="arrow" size={12} className="ml-1 inline align-[-1px]" />

@@ -83,7 +83,6 @@ export function CampaignWizard() {
 
     setState((current) => ({
       ...current,
-      connected: true,
       campaigns: [
         {
           id,

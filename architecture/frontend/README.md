@@ -12,7 +12,7 @@ Route folders mirror URL segments, including dynamic identifier folders. Use `in
 - `/send`: choose-your-own and owned-name gifts, policy, personal note/wrapping, review, local creation.
 - `/gifts`, `/gifts/:giftId`: search/filter, detail, invitation copying, preview, cancellation/return.
 - `/campaigns`, `/campaigns/new`, `/campaigns/:campaignId`: policy/review, local creation, claim progress, invitation creation/export, pause/resume/close.
-- `/claim/:giftId`, `/invite/:campaignId/:invitationId`: gift opening, name selection, illustrative availability, wallet choice, optional simulated World ID, review, progress, completion; unavailable/expired/claimed states.
+- `/claim/:giftId`, `/invite/:campaignId/:invitationId`: gift opening, name selection, illustrative availability, real Privy login/verified wallet, optional simulated World ID, review, progress, completion; unavailable/expired/claimed states.
 - `/profile`: claimed names, profile copy, bio, website, color, primary-name selection.
 - `/help`: newcomer explanations and explicit preview limitations. Unknown routes have recovery UI.
 
@@ -28,6 +28,14 @@ The preview transition tests cover name rules/budget/duration, one-time claims, 
 
 A real-service viem client and wallet chain configuration now live in `src/config/chain.ts`, using the server’s `/rpc/sepolia` endpoint. Public `VITE_API_URL` selects the API origin; no provider key or direct Alchemy fallback is bundled. Tests verify the proxy destination and reject credential-bearing or non-origin URLs. Preview screens do not consume this client yet.
 
-No application API client, Privy login, wallet call, real World ID proof, ENS quote, payment, email, or onchain write is connected to the UI. Integration must replace the preview adapter with the existing schema-first API client and provider flows. Real invitation secrets must follow the backend fragment/POST design and never enter localStorage. No real email address is required to explore the UI.
+Privy login and the generated session API client are connected. No real World ID proof, ENS quote, payment, gifting email, or onchain write is connected to the UI. Integration must replace the preview adapter with the existing schema-first API client and provider flows. Real invitation secrets must follow the backend fragment/POST design and never enter localStorage. No real email address is required to explore the UI.
 
 Deploy `dist/` on a static server with an index fallback; keep API deployment independent. This change does not publish the app or modify DNS.
+
+## Authentication boundary
+
+The router-owned registry wraps a lazy Privy provider. Privy owns login/token persistence; React exposes SDK readiness and the verified session atom. The API middleware asks the SDK for a current token per request, sends it only as a bearer header to the API origin, and refuses redirects. Session atoms are recreated when the Privy user changes; logout removes the actor from the UI. Wallet connection changes refresh the server profile, and only connected addresses also verified by the backend are usable. The legacy preview `connected` flag has been removed; creating a preview gift cannot authenticate a user.
+
+Login does not create a local database account: `/v1/session` returns the verified Privy actor. Gift and claim persistence remains owned by existing workflows. Contract deployment and unrelated provider settings are still needed to start the full backend, so frontend login configuration alone does not guarantee session verification is reachable.
+
+Verification uses injected transport for token refresh, missing/expired tokens, invalid response schemas, and account changes. Live email OTP, wallet signatures, refresh persistence, and dashboard-origin configuration require the real Privy app and have not been verified by these tests.
