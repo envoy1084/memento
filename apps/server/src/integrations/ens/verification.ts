@@ -1,9 +1,5 @@
 import { Effect } from "effect";
 
-import { type Gift, type Claim, Conflict } from "@memento/protocol";
-import { decodeFunctionResult, encodeFunctionData, toHex, type Address } from "viem";
-import { namehash, packetToBytes } from "viem/ens";
-
 import {
   defaultReverseAbi,
   factoryAbi,
@@ -11,7 +7,11 @@ import {
   registryAbi,
   resolverAbi,
   reverseAbi,
-} from "./abi.js";
+} from "@memento/chain/abi/ens";
+import { type Gift, type Claim, Conflict } from "@memento/protocol";
+import { decodeFunctionResult, encodeFunctionData, toHex, type Address } from "viem";
+import { namehash, packetToBytes } from "viem/ens";
+
 import { Ethereum, provider } from "./client.js";
 import { EnsConfig } from "./config.js";
 import { Hca } from "./hca.js";

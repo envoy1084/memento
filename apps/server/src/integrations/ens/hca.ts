@@ -1,6 +1,14 @@
 import { Context, Effect, Layer, Schema } from "effect";
 
 import { Cryptography } from "@memento/application";
+import {
+  factoryAbi,
+  hcaFactoryAbi,
+  hcaAbi,
+  registrarAbi,
+  resolverAbi,
+  reverseAbi,
+} from "@memento/chain/abi/ens";
 import { type Gift, type Claim, Conflict, Forbidden, ProviderError } from "@memento/protocol";
 import type { Session, ChainSessionConfig } from "@rhinestone/sdk";
 import {
@@ -20,7 +28,6 @@ import { generatePrivateKey, privateKeyToAccount, toAccount } from "viem/account
 import { sepolia } from "viem/chains";
 import { packetToBytes } from "viem/ens";
 
-import { factoryAbi, hcaFactoryAbi, hcaAbi, registrarAbi, resolverAbi, reverseAbi } from "./abi.js";
 import { Ethereum, provider } from "./client.js";
 import { EnsConfig } from "./config.js";
 import { TransactionJournal, jsonValue } from "./journal.js";

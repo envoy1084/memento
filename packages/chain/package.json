@@ -1,0 +1,46 @@
+{
+  "name": "@memento/chain",
+  "version": "0.1.0",
+  "private": true,
+  "files": [
+    "dist",
+    "src"
+  ],
+  "type": "module",
+  "imports": {
+    "#/*": "./src/*.ts"
+  },
+  "exports": {
+    ".": {
+      "memento-source": "./src/index.ts",
+      "default": "./dist/index.js"
+    },
+    "./abi/ens": {
+      "memento-source": "./src/abi/ens.ts",
+      "default": "./dist/abi/ens.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "exports": {
+      ".": "./dist/index.js",
+      "./abi/ens": "./dist/abi/ens.js",
+      "./package.json": "./package.json"
+    }
+  },
+  "scripts": {
+    "build": "tsdown",
+    "generate": "pnpm --filter @memento/contracts exec forge build && node scripts/generate-abis.mjs && oxfmt --write src/abi",
+    "lint": "oxlint . --no-error-on-unmatched-pattern",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "viem": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "klarity": "catalog:",
+    "tsdown": "catalog:",
+    "typescript": "catalog:"
+  }
+}

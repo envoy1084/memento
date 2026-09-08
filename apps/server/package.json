@@ -42,7 +42,7 @@
     "@ensforge/sdk": "catalog:",
     "@memento/api": "workspace:*",
     "@memento/application": "workspace:*",
-    "@memento/contracts": "workspace:*",
+    "@memento/chain": "workspace:*",
     "@memento/database": "workspace:*",
     "@memento/privy": "workspace:*",
     "@memento/protocol": "workspace:*",

@@ -8,4 +8,6 @@ Campaign deposits reserve one maximum budget per invitation. Each onchain reserv
 
 Existing-name deposits require no other token-level delegates. The vault creates a fresh resolver at claim time, grants all resolver roles solely to the recipient, writes approved records, switches the registry resolver and transfers the current token ID atomically. The sender's old resolver is not reused.
 
-`packages/contracts/script/Deploy.s.sol` deploys both Memento contracts on Sepolia. It does not deploy ENS itself. Keep the admin separate from the coordinator, and use the checked-in ABI generation script after Solidity changes.
+`packages/contracts/script/Deploy.s.sol` deploys both Memento contracts on Sepolia. It does not deploy ENS itself. Keep the admin separate from the coordinator, and run `pnpm --filter @memento/chain generate` after Solidity changes.
+
+`packages/contracts` owns Solidity, Foundry tests and deployment scripts only. `packages/chain` owns browser-safe TypeScript ABIs and pinned ENS integration signatures. The contracts build verifies checked-in ABIs against its artifacts; the server and frontend can build their TypeScript dependencies without Foundry.

@@ -8,7 +8,8 @@
 | `privy`       | Access-token verification and verified linked identities                                 |
 | `world-id`    | RP context signing, unchanged proof forwarding and proof binding                         |
 | `application` | Gift/campaign/claim workflows, eligibility, encryption and worker iteration              |
-| `contracts`   | Sponsorship escrow, existing-name custody and generated TypeScript ABIs                  |
+| `contracts`   | Sponsorship escrow and existing-name custody                                             |
+| `chain`       | Shared TypeScript ABIs and ENS integration signatures                                    |
 | `apps/server` | Live providers, HTTP handlers, startup checks and one Node runtime                       |
 
 The server hosts HTTP and one scoped worker loop in the same Node process. PostgreSQL persists work;

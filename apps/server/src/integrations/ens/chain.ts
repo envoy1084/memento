@@ -11,7 +11,8 @@ import {
 import {
   MementoSponsorshipAbi as escrowAbi,
   MementoNameVaultAbi as vaultAbi,
-} from "@memento/contracts";
+} from "@memento/chain";
+import { registrarAbi, registryAbi } from "@memento/chain/abi/ens";
 import type { ApplicationError } from "@memento/protocol";
 import {
   type Gift,
@@ -32,7 +33,6 @@ import {
 } from "viem";
 import { sepolia } from "viem/chains";
 
-import { registrarAbi, registryAbi } from "./abi.js";
 import { Ethereum, provider } from "./client.js";
 import { EnsConfig } from "./config.js";
 import { Hca, proxyAddress } from "./hca.js";

@@ -1,4 +1,4 @@
-// Generated from MementoSponsorship.sol by script/export-abis.mjs.
+// Generated from MementoSponsorship.sol by packages/chain/scripts/generate-abis.mjs.
 export const MementoSponsorshipAbi = [
   {
     type: "constructor",

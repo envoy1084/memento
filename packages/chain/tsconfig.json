@@ -1,5 +1,5 @@
 {
-  "extends": "klarity/tsconfig/library/node",
+  "extends": "klarity/tsconfig/library",
   "compilerOptions": {
     "customConditions": ["memento-source"]
   },

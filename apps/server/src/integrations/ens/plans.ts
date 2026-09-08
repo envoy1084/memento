@@ -4,7 +4,8 @@ import { recipientId, recipientKind, hashText } from "@memento/application";
 import {
   MementoSponsorshipAbi as escrowAbi,
   MementoNameVaultAbi as vaultAbi,
-} from "@memento/contracts";
+} from "@memento/chain";
+import { registryAbi } from "@memento/chain/abi/ens";
 import {
   type Gift,
   type Campaign,
@@ -21,7 +22,6 @@ import {
   type Hex,
 } from "viem";
 
-import { registryAbi } from "./abi.js";
 import { Ethereum, provider } from "./client.js";
 import { EnsConfig } from "./config.js";
 import { TransactionJournal } from "./journal.js";

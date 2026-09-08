@@ -2,12 +2,6 @@ import { expect, layer } from "@effect/vitest";
 import { Effect, Layer, Redacted } from "effect";
 
 import { Application, Chain } from "@memento/application";
-import { ClaimRepository, GiftRepository, RepositoriesLive } from "@memento/database";
-import { TestDatabase } from "@memento/database/testing";
-import { createPublicClient, decodeFunctionData, encodeFunctionResult, http, type Hex } from "viem";
-import { generatePrivateKey } from "viem/accounts";
-import { sepolia } from "viem/chains";
-
 import {
   factoryAbi,
   profileAbi,
@@ -15,7 +9,13 @@ import {
   resolverAbi,
   reverseAbi,
   defaultReverseAbi,
-} from "../../src/integrations/ens/abi.js";
+} from "@memento/chain/abi/ens";
+import { ClaimRepository, GiftRepository, RepositoriesLive } from "@memento/database";
+import { TestDatabase } from "@memento/database/testing";
+import { createPublicClient, decodeFunctionData, encodeFunctionResult, http, type Hex } from "viem";
+import { generatePrivateKey } from "viem/accounts";
+import { sepolia } from "viem/chains";
+
 import { ChainLive } from "../../src/integrations/ens/chain.js";
 import { Ethereum } from "../../src/integrations/ens/client.js";
 import { EnsConfig } from "../../src/integrations/ens/config.js";

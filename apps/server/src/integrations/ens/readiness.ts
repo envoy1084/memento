@@ -3,11 +3,11 @@ import { Effect } from "effect";
 import {
   MementoSponsorshipAbi as escrowAbi,
   MementoNameVaultAbi as vaultAbi,
-} from "@memento/contracts";
+} from "@memento/chain";
+import { hcaAbi, factoryAbi, hcaFactoryAbi } from "@memento/chain/abi/ens";
 import { ProviderError } from "@memento/protocol";
 import { erc20Abi, parseAbi, type Address } from "viem";
 
-import { hcaAbi, factoryAbi, hcaFactoryAbi } from "./abi.js";
 import { Ethereum, provider } from "./client.js";
 import { EnsConfig } from "./config.js";
 

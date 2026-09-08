@@ -1,4 +1,4 @@
-// Generated from MementoNameVault.sol by script/export-abis.mjs.
+// Generated from MementoNameVault.sol by packages/chain/scripts/generate-abis.mjs.
 export const MementoNameVaultAbi = [
   {
     type: "constructor",
