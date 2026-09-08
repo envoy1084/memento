@@ -4,6 +4,7 @@ import { Effect } from "effect";
 import type { User } from "@privy-io/node";
 
 import { verifiedActor } from "../../src/profile.js";
+
 const profile: Pick<User, "id" | "linked_accounts"> = {
   id: "did:privy:bob",
   linked_accounts: [
@@ -41,9 +42,11 @@ const profile: Pick<User, "id" | "linked_accounts"> = {
     },
   ],
 };
+
 it.effect("uses only verified linked accounts and binds them to the token subject", () =>
   Effect.gen(function* () {
     const actor = yield* verifiedActor(profile.id, profile);
+
     expect(actor.emails).toEqual(["bob@example.test"]);
     expect(actor.wallets).toEqual([`0x${"ab".repeat(20)}`]);
     expect((yield* verifiedActor("did:privy:alice", profile).pipe(Effect.flip))._tag).toBe(
@@ -51,10 +54,13 @@ it.effect("uses only verified linked accounts and binds them to the token subjec
     );
   }),
 );
+
 it.effect("rejects malformed verified wallet profiles", () =>
   Effect.gen(function* () {
     const account = profile.linked_accounts[2];
+
     if (!account || account.type !== "wallet") return yield* Effect.die("Missing wallet fixture");
+
     expect(
       (yield* verifiedActor(profile.id, {
         ...profile,

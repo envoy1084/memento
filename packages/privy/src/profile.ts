@@ -6,6 +6,7 @@ import type { User } from "@privy-io/node";
 export const verifiedActor = (subject: string, user: Pick<User, "id" | "linked_accounts">) => {
   if (subject !== user.id)
     return Effect.fail(new Unauthorized({ message: "Token and user profile do not match" }));
+
   return Schema.decodeUnknownEffect(Actor)({
     userId: user.id,
     wallets: user.linked_accounts.flatMap((account) =>

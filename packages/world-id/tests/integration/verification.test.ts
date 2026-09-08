@@ -4,6 +4,7 @@ import { Effect, Layer, Redacted, Ref } from "effect";
 import { hashSignal } from "@worldcoin/idkit-core/hashing";
 
 import { WorldId, WorldVerifier } from "../../src/index.js";
+
 const config = {
   appId: "app_test",
   rpId: "rp_test",
@@ -11,7 +12,9 @@ const config = {
   environment: "staging",
   signingKey: Redacted.make("01".repeat(32)),
 } as const;
+
 const expected = { nonce: "nonce", signal: "chain:campaign:claim:wallet:nonce" };
+
 const proof = {
   protocol_version: "3.0",
   nonce: expected.nonce,
@@ -28,17 +31,21 @@ const proof = {
   ],
   user_presence_completed: false,
 };
+
 const calls = Ref.make<readonly unknown[]>([]);
+
 const testLayer = WorldId.layer(config).pipe(
   Layer.provide(
     Layer.effect(
       WorldVerifier,
       Effect.gen(function* () {
         const requests = yield* calls;
+
         return WorldVerifier.of({
           verify: (_rpId, original) =>
             Ref.update(requests, (values) => {
               expect(original).toEqual(proof);
+
               return [...values, original];
             }),
         });
@@ -46,6 +53,7 @@ const testLayer = WorldId.layer(config).pipe(
     ),
   ),
 );
+
 layer(testLayer)("World ID binding", (it) => {
   it.effect("forwards the original proof and canonicalizes its nullifier", () =>
     Effect.gen(function* () {
@@ -55,6 +63,7 @@ layer(testLayer)("World ID binding", (it) => {
   it.effect("rejects mismatched action, nonce, environment, credential and signal", () =>
     Effect.gen(function* () {
       const world = yield* WorldId;
+
       for (const invalid of [
         { ...proof, action: "other" },
         { ...proof, nonce: "other" },
@@ -69,6 +78,7 @@ layer(testLayer)("World ID binding", (it) => {
   it.effect("rejects session proofs and malformed nullifiers", () =>
     Effect.gen(function* () {
       const world = yield* WorldId;
+
       for (const invalid of [
         {
           ...proof,

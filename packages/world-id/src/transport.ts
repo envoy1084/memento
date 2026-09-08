@@ -1,6 +1,7 @@
 import { Context, Effect, Layer } from "effect";
 
 import { Forbidden, ProviderError } from "@memento/protocol";
+
 export class WorldVerifier extends Context.Service<
   WorldVerifier,
   {
@@ -22,6 +23,7 @@ export class WorldVerifier extends Context.Service<
               body: JSON.stringify(proof),
               signal: AbortSignal.any([signal, AbortSignal.timeout(10000)]),
             }),
+
           catch: () =>
             new ProviderError({
               provider: "world-id",
@@ -29,13 +31,16 @@ export class WorldVerifier extends Context.Service<
               message: "World ID verification unavailable",
             }),
         });
+
         if (response.status >= 500 || response.status === 429)
           return yield* new ProviderError({
             provider: "world-id",
             retryable: true,
             message: "World ID verification unavailable",
           });
+
         if (!response.ok) return yield* new Forbidden({ message: "World ID rejected this proof" });
+
         yield* Effect.promise(() => response.body?.cancel() ?? Promise.resolve());
       }),
     }),

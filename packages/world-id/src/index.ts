@@ -12,10 +12,12 @@ export interface WorldRequest {
   readonly signal: string;
   readonly configuration: unknown;
 }
+
 export interface WorldExpectation {
   readonly nonce: string;
   readonly signal: string;
 }
+
 const ProofEnvelope = Schema.Struct({
   protocol_version: Schema.Literals(["3.0", "4.0"]),
   nonce: Schema.String,
@@ -29,6 +31,7 @@ const ProofEnvelope = Schema.Struct({
     }),
   ).check(Schema.isLengthBetween(1, 1)),
 });
+
 export class WorldId extends Context.Service<
   WorldId,
   {
@@ -51,8 +54,10 @@ export class WorldId extends Context.Service<
       WorldId,
       Effect.gen(function* () {
         const verifier = yield* WorldVerifier;
+
         return WorldId.of({
           action: config.action,
+
           request: Effect.fn("WorldId.request")((signal) =>
             Effect.try({
               try: () => {
@@ -60,6 +65,7 @@ export class WorldId extends Context.Service<
                   action: config.action,
                   signingKeyHex: Redacted.value(config.signingKey),
                 });
+
                 return {
                   nonce: signed.nonce,
                   expiresAt: signed.expiresAt,
@@ -81,6 +87,7 @@ export class WorldId extends Context.Service<
                   },
                 };
               },
+
               catch: () =>
                 new ProviderError({
                   provider: "world-id",
@@ -89,11 +96,13 @@ export class WorldId extends Context.Service<
                 }),
             }),
           ),
+
           verify: Effect.fn("WorldId.verify")(function* (proof, expected) {
             const envelope = yield* Schema.decodeUnknownEffect(ProofEnvelope)(proof).pipe(
               Effect.mapError(() => new Forbidden({ message: "Invalid World ID proof" })),
             );
             const response = envelope.responses[0];
+
             if (
               !response ||
               envelope.action !== config.action ||
@@ -104,15 +113,19 @@ export class WorldId extends Context.Service<
             ) {
               return yield* new Forbidden({ message: "World ID proof does not match this claim" });
             }
+
             yield* verifier.verify(config.rpId, proof);
+
             return BigInt(response.nullifier).toString();
           }),
         });
       }),
     );
   }
+
   static live(config: Parameters<typeof WorldId.layer>[0]) {
     return WorldId.layer(config).pipe(Layer.provide(WorldVerifier.live));
   }
 }
+
 export { WorldVerifier } from "./transport.js";

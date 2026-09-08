@@ -21,16 +21,20 @@ export class Privy extends Context.Service<
         timeout: 10_000,
         maxRetries: 1,
       });
+
       return Privy.of({
         authenticate: Effect.fn("Privy.authenticate")(function* (token) {
           const session = yield* Effect.tryPromise({
             try: () => client.utils().auth().verifyAccessToken(Redacted.value(token)),
+
             catch: () => new Unauthorized({ message: "Invalid or expired access token" }),
           });
+
           const user = yield* Effect.tryPromise({
             // The SDK's documented user-ID lookup is named _get.
             // oxlint-disable-next-line no-underscore-dangle -- Official SDK method name.
             try: () => client.users()._get(session.user_id),
+
             catch: () =>
               new ProviderError({
                 provider: "privy",
@@ -38,6 +42,7 @@ export class Privy extends Context.Service<
                 message: "Unable to retrieve verified user accounts",
               }),
           });
+
           return yield* verifiedActor(session.user_id, user);
         }),
       });
