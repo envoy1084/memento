@@ -1,43 +1,121 @@
 @import "tailwindcss";
 @import "@thenamespace/uikit/styles";
 
+/* ---------------------------------------------------------------------------
+   Memento theme
+   Brand ramps, type scale and motion vocabulary. Every colour, size and easing
+   used by the app resolves to a token defined here; components never hardcode
+   a hex value.
+--------------------------------------------------------------------------- */
 @theme {
-  --font-sans: "DM Sans Variable", sans-serif;
-  --font-display: "Manrope Variable", sans-serif;
+  --font-sans: "DM Sans Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Manrope Variable", "DM Sans Variable", ui-sans-serif, sans-serif;
+
+  /* Ink — charcoal text and controls */
+  --color-ink: #241f29;
+  --color-ink-soft: #6b6175;
+  --color-ink-faint: #948a9e;
+
+  /* Paper — the warm-white ground the whole product sits on */
+  --color-paper: #fbf9fc;
+  --color-paper-raised: #ffffff;
+  --color-paper-sunken: #f5f0f9;
+  --color-paper-deep: #ece4f3;
+  --color-rule: #ebe4f0;
+
+  /* Lavender — the primary accent */
+  --color-lavender-50: #f5effc;
+  --color-lavender-100: #e9e0f8;
+  --color-lavender-200: #d8c9ef;
+  --color-lavender-300: #c0abe2;
+  --color-lavender-400: #a489ce;
+  --color-lavender-500: #8b6db8;
+  --color-lavender-600: #74589f;
+  --color-lavender-700: #5b437e;
+
+  /* Blush — the warm counterweight */
+  --color-blush-50: #fdf2f6;
+  --color-blush-100: #f9e3ec;
+  --color-blush-200: #f1cbdc;
+  --color-blush-300: #e4a9c2;
+  --color-blush-400: #ce86a4;
+  --color-blush-500: #b26886;
+  --color-blush-600: #96506c;
+
+  /* Sage — the third keepsake wrapping */
+  --color-sage-50: #eff6f1;
+  --color-sage-100: #deebe2;
+  --color-sage-200: #c0d9c9;
+  --color-sage-300: #9cbfa9;
+  --color-sage-400: #77a187;
+  --color-sage-500: #5c866c;
+  --color-sage-600: #476b55;
+
+  /* Display type scale. App chrome stays calm; marketing reaches for xl. */
+  --text-display-xl: clamp(2.9rem, 6.4vw, 4.5rem);
+  --text-display-xl--line-height: 1.02;
+  --text-display-xl--letter-spacing: -0.045em;
+  --text-display-lg: clamp(2rem, 3.9vw, 2.95rem);
+  --text-display-lg--line-height: 1.08;
+  --text-display-lg--letter-spacing: -0.04em;
+  --text-display-md: clamp(1.65rem, 2.6vw, 2.15rem);
+  --text-display-md--line-height: 1.14;
+  --text-display-md--letter-spacing: -0.032em;
+  --text-display-sm: 1.25rem;
+  --text-display-sm--line-height: 1.3;
+  --text-display-sm--letter-spacing: -0.022em;
+
+  /* Motion. Built-in easings are too weak for deliberate UI. */
+  --ease-swift: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-glide: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-settle: cubic-bezier(0.77, 0, 0.175, 1);
+
+  /* Elevation. Keepsake objects are lit; paper surfaces are not. */
+  --shadow-lift: 0 1px 2px #2b1f3608, 0 12px 28px -14px #4a2f6b1f;
+  --shadow-keepsake: 0 2px 4px #2b1f360a, 0 34px 60px -28px #4a2f6b33;
 }
+
+/* UIKit semantic tokens, expressed in Memento's palette. */
 :root,
 .light,
 [data-theme="light"] {
-  --background: #fbf9fc;
-  --foreground: #292530;
-  --surface: #fff;
-  --surface-foreground: #292530;
-  --surface-secondary: #f5f0fa;
-  --surface-tertiary: #eee7f7;
-  --overlay: #fff;
-  --overlay-foreground: #292530;
-  --accent: #302a39;
-  --accent-foreground: #fff;
-  --accent-soft: #f0eafa;
-  --accent-soft-foreground: #695185;
-  --default: #f1edf5;
-  --default-foreground: #50475c;
-  --muted: #786e82;
-  --separator: #eae4ef;
-  --field-background: #fff;
-  --field-foreground: #292530;
-  --field-border: #e5ddea;
+  --background: var(--color-paper);
+  --foreground: var(--color-ink);
+  --surface: var(--color-paper-raised);
+  --surface-foreground: var(--color-ink);
+  --surface-secondary: var(--color-paper-sunken);
+  --surface-tertiary: var(--color-paper-deep);
+  --overlay: var(--color-paper-raised);
+  --overlay-foreground: var(--color-ink);
+  --muted: var(--color-ink-soft);
+
+  --accent: var(--color-ink);
+  --accent-foreground: #ffffff;
+  --default: var(--color-paper-sunken);
+  --default-foreground: var(--color-ink);
+
+  --border: var(--color-rule);
+  --separator: var(--color-rule);
+  --focus: var(--color-lavender-700);
+  --link: var(--color-lavender-700);
+  --backdrop: #2b1f364d;
+
+  --field-background: var(--color-paper-raised);
+  --field-foreground: var(--color-ink);
+  --field-placeholder: var(--color-ink-faint);
+  --field-border: var(--color-rule);
   --field-border-width: 1px;
   --field-radius: 0.875rem;
   --radius: 1rem;
-  --focus: #8972c6;
+
   --success: #26745b;
-  --success-soft: #e6f4ed;
-  --danger: #ab3c57;
   --warning: #8a651f;
-  --lavender: #aa93de;
-  --blush: #f4d9e5;
-  --ink: #292530;
+  --danger: #ab3c57;
+
+  --surface-shadow: var(--shadow-lift);
+  --overlay-shadow: var(--shadow-keepsake);
+  --tooltip-delay: 400ms;
+  --tooltip-close-delay: 120ms;
 }
 
 @layer base {
@@ -48,41 +126,46 @@
   h2,
   h3,
   h4 {
-    @apply font-display font-semibold tracking-[-0.045em];
+    @apply font-display font-semibold tracking-[-0.032em] text-balance;
   }
   h1 {
-    @apply text-[clamp(2.3rem,4.1vw,3.6rem)] leading-[1.12];
+    @apply text-display-md;
   }
   h2 {
-    @apply text-[clamp(1.8rem,3vw,2.8rem)] leading-[1.2];
+    @apply text-display-md;
   }
   h3 {
-    @apply text-xl leading-[1.3] tracking-tight;
+    @apply text-display-sm;
   }
   p {
     @apply leading-relaxed;
   }
   :focus-visible {
-    @apply outline-2 outline-offset-4 outline-focus;
+    @apply outline-2 outline-offset-3 outline-focus;
   }
   ::selection {
-    @apply bg-[#dfcff5] text-foreground;
+    @apply bg-lavender-100 text-ink;
   }
 }
+
 @layer components {
+  /* Charcoal pill controls. UIKit owns every state; this only sets the shape
+     and lets link-styled buttons sit on the same baseline as real buttons. */
   .button {
-    @apply gap-3 rounded-full font-medium transition-[transform,box-shadow,background] duration-150 hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98] motion-reduce:transform-none motion-reduce:transition-none;
+    @apply rounded-full;
   }
   a.button {
-    @apply inline-flex min-h-11 items-center justify-center px-5 py-3 text-sm;
+    @apply h-auto min-h-10 py-2.5 md:min-h-9;
   }
-  a.button--primary {
-    @apply bg-accent text-accent-foreground;
+  a.button.button--lg {
+    @apply min-h-13 px-6;
   }
-  a.button--secondary {
-    @apply bg-accent-soft text-accent-soft-foreground;
+
+  /* Hairline rule that a section label can sit inside, like a ledger line. */
+  .rule-label {
+    @apply flex items-center gap-4 text-[11px] font-medium tracking-[0.16em] text-lavender-600 uppercase;
   }
-  a.button--lg {
-    @apply min-h-[54px] px-6 py-4;
+  .rule-label::after {
+    @apply h-px flex-1 bg-rule content-[''];
   }
 }
