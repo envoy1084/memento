@@ -1,46 +1,52 @@
 import { useState } from "react";
 
-import { Button, Form, Modal, toast } from "@thenamespace/uikit";
+import { Button, Form, Modal, Separator, toast } from "@thenamespace/uikit";
 
+import { ShellMark } from "#/components/brand";
 import { Field } from "#/components/fields";
 import { Icon } from "#/components/icon";
+import { Note } from "#/components/page";
 import { useDemo } from "#/hooks/use-demo";
+
 export function ConnectDialog() {
   const [state, setState] = useDemo();
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState("");
+
   const connect = () => {
     setState((current) => ({ ...current, connected: true }));
     setOpen(false);
-    toast.success("Welcome to your Memento preview");
+    toast.success("You’re exploring as alice.eth");
   };
+
   return (
     <Modal isOpen={open} onOpenChange={setOpen}>
       <Button variant={state.connected ? "secondary" : "primary"} size="sm">
-        <span
-          className={
-            state.connected ? "size-4 rounded-full bg-linear-135 from-[#d0b3ee] to-[#f4d9e2]" : ""
-          }
-        />
+        {state.connected ? (
+          <span className="size-4 rounded-full bg-linear-135 from-lavender-300 to-blush-200" />
+        ) : null}
         {state.connected ? "alice.eth" : "Get started"}
         {state.connected ? null : <Icon name="arrow" size={16} />}
       </Button>
-      <Modal.Backdrop>
-        <Modal.Container>
-          <Modal.Dialog className="max-w-[420px] rounded-[28px] p-7">
+      <Modal.Backdrop variant="blur">
+        <Modal.Container size="sm">
+          <Modal.Dialog className="rounded-[26px] p-7">
             <Modal.CloseTrigger />
             <Modal.Header>
-              <span className="inline-flex h-[35px] w-[31px] items-center justify-center rounded-[10px_10px_13px_13px] border border-[#c6b4e5] bg-[#ece2f9] font-serif text-[29px] font-medium leading-none text-[#765d9e] italic shadow-[inset_0_1px_1px_#fff,0_2px_1px_#d4c4e8] mb-4">
-                m
-              </span>
+              <Modal.Icon className="bg-lavender-50">
+                <ShellMark tone="lavender" size={22} />
+              </Modal.Icon>
               <Modal.Heading>
-                {state.connected ? "Your little corner" : "A good place to begin."}
+                {state.connected ? "You’re signed in" : "A good place to begin"}
               </Modal.Heading>
             </Modal.Header>
             <Modal.Body>
               {state.connected ? (
-                <>
-                  <p>You’re exploring as Alice in this local preview.</p>
+                <div className="space-y-5">
+                  <p className="text-sm text-ink-soft">
+                    You’re exploring as Alice. Your gifts, campaigns and claimed names are saved in
+                    this browser only.
+                  </p>
                   <Button
                     variant="secondary"
                     fullWidth
@@ -49,15 +55,16 @@ export function ConnectDialog() {
                       setOpen(false);
                     }}
                   >
-                    Disconnect preview
+                    Sign out of the preview
                   </Button>
-                </>
+                </div>
               ) : (
-                <>
-                  <p className="text-muted mb-6">
-                    An email is all you need. Already onchain? Bring your wallet.
+                <div className="space-y-5">
+                  <p className="text-sm text-ink-soft">
+                    An email is all you need. Already onchain? Bring the wallet you have.
                   </p>
                   <Form
+                    className="space-y-4"
                     onSubmit={(event) => {
                       event.preventDefault();
                       connect();
@@ -70,23 +77,24 @@ export function ConnectDialog() {
                       value={email}
                       onChange={setEmail}
                       placeholder="you@example.com"
+                      autoComplete="email"
                     />
-                    <Button type="submit" fullWidth className="mt-3">
+                    <Button type="submit" fullWidth>
                       Continue with email
-                      <Icon name="arrow" />
+                      <Icon name="arrow" size={17} />
                     </Button>
                   </Form>
-                  <div className="my-5 flex items-center gap-4 text-[11px] text-muted before:h-px before:flex-1 before:bg-separator after:h-px after:flex-1 after:bg-separator">
+                  <div className="flex items-center gap-4 text-[11px] text-ink-faint">
+                    <Separator className="flex-1" />
                     or
+                    <Separator className="flex-1" />
                   </div>
                   <Button variant="secondary" fullWidth onPress={connect}>
-                    <Icon name="wallet" />
+                    <Icon name="wallet" size={18} />
                     Use a wallet
                   </Button>
-                  <p className="text-[11px] leading-relaxed text-muted mt-5">
-                    Interactive preview. No email is sent and no wallet is connected.
-                  </p>
-                </>
+                  <Note>No email is sent and no wallet is connected in this preview.</Note>
+                </div>
               )}
             </Modal.Body>
           </Modal.Dialog>
