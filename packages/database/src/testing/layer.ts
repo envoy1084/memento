@@ -15,11 +15,13 @@ export class TestDatabase extends Context.Service<
     TestDatabase,
     Effect.gen(function* () {
       const db = yield* Database;
+
       yield* migrate(db, {
         migrationsFolder: fileURLToPath(
           new URL("./migrations", import.meta.resolve("@memento/database/package.json")),
         ),
       });
+
       return {
         reset: db
           .execute(

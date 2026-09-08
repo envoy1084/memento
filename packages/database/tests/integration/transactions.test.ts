@@ -16,6 +16,7 @@ import {
 import { TestDatabase } from "../../src/testing/layer.js";
 
 const testLayer = RepositoriesLive.pipe(Layer.provideMerge(TestDatabase.layer));
+
 const fixture: Gift = {
   id: `0x${"11".repeat(32)}`,
   campaignId: null,
@@ -44,13 +45,16 @@ const fixture: Gift = {
   fundingHash: null,
   createdAt: 0,
 };
+
 layer(testLayer)("database transactions", (it) => {
   it.effect("rolls back repository writes and nested transactions together", () =>
     Effect.gen(function* () {
       yield* (yield* TestDatabase).reset;
+
       const gifts = yield* GiftRepository;
       const tx = yield* TransactionService;
       const audit = yield* AuditRepository;
+
       const error = yield* tx
         .run(
           Effect.gen(function* () {
@@ -64,10 +68,12 @@ layer(testLayer)("database transactions", (it) => {
                 createdAt: 0,
               }),
             );
+
             return yield* new Conflict({ code: "TEST_ROLLBACK", message: "rollback" });
           }),
         )
         .pipe(Effect.flip);
+
       expect(error._tag).toBe("Conflict");
       expect(yield* gifts.find(fixture.id)).toBeUndefined();
       expect(yield* (yield* Database).select().from(auditEvent)).toHaveLength(0);
@@ -76,9 +82,11 @@ layer(testLayer)("database transactions", (it) => {
   it.effect("commits a state transition and its job atomically", () =>
     Effect.gen(function* () {
       yield* (yield* TestDatabase).reset;
+
       const gifts = yield* GiftRepository;
       const jobs = yield* JobRepository;
       const tx = yield* TransactionService;
+
       yield* gifts.create(fixture);
       yield* tx.run(
         Effect.gen(function* () {
@@ -106,7 +114,9 @@ layer(testLayer)("database transactions", (it) => {
   it.effect("deduplicates jobs and fences stale leases", () =>
     Effect.gen(function* () {
       yield* (yield* TestDatabase).reset;
+
       const jobs = yield* JobRepository;
+
       const row = {
         id: "one",
         kind: "claim",
@@ -120,6 +130,7 @@ layer(testLayer)("database transactions", (it) => {
         lastError: null,
         payloadCiphertext: null,
       } as const;
+
       yield* jobs.enqueue(row);
       yield* jobs.enqueue({ ...row, id: "two" });
       expect((yield* jobs.lease(0, "worker-one"))?.id).toBe("one");

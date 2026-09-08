@@ -7,18 +7,23 @@ import { mapRepositoryError } from "#/core/errors";
 import { Database } from "#/core/layer";
 import { TransactionService, transactionOrDatabase } from "#/core/transaction";
 import { job } from "#/schema/index";
+
 const make = Effect.gen(function* () {
   const database = yield* Database;
   const transaction = yield* TransactionService;
+
   return {
     enqueue: Effect.fn("JobRepository.enqueue")(function* (row: Job) {
       const db = yield* transactionOrDatabase(database);
+
       yield* db.insert(job).values(row).onConflictDoNothing({ target: job.dedupeKey });
     }, mapRepositoryError),
+
     lease: Effect.fn("JobRepository.lease")(function* (now: number, token: string) {
       return yield* transaction.run(
         Effect.gen(function* () {
           const db = yield* transactionOrDatabase(database);
+
           const [row] = yield* db
             .select()
             .from(job)
@@ -31,7 +36,9 @@ const make = Effect.gen(function* () {
             .orderBy(job.runAt)
             .limit(1)
             .for("update", { skipLocked: true });
+
           if (!row) return undefined;
+
           const [leased] = yield* db
             .update(job)
             .set({
@@ -42,12 +49,14 @@ const make = Effect.gen(function* () {
             })
             .where(eq(job.id, row.id))
             .returning();
+
           return yield* Schema.decodeUnknownEffect(Job)(leased).pipe(
             Effect.mapError((cause) => new DatabaseError({ cause, message: "Invalid leased job" })),
           );
         }),
       );
     }, mapRepositoryError),
+
     finish: Effect.fn("JobRepository.finish")(function* (
       id: string,
       token: string,
@@ -56,6 +65,8 @@ const make = Effect.gen(function* () {
       lastError: string | null = null,
     ) {
       const db = yield* transactionOrDatabase(database);
+
+      // A replaced lease must not let a stale worker acknowledge another worker’s job.
       const rows = yield* db
         .update(job)
         .set({
@@ -68,14 +79,17 @@ const make = Effect.gen(function* () {
         })
         .where(and(eq(job.id, id), eq(job.state, "running"), eq(job.leaseToken, token)))
         .returning({ id: job.id });
+
       return rows.length === 1;
     }, mapRepositoryError),
+
     retry: Effect.fn("JobRepository.retry")(function* (
       subjectId: string,
       now: number,
       dedupeKey?: string,
     ) {
       const db = yield* transactionOrDatabase(database);
+
       yield* db
         .update(job)
         .set({ state: "pending", runAt: now, attempts: 0, lastError: null })
@@ -89,6 +103,7 @@ const make = Effect.gen(function* () {
     }, mapRepositoryError),
   };
 });
+
 export class JobRepository extends Context.Service<JobRepository, Effect.Success<typeof make>>()(
   "@memento/database/JobRepository",
 ) {

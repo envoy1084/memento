@@ -22,6 +22,7 @@ export const transactionOrDatabase = Effect.fnUntraced(function* (
   database: DatabaseService,
 ): Effect.fn.Return<DatabaseExecutor> {
   const tx = yield* Effect.serviceOption(TransactionClient);
+
   if (Option.isSome(tx)) {
     return tx.value;
   }

@@ -8,6 +8,7 @@ import * as PgDrizzle from "drizzle-orm/effect-postgres";
 import { relations } from "#/relations";
 
 export type DatabaseService = PgDrizzle.EffectPgDatabase<typeof relations>;
+
 export class Database extends Context.Service<Database, DatabaseService>()(
   "@memento/database/Database",
 ) {
@@ -15,6 +16,7 @@ export class Database extends Context.Service<Database, DatabaseService>()(
     Layer.effect(Database, PgDrizzle.makeWithDefaults({ relations })).pipe(
       Layer.provide(PgClient.layer({ url })),
     );
+
   static readonly testLayer = Layer.effect(
     Database,
     PgliteDrizzle.makeWithDefaults({ relations }),

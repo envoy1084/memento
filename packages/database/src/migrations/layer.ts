@@ -6,9 +6,11 @@ import { sql } from "drizzle-orm";
 import { migrate } from "drizzle-orm/effect-postgres/migrator";
 
 import { Database } from "../core/layer.js";
+
 export const MigrationsLive = Layer.effectDiscard(
   Effect.gen(function* () {
     const db = yield* Database;
+
     yield* db.transaction((transaction) =>
       Effect.gen(function* () {
         // Serialize startup across overlapping deployments, including the migration-table creation.

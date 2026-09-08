@@ -15,8 +15,11 @@ type KnownDrizzleError =
 
 const isKnownDrizzleError = (error: unknown): error is KnownDrizzleError => {
   if (error instanceof EffectDrizzleError) return true;
+
   if (error instanceof EffectDrizzleQueryError) return true;
+
   if (error instanceof EffectTransactionRollbackError) return true;
+
   return false;
 };
 

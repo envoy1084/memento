@@ -13,6 +13,7 @@ import {
 
 const program = Effect.gen(function* () {
   const url = yield* Config.redacted("TEST_DATABASE_URL");
+
   // Separate layer scopes simulate two deployments migrating the same initially empty database.
   yield* Effect.all(
     Array.from({ length: 2 }, () =>
@@ -22,6 +23,7 @@ const program = Effect.gen(function* () {
   );
   yield* Effect.gen(function* () {
     const jobs = yield* JobRepository;
+
     for (let index = 0; index < 12; index++) {
       yield* jobs.enqueue({
         id: `job-${index}`,
@@ -37,16 +39,22 @@ const program = Effect.gen(function* () {
         payloadCiphertext: null,
       });
     }
+
     const leases = yield* Effect.all(
       Array.from({ length: 20 }, (_, index) => jobs.lease(1, `worker-${index}`)),
       { concurrency: 20 },
     );
     const claimed = leases.filter((lease) => lease !== undefined);
+
     assert.equal(claimed.length, 12);
     assert.equal(new Set(claimed.map((lease) => lease.id)).size, 12);
+
     const original = claimed[0];
+
     assert.ok(original?.leaseToken);
+
     const recovered = yield* jobs.lease(120002, "replacement");
+
     assert.ok(recovered);
     assert.equal(
       yield* jobs.finish(
@@ -58,17 +66,22 @@ const program = Effect.gen(function* () {
       false,
     );
     assert.equal(yield* jobs.finish(recovered.id, "replacement", "pending", 0), true);
+
     const next = yield* jobs.lease(120002, "next");
+
     assert.equal(next?.attempts, 1, "successful progress resets the consecutive-failure budget");
 
     const journal = yield* ChainTransactionRepository;
     const transaction = yield* TransactionService;
+
     const nonces = yield* Effect.all(
       Array.from({ length: 12 }, (_, index) =>
         transaction.run(
           Effect.gen(function* () {
             yield* journal.lock();
+
             const nonce = yield* journal.nextNonce();
+
             yield* journal.create({
               id: `tx-${index}`,
               subjectId: `0x${index.toString(16).padStart(64, "0")}`,
@@ -79,12 +92,14 @@ const program = Effect.gen(function* () {
               status: "prepared",
               createdAt: 0,
             });
+
             return nonce;
           }),
         ),
       ),
       { concurrency: 12 },
     );
+
     assert.deepEqual(
       nonces.toSorted((left, right) => left - right),
       Array.from({ length: 12 }, (_, index) => index),
@@ -94,4 +109,5 @@ const program = Effect.gen(function* () {
     );
   }).pipe(Effect.provide(RepositoriesLive.pipe(Layer.provideMerge(Database.live(url)))));
 });
+
 await Effect.runPromise(program);
