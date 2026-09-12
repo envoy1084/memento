@@ -7,8 +7,20 @@ evm_version = "cancun"
 optimizer = true
 optimizer_runs = 200
 via_ir = true
+# Solar preprocessing misresolves the indirect Ownable constructor in this Foundry nightly.
+# Standard solc test compilation preserves the same contract semantics.
+dynamic_test_linking = false
 fs_permissions = [{ access = "read", path = "../chain/src/deployments" }]
 remappings = ["@openzeppelin/contracts/=node_modules/@openzeppelin/contracts/"]
 
 [fmt]
 line_length = 100
+
+[lint]
+# Exclude dependency entrypoints; keep all first-party sources, scripts and tests.
+ignore = ["**/node_modules/**"]
+# Prefer auditable ABI encoding and retain the explicit coordinator authorization modifier.
+# Nightly project-wide uninitialized-state ignores dependency exclusions and misreports OZ
+# EIP712 fallback strings written through ShortStrings storage helpers. Re-enable after an
+# upstream fix; this exception does not disable Solidity compiler warnings.
+exclude_lints = ["asm-keccak256", "modifier-used-only-once", "uninitialized-state"]

@@ -1,13 +1,22 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.30;
 
+// Timestamp comparisons implement second-based deadlines, not randomness or exact scheduling.
+// forge-lint: disable-start(block-timestamp)
+
 import {IERC1155Receiver} from "@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol";
 import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {ClaimAuthorization} from "./ClaimAuthorization.sol";
 import {IEnsRegistry, IVerifiableFactory, IPermissionedResolver} from "./interfaces/IEnsV2.sol";
 
+/// @title Memento existing-name vault
+/// @notice Holds ENSv2 names for a named recipient and atomically installs a fresh resolver on claim.
+/// @dev Accepts only prepared single-token deposits with no competing token-level delegates.
+///      Claims and expiry recovery transfer the current registry token ID, not a cached version.
 contract MementoNameVault is ClaimAuthorization, IERC1155Receiver, ReentrancyGuard {
+    /// @notice Gift lifecycle; deposited names can be claimed or recovered after expiry.
+    /// @dev Complete and Recovered are terminal; a preparation alone does not establish custody.
     enum Status {
         None,
         Prepared,
@@ -16,6 +25,13 @@ contract MementoNameVault is ClaimAuthorization, IERC1155Receiver, ReentrancyGua
         Recovered
     }
 
+    /// @notice Sponsor commitments for an existing-name gift.
+    /// @param labelhash Keccak-256 of the normalized label without .eth.
+    /// @param claimHash Keccak-256 of the 32-byte claim secret.
+    /// @param restriction Wallet or email restriction; bearer gifts are rejected.
+    /// @param recordsHash Keccak-256 of ABI-encoded TextRecord[] in the exact claim order.
+    /// @param expiresAt Inclusive Unix timestamp in seconds for depositing and claiming.
+    /// @param worldRequired Whether the coordinator must attest to recipient World ID eligibility.
     struct Input {
         bytes32 labelhash;
         bytes32 claimHash;
@@ -25,28 +41,65 @@ contract MementoNameVault is ClaimAuthorization, IERC1155Receiver, ReentrancyGua
         bool worldRequired;
     }
 
+    /// @notice Prepared gift and custody state.
+    /// @param sponsor Preparing owner and sole expiry recovery destination.
+    /// @param input Sponsor commitments.
+    /// @param status Current lifecycle state.
     struct Gift {
         address sponsor;
         Input input;
         Status status;
     }
 
+    /// @notice Resolver text record included in the sponsor commitment.
+    /// @param key ENS text-record key.
+    /// @param value Corresponding text value.
     struct TextRecord {
         string key;
         string value;
     }
 
+    /// @notice ENS registry whose single-token transfers are accepted.
+    // Preserve the existing public getter ABI.
+    // forge-lint: disable-next-line(screaming-snake-case-immutable)
     IEnsRegistry public immutable registry;
+    /// @notice Factory that deploys and certifies the fresh resolver proxy.
+    // Preserve the existing public getter ABI.
+    // forge-lint: disable-next-line(screaming-snake-case-immutable)
     IVerifiableFactory public immutable factory;
+    /// @notice Fixed implementation required for recipient resolver proxies.
+    // Preserve the existing public getter ABI.
+    // forge-lint: disable-next-line(screaming-snake-case-immutable)
     address public immutable resolverImplementation;
+    /// @notice Gift commitments and custody state, keyed by gift ID.
     mapping(bytes32 => Gift) public gifts;
+    /// @notice Deposited gift ID for a labelhash; zero when no gift holds that name.
     mapping(bytes32 => bytes32) public activeGift;
 
+    /// @notice A name owner committed gift terms; custody has not yet transferred.
+    /// @param id Gift ID.
+    /// @param sponsor Preparing owner.
+    /// @param labelhash Name label hash.
     event Prepared(bytes32 indexed id, address indexed sponsor, bytes32 labelhash);
+    /// @notice The registry transferred the prepared name into verified vault custody.
+    /// @param id Gift ID.
     event Deposited(bytes32 indexed id);
+    /// @notice A recipient received the name with a fresh resolver.
+    /// @param id Gift ID.
+    /// @param recipient Final verified owner.
+    /// @param resolver Installed resolver controlled by the recipient.
     event Claimed(bytes32 indexed id, address indexed recipient, address resolver);
+    /// @notice An expired deposited name was transferred back to its sponsor.
+    /// @param id Gift ID.
+    /// @param sponsor Recovery transfer destination.
     event Recovered(bytes32 indexed id, address indexed sponsor);
 
+    /// @notice Creates a vault with fixed registry and resolver dependencies.
+    /// @param registry_ ENSv2 registry.
+    /// @param factory_ Verifiable resolver factory.
+    /// @param resolverImplementation_ Permissioned resolver implementation.
+    /// @param owner_ Administrator for two-step ownership and coordinator rotation.
+    /// @param coordinator_ Initial email and eligibility attestation signer.
     constructor(
         IEnsRegistry registry_,
         IVerifiableFactory factory_,
@@ -64,6 +117,11 @@ contract MementoNameVault is ClaimAuthorization, IERC1155Receiver, ReentrancyGua
         resolverImplementation = resolverImplementation_;
     }
 
+    /// @notice Records gift terms for a name currently owned by the caller.
+    /// @dev Deposit separately via registry.safeTransferFrom with abi.encode(id) as transfer data.
+    ///      Preparation does not lock the name or prevent other preparations.
+    /// @param id Nonzero unused gift ID.
+    /// @param input Recipient, expiry, secret and record commitments.
     function prepareGift(bytes32 id, Input calldata input) external {
         _validateRecipient(input.restriction);
 
@@ -74,11 +132,21 @@ contract MementoNameVault is ClaimAuthorization, IERC1155Receiver, ReentrancyGua
                 || registry.getOwner(uint256(input.labelhash)) != msg.sender
         ) revert InvalidClaim();
 
-        gifts[id] = Gift(msg.sender, input, Status.Prepared);
+        // Prepared below records the sponsor bound by this assignment.
+        // forge-lint: disable-next-line(missing-events-access-control)
+        gifts[id] = Gift({sponsor: msg.sender, input: input, status: Status.Prepared});
 
         emit Prepared(id, msg.sender, input.labelhash);
     }
 
+    /// @notice Accepts a prepared registry transfer after checking ownership and exclusive roles.
+    /// @dev The registry must have updated ownership before invoking this callback. Operator is
+    ///      unused: authorization is bound to the registry, original sponsor and current token ID.
+    /// @param from Original sponsor transferring the name.
+    /// @param tokenId Current versioned registry token ID.
+    /// @param value Must equal one.
+    /// @param giftData ABI-encoded bytes32 gift ID, exactly 32 bytes.
+    /// @return ERC-1155 single-transfer acceptance selector.
     function onERC1155Received(
         address,
         address from,
@@ -118,6 +186,8 @@ contract MementoNameVault is ClaimAuthorization, IERC1155Receiver, ReentrancyGua
         return IERC1155Receiver.onERC1155Received.selector;
     }
 
+    /// @notice Rejects all batch deposits; names must be prepared and deposited individually.
+    /// @dev Always reverts with InvalidClaim; all callback arguments are unused.
     function onERC1155BatchReceived(
         address,
         address,
@@ -128,10 +198,24 @@ contract MementoNameVault is ClaimAuthorization, IERC1155Receiver, ReentrancyGua
         revert InvalidClaim();
     }
 
+    /// @notice Reports ERC-165 and ERC-1155 receiver support.
+    /// @param id Interface identifier to query.
+    /// @return True only for the supported receiver and introspection interfaces.
     function supportsInterface(bytes4 id) external pure returns (bool) {
         return id == type(IERC1155Receiver).interfaceId || id == type(IERC165).interfaceId;
     }
 
+    /// @notice Claims a deposited name with a fresh resolver owned solely by the recipient.
+    /// @dev Any relayer may submit. Initialization, registry updates and transfer are atomic;
+    ///      callback-induced ownership changes revert the entire claim. At most ten text records
+    ///      and 63 label bytes are accepted; clients must normalize the label before signing.
+    /// @param intent Recipient consent, including the expected factory-derived resolver address.
+    /// @param secret Preimage of the committed claim hash.
+    /// @param label Normalized label without the .eth suffix.
+    /// @param records Exact ordered text records matching the sponsor commitment.
+    /// @param signature Recipient signature over intentDigest.
+    /// @param recipientAuthorization Coordinator email attestation, or empty for a wallet restriction.
+    /// @param eligibility Coordinator World ID attestation, or empty if not required.
     function claimName(
         Intent calldata intent,
         bytes32 secret,
@@ -168,7 +252,8 @@ contract MementoNameVault is ClaimAuthorization, IERC1155Receiver, ReentrancyGua
         bytes32 node = keccak256(abi.encodePacked(ethNode, g.input.labelhash));
         bytes[] memory calls = new bytes[](records.length + 1);
         calls[0] = abi.encodeCall(IPermissionedResolver.setAddr, (node, intent.recipient));
-        for (uint256 i; i < records.length; i++) {
+
+        for (uint256 i = 0; i < records.length; i++) {
             calls[i + 1] = abi.encodeCall(
                 IPermissionedResolver.setText, (node, records[i].key, records[i].value)
             );
@@ -203,9 +288,14 @@ contract MementoNameVault is ClaimAuthorization, IERC1155Receiver, ReentrancyGua
             revert InvalidState();
         }
 
+        // Emit only after final ownership verification; nonReentrant protects this claim.
+        // forge-lint: disable-next-line(reentrancy-events)
         emit Claimed(intent.giftId, intent.recipient, resolver);
     }
 
+    /// @notice Returns an expired deposited name to its original sponsor; anyone may call.
+    /// @dev Recovery is available strictly after expiresAt and never redirects to the caller.
+    /// @param id Deposited gift ID.
     function recoverExpired(bytes32 id) external nonReentrant {
         Gift storage g = gifts[id];
 
@@ -221,6 +311,10 @@ contract MementoNameVault is ClaimAuthorization, IERC1155Receiver, ReentrancyGua
             address(this), g.sponsor, registry.getTokenId(uint256(g.input.labelhash)), 1, ""
         );
 
+        // nonReentrant prevents nested recovery; a failed receiver callback rolls back custody.
+        // forge-lint: disable-next-line(reentrancy-events)
         emit Recovered(id, g.sponsor);
     }
 }
+
+// forge-lint: disable-end(block-timestamp)

@@ -17,3 +17,19 @@ Existing-name deposits require no other token-level delegates. The vault creates
 `packages/chain/src/deployments/sepolia.json` is the shared public manifest used by the Node adapter and Foundry deployment script. The protocol schema pins Sepolia and the ENS revision and rejects incomplete or zero-address deployments. Two confirmations are fixed in `@memento/chain/network`. Live bytecode, immutable bindings and ownership checks still run after configuration decoding. ENS addresses are generated from the ENSForge 0.4.0 profile. The two Memento addresses remain null until deployment; package provenance does not replace live checks.
 
 The supported resolver uses `initialize(address,uint256,bytes[])`, `setAddr(bytes32,address)` and `setText(bytes32,string,string)`. Vault record nodes are the namehash of `<label>.eth`. Initializer setters run under upstream initialization semantics; afterward only the recipient controls the fresh resolver.
+
+## Solidity documentation and lint invariants
+
+NatSpec covers both escrow APIs, claim authorization, ENS adapter interfaces and the deployment
+script. Existing interface imports remain available through `IEnsV2.sol`; definitions live in
+individual interface files. Public getter names and function/event signatures are preserved.
+Coordinator activation uses a checked uint64 timestamp conversion; its overflow error is included
+in the generated TypeScript ABIs. Sponsorship release applies `nonReentrant` before authorization.
+
+Forge lint rejects warnings and notes in the package lint task. Intentional timestamp deadlines,
+exact deposit deltas, guarded post-transfer events and public getter naming have documented
+exceptions. The contracts README records the temporary Foundry nightly preprocessing and
+OpenZeppelin storage-analysis workarounds. Tests cover timestamp overflow rollback, replacing a
+coordinator proposal, unauthorized funding, and the inclusive claim/exclusive recovery expiry
+boundary in addition to the existing escrow scenarios. Live ENS compatibility and deployment
+remain separate integration checks; these local tests use provider doubles.

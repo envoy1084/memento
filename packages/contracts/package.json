@@ -6,7 +6,7 @@
   "scripts": {
     "build": "forge build && node ../chain/scripts/generate-abis.mjs --check",
     "test": "forge test",
-    "lint": "forge fmt --check"
+    "lint": "forge fmt --check && forge lint --deny notes"
   },
   "dependencies": {
     "@openzeppelin/contracts": "catalog:"

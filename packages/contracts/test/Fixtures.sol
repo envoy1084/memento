@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.30;
 
+// These small test doubles share one fixture module and are never deployed by the script.
+// forge-lint: disable-start(multi-contract-file)
+
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {IERC1155Receiver} from "@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol";
 import {
@@ -11,7 +14,7 @@ import {
 } from "../src/interfaces/IEnsV2.sol";
 import {ClaimAuthorization} from "../src/ClaimAuthorization.sol";
 
-interface Vm {
+interface IVm {
     function addr(uint256 key) external returns (address);
 
     function sign(uint256 key, bytes32 digest) external returns (uint8, bytes32, bytes32);
@@ -23,6 +26,8 @@ interface Vm {
     function expectRevert() external;
 
     function expectRevert(bytes4 selector) external;
+
+    function expectRevert(bytes calldata reason) external;
 }
 
 contract Token is ERC20 {
@@ -95,6 +100,8 @@ contract Registry is IEnsRegistry {
         bytes calldata data
     ) external {
         require(msg.sender == from && owners[id] == from && amount == 1);
+        // This test double checks ownership rather than reproducing upstream registry events.
+        // forge-lint: disable-next-line(missing-events-access-control)
         owners[id] = to;
 
         if (to.code.length > 0) {
@@ -115,17 +122,20 @@ contract Resolver is IPermissionedResolver {
 
     function initialize(address admin, uint256 roles, bytes[] calldata calls) external {
         require(
-            !initialized
+            !initialized && admin != address(0)
                 && roles == 0x1111111111111111111111111111111111111111111111111111111111111111
         );
         initialized = true;
         controller = admin;
         require(calls.length >= 1);
         initializing = true;
-        for (uint256 i; i < calls.length; i++) {
+        // Model the upstream atomic initializer: each encoded setter must succeed in order.
+        // forge-lint: disable-start(calls-loop, low-level-calls, require-revert-in-loop)
+        for (uint256 i = 0; i < calls.length; i++) {
             (bool success,) = address(this).delegatecall(calls[i]);
             require(success);
         }
+        // forge-lint: disable-end(calls-loop, low-level-calls, require-revert-in-loop)
         initializing = false;
     }
 
@@ -149,6 +159,8 @@ contract ResolverFactory is IVerifiableFactory {
         returns (address)
     {
         require(implementation_ == implementation);
+        // Execute the actual encoded initializer to exercise the vault/factory integration.
+        // forge-lint: disable-next-line(low-level-calls)
         (bool success,) = address(next).call(initData);
         require(success);
 
@@ -163,7 +175,7 @@ contract ResolverFactory is IVerifiableFactory {
 }
 
 abstract contract TestBase {
-    Vm internal constant vm = Vm(address(uint160(uint256(keccak256("hevm cheat code")))));
+    IVm internal constant VM = IVm(address(uint160(uint256(keccak256("hevm cheat code")))));
     uint256 internal constant BOB_KEY = 1234;
     address internal bob;
     address internal alice = address(0xa11ce);
@@ -174,8 +186,10 @@ abstract contract TestBase {
         internal
         returns (bytes memory)
     {
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(BOB_KEY, contract_.intentDigest(intent));
+        (uint8 v, bytes32 r, bytes32 s) = VM.sign(BOB_KEY, contract_.intentDigest(intent));
 
         return abi.encodePacked(r, s, v);
     }
 }
+
+// forge-lint: disable-end(multi-contract-file)

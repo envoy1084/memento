@@ -1,10 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.30;
 
+import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
+
 import {MementoSponsorship} from "../src/MementoSponsorship.sol";
 import {ClaimAuthorization} from "../src/ClaimAuthorization.sol";
 import {Token, HcaFactory, Hca, Registry, TestBase} from "./Fixtures.sol";
 
+// Exact balances are the assertions under test; literal amounts keep each scenario readable.
+// forge-lint: disable-next-item(incorrect-strict-equality, literal-instead-of-constant)
 contract SponsorshipTest is TestBase {
     Token token;
     HcaFactory factory;
@@ -14,7 +18,7 @@ contract SponsorshipTest is TestBase {
     MementoSponsorship.Policy policy;
 
     function setUp() public {
-        bob = vm.addr(BOB_KEY);
+        bob = VM.addr(BOB_KEY);
         token = new Token();
         factory = new HcaFactory();
         hca = new Hca();
@@ -23,15 +27,15 @@ contract SponsorshipTest is TestBase {
         factory.certify(address(hca), bob);
         token.mint(alice, 1000);
 
-        vm.prank(alice);
-        token.approve(address(escrow), 1000);
+        VM.prank(alice);
+        require(token.approve(address(escrow), 1000));
         policy = MementoSponsorship.Policy(
-            100, uint64(block.timestamp + 1 days), 365 days, 3, 63, false
+            100, SafeCast.toUint64(block.timestamp + 1 days), 365 days, 3, 63, false
         );
     }
 
     function create() internal {
-        vm.prank(alice);
+        VM.prank(alice);
         escrow.createGift(
             ID, keccak256(abi.encodePacked(SECRET)), ClaimAuthorization.Recipient(0, 0), policy, 0
         );
@@ -70,11 +74,11 @@ contract SponsorshipTest is TestBase {
         bytes memory sig = signature(escrow, i);
         i.recipient = alice;
 
-        vm.expectRevert();
+        VM.expectRevert();
         escrow.reserveGift(i, SECRET, sig, "", "");
         i.recipient = bob;
 
-        vm.expectRevert();
+        VM.expectRevert();
         escrow.reserveGift(i, bytes32(uint256(1)), sig, "", "");
     }
 
@@ -82,13 +86,13 @@ contract SponsorshipTest is TestBase {
         create();
         reserve(ID);
 
-        vm.prank(alice);
-        vm.expectRevert();
+        VM.prank(alice);
+        VM.expectRevert();
         escrow.cancel(ID);
         ClaimAuthorization.Intent memory i = intent(ID);
         bytes memory sig = signature(escrow, i);
 
-        vm.expectRevert();
+        VM.expectRevert();
         escrow.reserveGift(i, SECRET, sig, "", "");
     }
 
@@ -97,15 +101,15 @@ contract SponsorshipTest is TestBase {
         reserve(ID);
         factory.certify(address(hca), alice);
 
-        vm.expectRevert();
+        VM.expectRevert();
         escrow.releaseToHca(ID, 50);
         factory.certify(address(hca), bob);
 
-        vm.expectRevert();
+        VM.expectRevert();
         escrow.releaseToHca(ID, 101);
         escrow.releaseToHca(ID, 50);
 
-        vm.expectRevert();
+        VM.expectRevert();
         escrow.releaseToHca(ID, 1);
     }
 
@@ -113,7 +117,7 @@ contract SponsorshipTest is TestBase {
         create();
         reserve(ID);
         escrow.releaseToHca(ID, 70);
-        vm.warp(uint256(policy.expiresAt) + 1);
+        VM.warp(uint256(policy.expiresAt) + 1);
         escrow.refundExpired(ID);
         require(token.balanceOf(alice) == 930 && token.balanceOf(address(hca)) == 70);
     }
@@ -122,7 +126,7 @@ contract SponsorshipTest is TestBase {
         ClaimAuthorization.Recipient memory restriction = ClaimAuthorization.Recipient(0, 0);
         bytes32 root = escrow.invitationLeaf(0, keccak256(abi.encodePacked(SECRET)), restriction);
 
-        vm.prank(alice);
+        VM.prank(alice);
         escrow.createCampaign(ID, root, 2, policy);
         bytes32 claimId = escrow.campaignClaimId(ID, 0);
         ClaimAuthorization.Intent memory i = intent(claimId);
@@ -130,7 +134,7 @@ contract SponsorshipTest is TestBase {
             ID, 0, restriction, SECRET, new bytes32[](0), i, signature(escrow, i), "", ""
         );
 
-        vm.prank(alice);
+        VM.prank(alice);
         escrow.refundCampaign(ID);
         require(token.balanceOf(address(escrow)) == 100);
         escrow.releaseToHca(claimId, 80);
@@ -143,17 +147,62 @@ contract SponsorshipTest is TestBase {
         ClaimAuthorization.Intent memory i = intent(ID);
         bytes memory sig = signature(escrow, i);
 
-        vm.expectRevert();
+        VM.expectRevert();
         escrow.reserveGift(i, SECRET, sig, "", "");
     }
 
     function testCoordinatorRotationIsDelayed() public {
         escrow.proposeCoordinator(bob);
 
-        vm.expectRevert();
+        VM.expectRevert();
         escrow.activateCoordinator();
-        vm.warp(block.timestamp + 1 days);
+        VM.warp(block.timestamp + 1 days);
         escrow.activateCoordinator();
         require(escrow.coordinator() == bob);
+    }
+
+    function testCoordinatorRotationRejectsTimestampTruncation() public {
+        VM.warp(uint256(type(uint64).max) - 1 days + 1);
+
+        VM.expectRevert(
+            abi.encodeWithSelector(
+                SafeCast.SafeCastOverflowedUintDowncast.selector,
+                uint8(64),
+                uint256(type(uint64).max) + 1
+            )
+        );
+        escrow.proposeCoordinator(bob);
+
+        require(escrow.pendingCoordinator() == address(0));
+        require(escrow.coordinator() == address(this));
+    }
+
+    function testReplacingCoordinatorProposalRestartsDelay() public {
+        escrow.proposeCoordinator(bob);
+        uint256 firstActivation = escrow.coordinatorActivation();
+        VM.warp(firstActivation - 1);
+        escrow.proposeCoordinator(alice);
+
+        VM.warp(firstActivation);
+        VM.expectRevert(ClaimAuthorization.InvalidState.selector);
+        escrow.activateCoordinator();
+
+        VM.warp(escrow.coordinatorActivation());
+        escrow.activateCoordinator();
+        require(escrow.coordinator() == alice);
+        require(escrow.pendingCoordinator() == address(0));
+    }
+
+    function testOnlyCoordinatorCanReleaseReservedFunds() public {
+        create();
+        reserve(ID);
+
+        VM.prank(alice);
+        VM.expectRevert(ClaimAuthorization.Unauthorized.selector);
+        escrow.releaseToHca(ID, 70);
+
+        require(token.balanceOf(address(hca)) == 0);
+        escrow.releaseToHca(ID, 70);
+        require(token.balanceOf(address(hca)) == 70);
     }
 }

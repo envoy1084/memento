@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.30;
 
+import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
+
 import {MementoNameVault} from "../src/MementoNameVault.sol";
 import {ClaimAuthorization} from "../src/ClaimAuthorization.sol";
 import {Registry, Resolver, ResolverFactory, TestBase} from "./Fixtures.sol";
@@ -13,17 +15,17 @@ contract NameVaultTest is TestBase {
     uint64 expiry;
 
     function setUp() public {
-        bob = vm.addr(BOB_KEY);
+        bob = VM.addr(BOB_KEY);
         registry = new Registry();
         factory = new ResolverFactory();
         vault = new MementoNameVault(
             registry, factory, factory.implementation(), address(this), address(this)
         );
         registry.mint(labelhash, alice);
-        expiry = uint64(block.timestamp + 1 days);
+        expiry = SafeCast.toUint64(block.timestamp + 1 days);
         MementoNameVault.TextRecord[] memory records = new MementoNameVault.TextRecord[](0);
 
-        vm.prank(alice);
+        VM.prank(alice);
         vault.prepareGift(
             ID,
             MementoNameVault.Input(
@@ -40,14 +42,14 @@ contract NameVaultTest is TestBase {
     function testRejectsHiddenRegistryDelegates() public {
         registry.delegate(true);
 
-        vm.expectRevert();
-        vm.prank(alice);
+        VM.expectRevert();
+        VM.prank(alice);
 
         registry.safeTransferFrom(alice, address(vault), uint256(labelhash), 1, abi.encode(ID));
     }
 
     function deposit() internal {
-        vm.prank(alice);
+        VM.prank(alice);
 
         registry.safeTransferFrom(alice, address(vault), uint256(labelhash), 1, abi.encode(ID));
     }
@@ -64,14 +66,14 @@ contract NameVaultTest is TestBase {
         bytes32 ethNode = keccak256(abi.encodePacked(bytes32(0), keccak256("eth")));
         require(factory.next().addresses(keccak256(abi.encodePacked(ethNode, labelhash))) == bob);
         Resolver resolver = factory.next();
-        vm.prank(alice);
-        vm.expectRevert();
+        VM.prank(alice);
+        VM.expectRevert();
         resolver.setAddr(labelhash, alice);
     }
 
     function testRejectUnsolicitedDeposits() public {
-        vm.prank(alice);
-        vm.expectRevert();
+        VM.prank(alice);
+        VM.expectRevert();
 
         registry.safeTransferFrom(
             alice, address(vault), uint256(labelhash), 1, abi.encode(bytes32(uint256(2)))
@@ -81,9 +83,13 @@ contract NameVaultTest is TestBase {
     function testRecoveryOnlyAfterExpiryAndOnlyToSponsor() public {
         deposit();
 
-        vm.expectRevert();
+        VM.expectRevert();
         vault.recoverExpired(ID);
-        vm.warp(uint256(expiry) + 1);
+        VM.warp(expiry);
+        VM.expectRevert(ClaimAuthorization.InvalidState.selector);
+        vault.recoverExpired(ID);
+
+        VM.warp(uint256(expiry) + 1);
         vault.recoverExpired(ID);
         require(registry.getOwner(uint256(labelhash)) == alice);
     }
@@ -97,7 +103,7 @@ contract NameVaultTest is TestBase {
         records[0] = MementoNameVault.TextRecord("url", "changed");
         bytes memory sig = signature(vault, i);
 
-        vm.expectRevert();
+        VM.expectRevert();
         vault.claimName(i, SECRET, "bob", records, sig, "", "");
     }
 }
