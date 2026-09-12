@@ -49,16 +49,6 @@ const make = Effect.gen(function* () {
       );
     }, mapRepositoryError),
 
-    campaign: Effect.fn("GiftRepository.campaign")(function* (id: string) {
-      const db = yield* transactionOrDatabase(database);
-
-      return yield* Schema.decodeUnknownEffect(Schema.Array(Gift))(
-        yield* db.select().from(gift).where(eq(gift.campaignId, id)).orderBy(gift.invitationIndex),
-      ).pipe(
-        Effect.mapError((cause) => new DatabaseError({ cause, message: "Invalid invitations" })),
-      );
-    }, mapRepositoryError),
-
     transition: Effect.fn("GiftRepository.transition")(function* (
       id: string,
       expected: Gift["status"],

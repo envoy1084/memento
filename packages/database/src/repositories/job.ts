@@ -13,6 +13,16 @@ const make = Effect.gen(function* () {
   const transaction = yield* TransactionService;
 
   return {
+    emailState: Effect.fn("JobRepository.emailState")(function* (subjectId: string) {
+      const db = yield* transactionOrDatabase(database);
+      const [row] = yield* db
+        .select({ state: job.state })
+        .from(job)
+        .where(and(eq(job.subjectId, subjectId), eq(job.kind, "email")))
+        .limit(1);
+      return row?.state ?? null;
+    }, mapRepositoryError),
+
     enqueue: Effect.fn("JobRepository.enqueue")(function* (row: Job) {
       const db = yield* transactionOrDatabase(database);
 
