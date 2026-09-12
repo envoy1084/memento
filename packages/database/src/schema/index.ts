@@ -17,6 +17,7 @@ import {
   jsonb,
   numeric,
   pgTable,
+  primaryKey,
   text,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
@@ -180,3 +181,17 @@ export const auditEvent = pgTable("audit_events", {
   actorId: text().notNull(),
   createdAt: bigint({ mode: "number" }).notNull(),
 });
+
+export const ensWorkflow = pgTable(
+  "ens_workflows",
+  {
+    namespace: text().notNull(),
+    id: text().notNull(),
+    revision: integer().notNull(),
+    valueCiphertext: text().notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.namespace, t.id] }),
+    check("ens_workflow_revision", sql`${t.revision} >= 0`),
+  ],
+);

@@ -6,6 +6,7 @@ import { AuditRepository } from "./audit.js";
 import { CampaignRepository } from "./campaign.js";
 import { ChainTransactionRepository } from "./chain-transaction.js";
 import { ClaimRepository } from "./claim.js";
+import { EnsWorkflowRepository } from "./ens-workflow.js";
 import { GiftRepository } from "./gift.js";
 import { JobRepository } from "./job.js";
 import { WorldRepository } from "./world.js";
@@ -18,6 +19,7 @@ export * from "./audit.js";
 export * from "./world.js";
 
 export const RepositoriesLive = Layer.mergeAll(
+  EnsWorkflowRepository.layer,
   ChainTransactionRepository.layer,
   GiftRepository.layer,
   ClaimRepository.layer,
@@ -28,3 +30,5 @@ export const RepositoriesLive = Layer.mergeAll(
 ).pipe(Layer.provideMerge(TransactionService.layer));
 
 export * from "./chain-transaction.js";
+
+export * from "./ens-workflow.js";

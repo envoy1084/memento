@@ -97,3 +97,5 @@ export type Job = typeof Job.Type;
 export * from "./preview.js";
 
 export * from "./deployment.js";
+
+export * from "./workflow.js";

@@ -4,6 +4,7 @@ import { Config, Effect, Layer } from "effect";
 
 import {
   ChainTransactionRepository,
+  EnsWorkflowRepository,
   Database,
   JobRepository,
   MigrationsLive,
@@ -22,6 +23,27 @@ const program = Effect.gen(function* () {
     { concurrency: 2 },
   );
   yield* Effect.gen(function* () {
+    const workflows = yield* EnsWorkflowRepository;
+    const record = {
+      namespace: "ens/registration",
+      id: "cas-race",
+      revision: 0,
+      valueCiphertext: "encrypted",
+    };
+    const creates = yield* Effect.all(
+      Array.from({ length: 12 }, () => workflows.create(record)),
+      { concurrency: 12 },
+    );
+    assert.equal(creates.filter(Boolean).length, 1);
+    const updates = yield* Effect.all(
+      Array.from({ length: 12 }, (_, index) =>
+        workflows.compareAndSwap(0, { ...record, revision: 1, valueCiphertext: `winner-${index}` }),
+      ),
+      { concurrency: 12 },
+    );
+    assert.equal(updates.filter(Boolean).length, 1);
+    assert.equal((yield* workflows.get(record.namespace, record.id))?.revision, 1);
+
     const jobs = yield* JobRepository;
 
     for (let index = 0; index < 12; index++) {

@@ -25,7 +25,7 @@ export class TestDatabase extends Context.Service<
       return {
         reset: db
           .execute(
-            sql`truncate table audit_events, chain_transactions, world_verifications, world_requests, jobs, claims, gifts, campaigns cascade`,
+            sql`truncate table ens_workflows, audit_events, chain_transactions, world_verifications, world_requests, jobs, claims, gifts, campaigns cascade`,
           )
           .pipe(Effect.asVoid, Effect.orDie),
       };
