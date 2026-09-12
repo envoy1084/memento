@@ -14,4 +14,6 @@ The sender uses ENSForge `useSendCalls` with required atomic wallet batching. Th
 
 Amounts use the shared UIKit number display, dates use human-readable date helpers, and wallet identity uses ENSForge primary name/avatar lookup with the Memento logo as fallback. Secrets are not stored in the demo/localStorage state. Session transaction markers prevent accidental replay after an uncertain wallet response.
 
-Tests cover transport, wallet identity, formatting, funding batch receipts and recipient signature construction. Live wallet UX and sponsorship still need a fresh end-to-end test after deployment.
+Claim retries clear the submission marker when Privy explicitly rejects execution with HTTP 400, `transaction_broadcast_failure`, and an execution-reverted message. Timeouts, missing hashes and other unknown outcomes remain blocked. The exact legacy saved revert message is recovered on the next claim attempt; submitted hashes and sender funding markers are preserved. This repairs retries, not the underlying hidden-UI sponsorship failure.
+
+Tests cover transport, wallet identity, formatting, funding batch receipts, claim retry classification and recipient signature construction. Live wallet UX and sponsorship still need a fresh end-to-end test after deployment.

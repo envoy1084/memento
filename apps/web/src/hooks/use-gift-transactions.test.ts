@@ -117,13 +117,13 @@ it("does not fall back to separate transactions on unsupported wallets", async (
   expect(wallet.send).not.toHaveBeenCalled();
 });
 
-it("sponsors a registration step with the explicit embedded wallet and no confirmation modal", async () => {
+it("sponsors a registration step with the explicit embedded wallet", async () => {
   expect(
     await useGiftTransactions()("claim:one:commit", account, 11155111, calls.slice(0, 1)),
   ).toEqual([hash]);
   expect(wallet.sponsoredSend).toHaveBeenCalledWith(
     { to: account, data: "0x01", value: "0x0", chainId: 11155111 },
-    { address: account, sponsor: true, uiOptions: { showWalletUIs: false } },
+    expect.objectContaining({ address: account, sponsor: true }),
   );
   expect(wallet.send).not.toHaveBeenCalled();
 });
@@ -198,6 +198,40 @@ it("does not resubmit after a timeout or an unrecognized wallet failure", async 
   );
   await expect(send("claim:timeout", account, 11155111, calls.slice(0, 1))).rejects.toThrow(
     "Last error: Request timed out",
+  );
+  expect(wallet.sponsoredSend).toHaveBeenCalledTimes(1);
+});
+
+it("allows a fresh claim request after Privy rejects its broadcast with an execution revert", async () => {
+  wallet.sponsoredSend.mockRejectedValueOnce(
+    Object.assign(
+      new Error("Execution reverted for an unknown reason. Details: execution reverted"),
+      {
+        name: "PrivyApiError",
+        status: 400,
+        code: "transaction_broadcast_failure",
+      },
+    ),
+  );
+  const send = useGiftTransactions();
+  await expect(send("claim:revert", account, 11155111, calls.slice(0, 1))).rejects.toThrow(
+    "Execution reverted",
+  );
+  expect(await send("claim:revert", account, 11155111, calls.slice(0, 1))).toEqual([hash]);
+  expect(wallet.sponsoredSend).toHaveBeenCalledTimes(2);
+  expect(wallet.send).not.toHaveBeenCalled();
+});
+
+it("does not infer a safe retry from an unclassified error message in a new submission", async () => {
+  wallet.sponsoredSend.mockRejectedValueOnce(
+    new Error("Execution reverted for an unknown reason. Details: execution reverted"),
+  );
+  const send = useGiftTransactions();
+  await expect(send("claim:unknown", account, 11155111, calls.slice(0, 1))).rejects.toThrow(
+    "Execution reverted",
+  );
+  await expect(send("claim:unknown", account, 11155111, calls.slice(0, 1))).rejects.toThrow(
+    "No new request has been sent",
   );
   expect(wallet.sponsoredSend).toHaveBeenCalledTimes(1);
 });

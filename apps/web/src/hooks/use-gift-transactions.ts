@@ -13,6 +13,11 @@ import { getConnection } from "wagmi/actions";
 import { publicClient, chain } from "#/config/chain";
 import { ensforge } from "#/config/ensforge";
 import { wagmiConfig } from "#/config/wagmi";
+import {
+  clearClaimSubmission,
+  readClaimSubmission,
+  isRejectedClaimSubmission,
+} from "#/hooks/claim-submission-failure";
 import { fundingBatchStatusError } from "#/hooks/funding-batch-status";
 import { JourneyError, journeyError } from "#/hooks/use-api-task";
 
@@ -165,7 +170,9 @@ export function useGiftTransactions() {
       if (active.chainId !== chain.id) await switchChainAsync({ chainId: chain.id });
 
       const key = `memento:tx:${chainId}:${account.toLowerCase()}:${operation}:${index}:${keccak256(stringToHex(JSON.stringify(call)))}`;
-      const stored = sessionStorage.getItem(key);
+      const stored = sponsored
+        ? readClaimSubmission(sessionStorage, key)
+        : sessionStorage.getItem(key);
       let hash = stored === null ? undefined : Schema.decodeUnknownSync(journalEntry)(stored);
       if (hash === "pending") {
         const previousError = sessionStorage.getItem(`${key}:error`);
@@ -177,6 +184,7 @@ export function useGiftTransactions() {
       if (!hash) {
         // Record uncertainty before opening the wallet so a reload cannot silently resubmit.
         sessionStorage.setItem(key, "pending");
+        if (sponsored) sessionStorage.setItem(`${key}:outcome`, "unknown");
         try {
           if (sponsored) {
             const result = await sendTransaction(
@@ -200,9 +208,8 @@ export function useGiftTransactions() {
             });
           sessionStorage.setItem(key, hash);
         } catch (error) {
-          if (isRejectedRequest(error)) {
-            sessionStorage.removeItem(key);
-            sessionStorage.removeItem(`${key}:error`);
+          if (isRejectedRequest(error) || (sponsored && isRejectedClaimSubmission(error))) {
+            clearClaimSubmission(sessionStorage, key);
           } else {
             // Keep uncertain submissions blocked, but preserve the initial failure for diagnosis.
             sessionStorage.setItem(`${key}:error`, journeyError(error).message);
