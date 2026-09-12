@@ -1,11 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { ClaimJourney } from "#/routes/claim/_components/claim-journey";
+import { LiveClaim } from "#/routes/claim/_components/live-claim";
 
 export const Route = createFileRoute("/claim/$giftId")({ component: GiftInvitation });
 
 function GiftInvitation() {
   const { giftId } = Route.useParams();
 
-  return <ClaimJourney key={giftId} giftId={giftId} />;
+  return <LiveClaim key={giftId} giftId={giftId} />;
 }

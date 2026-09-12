@@ -1,217 +1,154 @@
-import {
-  AlertDialog,
-  Button,
-  Card,
-  Separator,
-  Timeline,
-  type TimelineStatus,
-  toast,
-} from "@thenamespace/uikit";
+import { Effect, Schema } from "effect";
 
-import { Icon } from "#/components/common/icon";
-import {
-  Back,
-  ButtonLink,
-  CopyButton,
-  DetailList,
-  DetailRow,
-  EmptyPanel,
-  Eyebrow,
-  Note,
-  PageHeader,
-  Section,
-  StatusChip,
-} from "#/components/common/page";
-import { NameMark } from "#/components/display/brand";
+import { Digest, type GiftView } from "@memento/protocol";
+import { Button, Card, NumberValue } from "@thenamespace/uikit";
+import { formatUnits } from "viem";
+
+import { GiftQuery, giftAtom } from "#/atoms/gifts";
+import { AccountRequired } from "#/components/common/account-required";
+import { DetailList, DetailRow, Note, PageHeader, Section } from "#/components/common/page";
 import { GiftArt } from "#/components/display/gift-art";
-import { useDemo } from "#/hooks/use-demo";
+import { formatDate, formatTimeLeft, formatRegistrationDuration } from "#/format/date";
+import { giftTheme } from "#/format/gift";
+import { useApiTask, useRemote } from "#/hooks/use-api-task";
+import { useAuth } from "#/hooks/use-auth";
+import { useGiftTransactions } from "#/hooks/use-gift-transactions";
 
 export function GiftDetail({ giftId, created }: { giftId: string; created: boolean }) {
-  const [state, setState] = useDemo();
-  const gift = state.gifts.find((entry) => entry.id === giftId);
-
-  if (!gift)
-    return (
-      <Section className="py-16">
-        <EmptyPanel
-          icon="search"
-          title="This gift isn’t in this browser."
-          description="Preview gifts are saved locally, so a link created elsewhere won’t open here."
-          action={<ButtonLink to="/gifts">Back to your gifts</ButtonLink>}
+  const auth = useAuth();
+  const query = useRemote(
+    giftAtom(new GiftQuery({ id: giftId, userId: auth.actor?.userId ?? "" })),
+  );
+  return (
+    <Section className="py-12">
+      {!auth.address ? (
+        <AccountRequired />
+      ) : query.loading ? (
+        <p role="status">Loading your gift…</p>
+      ) : query.failed || !query.data ? (
+        <Note status="warning">
+          This gift could not be loaded.{" "}
+          <Button size="md" onPress={query.refresh}>
+            Retry
+          </Button>
+        </Note>
+      ) : (
+        <GiftDetails
+          key={`${auth.actor?.userId}:${giftId}`}
+          gift={query.data}
+          created={created}
+          refresh={query.refresh}
         />
-      </Section>
-    );
+      )}
+    </Section>
+  );
+}
 
-  const url = `${window.location.origin}/claim/${gift.id}`;
-  const claimed = gift.state === "claimed";
-  const returnable = gift.state === "ready" || gift.state === "expired";
-
-  const lifecycle: { title: string; body: string; status: TimelineStatus }[] = [
-    { title: "Created", body: gift.created, status: "success" },
-    {
-      title: "Invitation ready",
-      body: "The link works as soon as you share it.",
-      status: claimed ? "success" : "current",
-    },
-    {
-      title: claimed ? "Claimed" : "Waiting to be opened",
-      body: claimed
-        ? `${gift.recipient} made this name their own.`
-        : "Nothing happens until they open it.",
-      status: claimed ? "success" : "muted",
-    },
-  ];
+function GiftDetails({
+  gift,
+  created,
+  refresh,
+}: {
+  gift: typeof GiftView.Type;
+  created: boolean;
+  refresh: () => void;
+}) {
+  const task = useApiTask();
+  const send = useGiftTransactions();
+  const expired = gift.policy.expiresAt <= Date.now() / 1000;
+  const refund = () =>
+    task.run(async (api) => {
+      const params = { id: gift.id };
+      const plan = await Effect.runPromise(api.gifts.refund({ params }));
+      const hashes = await send(`refund:${gift.id}`, gift.sponsorWallet, plan.chainId, plan.calls);
+      const payload = { transactionHash: Schema.decodeUnknownSync(Digest)(hashes.at(-1)) };
+      await Effect.runPromise(api.gifts.confirmRefund({ params, payload }));
+      refresh();
+    });
 
   return (
-    <Section className="py-10">
-      <Back to="/gifts" label="Your gifts" />
+    <>
       <PageHeader
-        eyebrow={created ? "Ready to send" : "Gift"}
-        title={created ? "Your gift is wrapped." : `A name for ${gift.recipient}.`}
-        description={
-          created
-            ? "All it needs now is a hello. Share the private link below however you like."
-            : "Everything about this gift, and the link that opens it."
+        eyebrow="Your gift"
+        title={
+          created && gift.status === "ready"
+            ? gift.emailStatus === "complete"
+              ? "Your gift is on its way."
+              : `A name for ${gift.recipientName ?? "someone special"}.`
+            : `A name for ${gift.recipientName ?? "someone special"}.`
         }
-        action={<StatusChip state={gift.state} />}
       />
-
-      <div className="mt-10 grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] lg:gap-12">
-        <div>
-          <div className="overflow-hidden rounded-[28px] border border-rule bg-paper-raised shadow-lift">
-            <GiftArt
-              name={gift.name || "theirname.eth"}
-              theme={gift.theme}
-              size="md"
-              opened={claimed}
-              sender="alice.eth"
-            />
-            <div className="border-t border-rule px-7 py-6 text-center">
-              {gift.name ? (
-                <NameMark name={gift.name} size="lg" />
-              ) : (
-                <h2 className="m-0">A name they choose</h2>
-              )}
-              <p className="mx-auto mt-4 mb-0 max-w-[36ch] text-[15px] leading-relaxed text-ink-soft">
-                “{gift.message}”
-              </p>
-              <p className="mt-4 mb-0 text-xs tracking-[0.12em] text-ink-faint uppercase">
-                From alice.eth
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="space-y-6">
-          <Card className="rounded-3xl border border-rule p-6 shadow-none md:p-7">
-            <h3 className="m-0">{claimed ? "The invitation is closed" : "Their invitation"}</h3>
-            <p className="mt-2 mb-5 text-[13px] leading-6 text-ink-soft">
-              {claimed
-                ? `${gift.recipient} has already claimed this name. The link no longer opens.`
-                : "Send this private link in a message. They can open it whenever they’re ready."}
-            </p>
-            <div className="rounded-2xl border border-rule bg-paper-sunken px-4 py-3.5">
-              <p className="m-0 font-mono text-[12px] break-all text-ink-soft select-all">{url}</p>
-            </div>
-            {!claimed ? (
-              <div className="mt-4 flex flex-wrap gap-3">
-                <CopyButton value={url} />
-                <ButtonLink to="/claim/$giftId" params={{ giftId: gift.id }} variant="tertiary">
-                  Preview what they see
-                  <Icon name="external" size={16} />
-                </ButtonLink>
-              </div>
-            ) : null}
-          </Card>
-
-          <Card className="rounded-3xl border border-rule p-6 shadow-none md:p-7">
-            <Eyebrow className="mb-5">Details</Eyebrow>
-            <DetailList>
-              <DetailRow label="Gift type">
-                {gift.kind === "choice" ? "They choose the name" : "A name you own"}
-              </DetailRow>
-              <DetailRow label="Your budget">
-                {gift.kind === "choice" ? `$${gift.budget}` : "An existing name"}
-              </DetailRow>
-              {gift.kind === "choice" ? (
-                <DetailRow label="Name length">
-                  {gift.minLength}–{gift.maxLength} characters
-                </DetailRow>
+      <div className="mt-9 grid items-start gap-10 lg:grid-cols-2">
+        <Card className="rounded-[28px] border border-rule p-7 shadow-none">
+          <DetailList>
+            <DetailRow label="Status">
+              {gift.status === "ready"
+                ? "Ready to open"
+                : gift.status === "draft"
+                  ? "Not completed"
+                  : gift.status.replaceAll("_", " ")}
+            </DetailRow>
+            <DetailRow label="Registration funding">
+              <NumberValue
+                value={Number(formatUnits(BigInt(gift.policy.maxPrice), 6))}
+                maximumFractionDigits={2}
+              />{" "}
+              USDC
+            </DetailRow>
+            <DetailRow label="Registration">
+              {formatRegistrationDuration(gift.policy.duration)}
+            </DetailRow>
+            <DetailRow label="Name length">
+              {gift.policy.minLength}–{gift.policy.maxLength} characters
+            </DetailRow>
+            <DetailRow label="Claim by">
+              {formatDate(gift.policy.expiresAt)}
+              {gift.status === "ready" ? (
+                <span className="ml-2 text-xs font-normal text-ink-soft">
+                  ({formatTimeLeft(gift.policy.expiresAt)})
+                </span>
               ) : null}
-              <DetailRow label="Registration">
-                {gift.years} year{gift.years > 1 ? "s" : ""}
-              </DetailRow>
-              <DetailRow label="They pay">$0</DetailRow>
-            </DetailList>
-            <Separator className="my-6" />
-            <Eyebrow className="mb-5">Progress</Eyebrow>
-            <Timeline density="compact" size="sm">
-              {lifecycle.map((entry) => (
-                <Timeline.Item key={entry.title} status={entry.status}>
-                  <Timeline.Marker aria-hidden="true" />
-                  <Timeline.Content>
-                    <p className="m-0 text-[13px] font-medium">{entry.title}</p>
-                    <p className="m-0 mt-0.5 text-[12px] text-ink-soft">{entry.body}</p>
-                  </Timeline.Content>
-                </Timeline.Item>
-              ))}
-            </Timeline>
-          </Card>
-
-          <Note>
-            This gift lives in this browser only. Nothing has been sent, charged or registered.
-          </Note>
-
-          {returnable ? (
-            <AlertDialog>
-              <Button variant="ghost" size="sm" className="text-ink-soft">
-                Cancel and return this gift
-              </Button>
-              <AlertDialog.Backdrop>
-                <AlertDialog.Container size="sm">
-                  <AlertDialog.Dialog>
-                    <AlertDialog.Header>
-                      <AlertDialog.Icon status="danger">
-                        <Icon name="alert" size={20} />
-                      </AlertDialog.Icon>
-                      <AlertDialog.Heading>Return this gift?</AlertDialog.Heading>
-                    </AlertDialog.Header>
-                    <AlertDialog.Body>
-                      <p className="m-0 text-sm text-ink-soft">
-                        The invitation link will stop working and {gift.recipient} won’t be able to
-                        claim it. In this preview no funds move.
-                      </p>
-                    </AlertDialog.Body>
-                    <AlertDialog.Footer>
-                      <Button slot="close" variant="secondary">
-                        Keep it
-                      </Button>
-                      <Button
-                        slot="close"
-                        variant="danger"
-                        onPress={() => {
-                          setState((current) => ({
-                            ...current,
-                            gifts: current.gifts.map((entry) =>
-                              entry.id === giftId &&
-                              (entry.state === "ready" || entry.state === "expired")
-                                ? { ...entry, state: "refunded" }
-                                : entry,
-                            ),
-                          }));
-                          toast.success("Gift returned");
-                        }}
-                      >
-                        Return gift
-                      </Button>
-                    </AlertDialog.Footer>
-                  </AlertDialog.Dialog>
-                </AlertDialog.Container>
-              </AlertDialog.Backdrop>
-            </AlertDialog>
+            </DetailRow>
+          </DetailList>
+          {task.error ? (
+            <div role="alert">
+              <Note status="danger">{task.error}</Note>
+            </div>
           ) : null}
+          {task.busy ? <p role="status">Waiting for wallet approval or confirmation…</p> : null}
+          {gift.status === "ready" && !expired && gift.emailStatus ? (
+            <p role="status" className="mt-5 text-sm text-ink-soft">
+              {gift.emailStatus === "complete"
+                ? "An email with the claim link has been sent to your recipient."
+                : gift.emailStatus === "failed"
+                  ? "Your gift is safe, but the email couldn’t be sent. Please contact us for help."
+                  : gift.emailStatus === "pending" || gift.emailStatus === "running"
+                    ? "Sending your gift… We’ll email the invitation to your recipient."
+                    : "We’re emailing the claim link to your recipient."}
+            </p>
+          ) : null}
+          {expired && !["complete", "refunded", "draft"].includes(gift.status) ? (
+            <Button
+              size="md"
+              variant="secondary"
+              isDisabled={task.busy}
+              onPress={() => {
+                void refund();
+              }}
+            >
+              Recover eligible funds
+            </Button>
+          ) : null}
+        </Card>
+        <div className="overflow-hidden rounded-[28px] border border-rule bg-paper-raised shadow-lift">
+          <GiftArt
+            name={gift.label ? `${gift.label}.eth` : "theirname.eth"}
+            theme={giftTheme(gift.theme)}
+            size="md"
+          />
+          <p className="border-t border-rule px-7 py-6 text-center">{gift.message}</p>
         </div>
       </div>
-    </Section>
+    </>
   );
 }

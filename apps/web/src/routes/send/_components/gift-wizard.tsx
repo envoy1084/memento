@@ -2,31 +2,28 @@ import { useState } from "react";
 
 import { useNavigate } from "@tanstack/react-router";
 
-import { Button, Card, Description, Form, Label, RadioButtonGroup } from "@thenamespace/uikit";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { Effect, Schema } from "effect";
 
-import type { Gift } from "#/atoms/demo";
+import { Digest, CreateGift, GiftRecipientContact } from "@memento/protocol";
+import { Button, Card, Form, NumberValue } from "@thenamespace/uikit";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { formatUnits, parseUnits } from "viem";
+
+import { AccountRequired } from "#/components/common/account-required";
 import { Field, NumberInput, SelectField } from "#/components/common/fields";
 import { Icon } from "#/components/common/icon";
-import {
-  Back,
-  DetailList,
-  DetailRow,
-  Eyebrow,
-  Note,
-  PageHeader,
-  Section,
-  Steps,
-} from "#/components/common/page";
+import { DetailList, DetailRow, Eyebrow, Note, Section } from "#/components/common/page";
 import { ThemePicker, type GiftTheme } from "#/components/common/theme-picker";
-import { NameMark } from "#/components/display/brand";
 import { GiftArt } from "#/components/display/gift-art";
-import { useDemo } from "#/hooks/use-demo";
+import { truncateAddress } from "#/format/address";
+import { useApiTask } from "#/hooks/use-api-task";
+import { useAuth } from "#/hooks/use-auth";
+import { useGiftTransactions } from "#/hooks/use-gift-transactions";
 
 const stepCopy = [
   {
-    title: "What are you giving?",
-    description: "A budget so they can choose their own name, or one you already own.",
+    title: "Their next chapter starts with you.",
+    description: "Cover the registration and let them choose a name they love.",
   },
   {
     title: "Make it feel like you",
@@ -34,47 +31,49 @@ const stepCopy = [
   },
   {
     title: "One last look",
-    description: "Nothing is charged, sent or registered — this creates a local preview gift.",
+    description: "Review the gift, then approve its funding in your wallet on Sepolia.",
   },
 ] as const;
 
-export function GiftWizard({ initialKind }: { initialKind: "choice" | "owned" }) {
-  const [state, setState] = useDemo();
+export function GiftWizard() {
+  const auth = useAuth();
+  if (!auth.configured)
+    return (
+      <Section className="py-14">
+        <AccountRequired />
+      </Section>
+    );
+  return <GiftForm />;
+}
+
+function GiftForm() {
+  const auth = useAuth();
+  const task = useApiTask();
+  const sendCalls = useGiftTransactions();
+  const [preparedId, setPreparedId] = useState<string>();
   const navigate = useNavigate();
   const reduced = useReducedMotion();
 
   const [step, setStep] = useState(0);
-  const [kind, setKind] = useState(initialKind);
-  const [budget, setBudget] = useState(25);
+
+  const [maxUsdc, setMaxUsdc] = useState(25);
   const [years, setYears] = useState(1);
   const [minLength, setMinLength] = useState(5);
   const [maxLength, setMaxLength] = useState(20);
-  const [ownedName, setOwnedName] = useState("sophie.eth");
   const [recipient, setRecipient] = useState("");
+  const [recipientEmail, setRecipientEmail] = useState("");
   const [message, setMessage] = useState("For your next chapter. Make it a good one.");
   const [theme, setTheme] = useState<GiftTheme>("aura");
   const [error, setError] = useState("");
 
-  const gifted = new Set(
-    state.gifts
-      .filter((gift) => gift.kind === "owned" && gift.state !== "refunded")
-      .map((gift) => gift.name),
-  );
-
-  const ownedNames = ["sophie.eth", "goodthings.eth", "littlewonder.eth"].filter(
-    (name) => !gifted.has(name),
-  );
-  const selectedName = ownedNames.includes(ownedName) ? ownedName : (ownedNames[0] ?? "");
-  const previewName = kind === "owned" ? selectedName || "yourname.eth" : "theirname.eth";
-  const coveredYears = Math.max(0, Math.floor(budget / 5));
+  const validBudget = Number.isInteger(maxUsdc) && maxUsdc >= 1 && maxUsdc <= 100;
+  const amount = validBudget ? parseUnits(String(maxUsdc), 6).toString() : undefined;
+  const previewName = "theirname.eth";
 
   const advance = () => {
-    if (step === 0 && kind === "choice") {
-      if (!Number.isFinite(budget) || budget < 5 * years || budget > 1000) {
-        setError(
-          `A budget of at least $${5 * years} covers ${years} year${years > 1 ? "s" : ""} of a five-letter name. The maximum in this preview is $1,000.`,
-        );
-
+    if (step === 0) {
+      if (!validBudget) {
+        setError("Enter a maximum amount between 1 and 100 USDC, in whole dollars.");
         return;
       }
 
@@ -91,8 +90,11 @@ export function GiftWizard({ initialKind }: { initialKind: "choice" | "owned" })
       }
     }
 
-    if (step === 0 && kind === "owned" && !selectedName) {
-      setError("You’ve gifted every name in your demo wallet. Try a choose-your-own gift instead.");
+    if (
+      step === 1 &&
+      !Schema.is(GiftRecipientContact)({ name: recipient.trim(), email: recipientEmail.trim() })
+    ) {
+      setError("Enter the recipient’s name and a valid email address.");
 
       return;
     }
@@ -102,41 +104,56 @@ export function GiftWizard({ initialKind }: { initialKind: "choice" | "owned" })
   };
 
   const create = () => {
-    const id = crypto.randomUUID();
-
-    const gift: Gift = {
-      id,
-      kind,
-      recipient: recipient.trim() || "Someone special",
-      name: kind === "owned" ? selectedName : "",
-      budget: kind === "owned" ? 0 : budget,
-      years,
-      minLength,
-      maxLength,
-      message,
-      theme,
-      state: "ready",
-      created: new Intl.DateTimeFormat("en", {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-      }).format(new Date()),
-    };
-
-    setState((current) => ({ ...current, gifts: [gift, ...current.gifts] }));
-    void navigate({ to: "/gifts/$giftId", params: { giftId: id }, search: { created: true } });
+    if (!auth.address || !auth.actor || !amount) return;
+    const account = auth.address;
+    void task.run(async (api) => {
+      const input = Schema.decodeUnknownSync(CreateGift)({
+        sponsorWallet: account,
+        recipient: { kind: "email", value: recipientEmail.trim().toLowerCase() },
+        recipientName: recipient.trim(),
+        message,
+        theme,
+        policy: {
+          maxPrice: amount,
+          duration: years * 31536000,
+          expiresAt: Math.floor(Date.now() / 1000) + 30 * 86400,
+          minLength,
+          maxLength,
+        },
+      });
+      const plan = await Effect.runPromise(
+        preparedId
+          ? api.gifts.fundingPlan({ params: { id: preparedId } })
+          : api.gifts.prepare({ payload: input }),
+      );
+      setPreparedId(plan.id);
+      const hashes = await sendCalls(`fund:${plan.id}`, account, plan.chainId, plan.calls);
+      await Effect.runPromise(
+        api.gifts.confirm({
+          params: { id: plan.id },
+          payload: { transactionHash: Schema.decodeUnknownSync(Digest)(hashes.at(-1)) },
+        }),
+      );
+      await navigate({
+        to: "/gifts/$giftId",
+        params: { giftId: plan.id },
+        search: { created: true },
+      });
+    });
   };
 
   const copy = stepCopy[step] ?? stepCopy[0];
 
   return (
-    <Section width="form" className="py-10 md:py-14">
-      <Back to="/" label="Back" />
-      <PageHeader eyebrow="Give a name" title={copy.title} description={copy.description} />
+    <Section className="py-10 md:py-14">
+      <header className="max-w-3xl pt-2 text-left md:pt-4">
+        <Eyebrow className="mb-4">Gift a name</Eyebrow>
+        <h1 className="text-display-lg">{copy.title}</h1>
+        <p className="mt-4 max-w-[52ch] text-[15px] text-ink-soft">{copy.description}</p>
+      </header>
 
-      <div className="mt-10 grid items-start gap-10 lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-14">
+      <div className="mt-10 grid items-start gap-10 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] lg:gap-8">
         <div className="min-w-0 order-2 lg:order-1">
-          <Steps labels={["The gift", "Your note", "Review"]} step={step} />
           <Form
             className="w-full"
             onSubmit={(event) => {
@@ -146,7 +163,7 @@ export function GiftWizard({ initialKind }: { initialKind: "choice" | "owned" })
               else create();
             }}
           >
-            <Card className="w-full rounded-3xl border border-rule p-6 shadow-none md:p-8">
+            <Card className="w-full rounded-[28px] border border-rule p-6 shadow-none md:p-8">
               <AnimatePresence mode="wait" initial={false}>
                 <motion.div
                   key={step}
@@ -158,144 +175,74 @@ export function GiftWizard({ initialKind }: { initialKind: "choice" | "owned" })
                 >
                   {step === 0 ? (
                     <>
-                      <RadioButtonGroup
-                        value={kind}
-                        onChange={(value) => {
-                          if (value === "choice" || value === "owned") setKind(value);
-
-                          setError("");
-                        }}
-                        variant="secondary"
-                        className="w-full"
-                      >
-                        <Label>Kind of gift</Label>
-                        <div className="mt-2 grid gap-3 sm:grid-cols-2">
-                          {[
-                            {
-                              value: "choice",
-                              icon: "sparkle" as const,
-                              title: "Let them choose",
-                              description: "You set a budget and simple rules.",
-                            },
-                            {
-                              value: "owned",
-                              icon: "gift" as const,
-                              title: "A name you own",
-                              description: "Transferred to them when they claim.",
-                            },
-                          ].map((option) => (
-                            <RadioButtonGroup.Item key={option.value} value={option.value}>
-                              <RadioButtonGroup.ItemIcon>
-                                <Icon name={option.icon} size={19} />
-                              </RadioButtonGroup.ItemIcon>
-                              <RadioButtonGroup.ItemContent>
-                                <Label>{option.title}</Label>
-                                <Description>{option.description}</Description>
-                              </RadioButtonGroup.ItemContent>
-                              <RadioButtonGroup.Indicator />
-                            </RadioButtonGroup.Item>
-                          ))}
+                      <div className="space-y-6">
+                        <div className="grid gap-5 sm:grid-cols-2">
+                          <NumberInput
+                            label="Maximum amount (USDC)"
+                            value={maxUsdc}
+                            onChange={setMaxUsdc}
+                            min={1}
+                            max={100}
+                            step={1}
+                            required
+                            description="Your spending limit."
+                          />
+                          <SelectField
+                            label="Registration length"
+                            value={String(years)}
+                            onChange={(value) => setYears(Number(value))}
+                            options={[1, 2, 3].map((n) => ({
+                              value: String(n),
+                              label: `${n} year${n > 1 ? "s" : ""}`,
+                            }))}
+                            description="How long they’ll own it."
+                          />
                         </div>
-                      </RadioButtonGroup>
-
-                      {kind === "choice" ? (
-                        <div className="space-y-6 border-t border-rule pt-6">
+                        <fieldset className="m-0 border-0 p-0">
+                          <legend className="mb-3 text-sm font-medium">Name length</legend>
                           <div className="grid gap-5 sm:grid-cols-2">
                             <NumberInput
-                              label="Gift budget"
-                              value={budget}
-                              onChange={setBudget}
-                              min={5}
-                              max={1000}
-                              step={5}
+                              label="Shortest"
+                              value={minLength}
+                              onChange={setMinLength}
+                              min={3}
+                              max={63}
                               required
-                              format={{
-                                style: "currency",
-                                currency: "USD",
-                                maximumFractionDigits: 0,
-                              }}
-                              description={
-                                coveredYears > 0
-                                  ? `Roughly ${coveredYears} year${coveredYears > 1 ? "s" : ""} of a five-letter name. Illustrative prices.`
-                                  : "Most names of five letters or more start around $5 a year."
-                              }
                             />
-                            <SelectField
-                              label="Registration length"
-                              value={String(years)}
-                              onChange={(value) => setYears(Number(value))}
-                              options={[1, 2, 3].map((n) => ({
-                                value: String(n),
-                                label: `${n} year${n > 1 ? "s" : ""}`,
-                              }))}
-                              description="How long the name is paid up for."
+                            <NumberInput
+                              label="Longest"
+                              value={maxLength}
+                              onChange={setMaxLength}
+                              min={3}
+                              max={63}
+                              required
                             />
                           </div>
-                          <fieldset className="m-0 border-0 p-0">
-                            <legend className="mb-1 text-sm font-medium">Name length</legend>
-                            <p className="mt-0 mb-3 text-[13px] text-ink-soft">
-                              Shorter names cost more. This keeps their choice inside your budget.
-                            </p>
-                            <div className="grid gap-5 sm:grid-cols-2">
-                              <NumberInput
-                                label="Shortest"
-                                value={minLength}
-                                onChange={setMinLength}
-                                min={3}
-                                max={63}
-                                required
-                              />
-                              <NumberInput
-                                label="Longest"
-                                value={maxLength}
-                                onChange={setMaxLength}
-                                min={3}
-                                max={63}
-                                required
-                              />
-                            </div>
-                          </fieldset>
-                        </div>
-                      ) : (
-                        <div className="space-y-5 border-t border-rule pt-6">
-                          {ownedNames.length ? (
-                            <>
-                              <SelectField
-                                label="Name to pass on"
-                                value={selectedName}
-                                onChange={setOwnedName}
-                                options={ownedNames.map((name) => ({
-                                  value: name,
-                                  label: name,
-                                }))}
-                                description="Names held in your demo wallet."
-                              />
-                              <Note status="accent" title="They choose where it lands">
-                                Once they claim it, this exact name transfers to a wallet they pick.
-                                You won’t be able to take it back.
-                              </Note>
-                            </>
-                          ) : (
-                            <Note status="warning" title="No names left to give">
-                              Every name in your demo wallet has already been gifted. Switch to a
-                              choose-your-own gift, or return one from your gifts list.
-                            </Note>
-                          )}
-                        </div>
-                      )}
+                        </fieldset>
+                      </div>
                     </>
                   ) : null}
 
                   {step === 1 ? (
                     <>
                       <Field
-                        label="Who is this for?"
+                        label="Recipient’s name"
                         value={recipient}
                         onChange={setRecipient}
                         placeholder="Jamie"
                         required
                         maxLength={100}
-                        description="A label for your own list. You’ll share the invitation yourself."
+                        autoComplete="off"
+                      />
+                      <Field
+                        label="Recipient’s email"
+                        type="email"
+                        value={recipientEmail}
+                        onChange={setRecipientEmail}
+                        placeholder="jamie@example.com"
+                        required
+                        maxLength={254}
+                        description="Only someone signed in with this verified email can claim the gift."
                       />
                       <div>
                         <Field
@@ -311,12 +258,8 @@ export function GiftWizard({ initialKind }: { initialKind: "choice" | "owned" })
                           {message.length} / 240
                         </p>
                       </div>
-                      <div className="border-t border-rule pt-6">
-                        <ThemePicker
-                          value={theme}
-                          onChange={setTheme}
-                          description="How the keepsake looks when they open it."
-                        />
+                      <div>
+                        <ThemePicker value={theme} onChange={setTheme} />
                       </div>
                     </>
                   ) : null}
@@ -324,37 +267,45 @@ export function GiftWizard({ initialKind }: { initialKind: "choice" | "owned" })
                   {step === 2 ? (
                     <>
                       <DetailList>
-                        <DetailRow label="For">{recipient || "Someone special"}</DetailRow>
-                        <DetailRow label="Gift">
-                          {kind === "choice" ? (
-                            "A name they choose"
-                          ) : (
-                            <NameMark name={selectedName} size="sm" />
-                          )}
-                        </DetailRow>
+                        <DetailRow label="For">{recipient}</DetailRow>
+                        <DetailRow label="Email">{recipientEmail.trim().toLowerCase()}</DetailRow>
+                        <DetailRow label="Gift">A name they choose</DetailRow>
                         <DetailRow label="Registration">
                           {years} year{years > 1 ? "s" : ""}
                         </DetailRow>
-                        {kind === "choice" ? (
+                        {
                           <DetailRow label="Name length">
                             {minLength}–{maxLength} characters
                           </DetailRow>
-                        ) : null}
-                        <DetailRow label="Your budget">
-                          {kind === "owned" ? "A name you already own" : `$${budget}`}
+                        }
+                        <DetailRow label="Registration funding">
+                          {amount ? (
+                            <>
+                              <NumberValue
+                                value={Number(formatUnits(BigInt(amount), 6))}
+                                maximumFractionDigits={2}
+                              />{" "}
+                              USDC
+                            </>
+                          ) : (
+                            "Enter a maximum amount"
+                          )}
                         </DetailRow>
-                        <DetailRow label="They pay">$0</DetailRow>
+                        <DetailRow label="Claim within">30 days</DetailRow>
+                        <DetailRow label="Network">Sepolia</DetailRow>
                         <DetailRow label="Wrapping">
                           {theme === "aura" ? "Lavender" : theme === "rose" ? "Blush" : "Sage"}
                         </DetailRow>
                       </DetailList>
-                      <Note title="This is a preview">
-                        Creating this gift won’t charge you, send an email or transfer a name. The
-                        invitation link works in this browser only.
-                      </Note>
                     </>
                   ) : null}
 
+                  {step === 2 && !auth.address ? <AccountRequired /> : null}
+                  {task.error ? (
+                    <div role="alert">
+                      <Note status="danger">{task.error}</Note>
+                    </div>
+                  ) : null}
                   {error ? (
                     <div role="alert">
                       <Note status="danger">{error}</Note>
@@ -363,10 +314,12 @@ export function GiftWizard({ initialKind }: { initialKind: "choice" | "owned" })
                 </motion.div>
               </AnimatePresence>
 
-              <div className="mt-7 flex items-center justify-between gap-4 border-t border-rule pt-6">
+              <div className="mt-7 flex items-center justify-between gap-4">
                 <Button
                   variant="ghost"
+                  size="md"
                   className={step > 0 ? "" : "invisible"}
+                  isDisabled={task.busy || Boolean(preparedId)}
                   onPress={() => {
                     setStep(Math.max(0, step - 1));
                     setError("");
@@ -377,10 +330,16 @@ export function GiftWizard({ initialKind }: { initialKind: "choice" | "owned" })
                 </Button>
                 <Button
                   type="submit"
-                  size="lg"
-                  isDisabled={step === 0 && kind === "owned" && !selectedName}
+                  size="md"
+                  isDisabled={task.busy || (step === 2 && (!auth.address || !amount))}
                 >
-                  {step === 2 ? "Create this gift" : step === 1 ? "Review" : "Add your note"}
+                  {task.busy
+                    ? "Confirm in your wallet…"
+                    : step === 2
+                      ? "Create this gift"
+                      : step === 1
+                        ? "Review"
+                        : "Add your note"}
                   <Icon name="arrow" size={18} />
                 </Button>
               </div>
@@ -389,9 +348,13 @@ export function GiftWizard({ initialKind }: { initialKind: "choice" | "owned" })
         </div>
 
         <aside className="order-1 min-w-0 lg:order-2 lg:sticky lg:top-28">
-          <Eyebrow className="mb-4">What they’ll see</Eyebrow>
           <div className="overflow-hidden rounded-[28px] border border-rule bg-paper-raised shadow-lift">
-            <GiftArt name={previewName} theme={theme} size="md" sender="alice.eth" />
+            <GiftArt
+              name={previewName}
+              theme={theme}
+              size="md"
+              sender={auth.address ? truncateAddress(auth.address) : "From you"}
+            />
             <div className="border-t border-rule px-6 py-5 text-center">
               <p className="m-0 text-[11px] tracking-[0.12em] text-ink-faint uppercase">
                 To {recipient || "someone special"}
@@ -399,13 +362,11 @@ export function GiftWizard({ initialKind }: { initialKind: "choice" | "owned" })
               <p className="mx-auto mt-3 mb-0 max-w-[34ch] text-[15px] leading-relaxed text-ink">
                 “{message || "A little gift, just for you."}”
               </p>
-              <p className="mt-3 mb-0 text-xs text-ink-soft">alice.eth</p>
+              <p className="mt-3 mb-0 text-xs text-ink-soft">
+                {auth.address ? truncateAddress(auth.address) : "From you"}
+              </p>
             </div>
           </div>
-          <p className="mt-4 flex items-start gap-2 text-xs leading-relaxed text-ink-soft">
-            <Icon name="shield" size={15} className="mt-px text-lavender-500" />
-            Their name, their wallet, their next chapter.
-          </p>
         </aside>
       </div>
     </Section>

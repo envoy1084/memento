@@ -1,7 +1,7 @@
 import { Accordion, Card, Separator } from "@thenamespace/uikit";
 
 import { Icon, type IconName } from "#/components/common/icon";
-import { ButtonLink, Note, PageHeader, RuleHeading, Section } from "#/components/common/page";
+import { ButtonLink, PageHeader, RuleHeading, Section } from "#/components/common/page";
 
 const basics: { icon: IconName; title: string; body: string }[] = [
   {
@@ -28,7 +28,7 @@ const questions: [string, string][] = [
   ],
   [
     "Do I need a wallet or any crypto?",
-    "No. You can start with an email address, and a wallet is created for you along the way. The person sending the gift covers the registration. In this preview both wallet creation and claiming are simulated.",
+    "No. You can start with an email address, and a wallet is created for you along the way. The person sending the gift covers the registration. Memento covers the gas fees when you claim with your embedded wallet.",
   ],
   [
     "Who actually owns the name?",
@@ -36,7 +36,7 @@ const questions: [string, string][] = [
   ],
   [
     "Can I choose any name I want?",
-    "Within the gift's rules. Each gift comes with a budget, a name-length range and a registration period. Any available name inside those limits is yours. If someone gifted a name they already own, that exact name is reserved for you instead.",
+    "Within the gift's rules. Each gift comes with a budget, a name-length range and a registration period. Any available name inside those limits is yours.",
   ],
   [
     "Is the name mine forever?",
@@ -44,15 +44,7 @@ const questions: [string, string][] = [
   ],
   [
     "What happens to a gift nobody opens?",
-    "The sender can return an unclaimed gift, and expired invitations stop working. Community campaigns can be paused or closed too — names already claimed always stay with the people who claimed them.",
-  ],
-  [
-    "Why do some communities ask for World ID?",
-    "So the names reach as many different people as possible. World ID confirms that a person is unique without revealing who they are to the community. Verification is simulated here.",
-  ],
-  [
-    "What actually works in this preview?",
-    "You can create gifts and campaigns, generate local invitation links, claim demo names and customise a profile. Everything is saved in this browser. No real funds, emails, wallet connections, identity checks or registrations are involved.",
+    "The sender can return an unclaimed gift, and expired invitations stop working. Names already claimed stay with their recipients.",
   ],
 ];
 
@@ -100,13 +92,6 @@ export function Help() {
         ))}
       </Accordion>
 
-      <div className="mt-10">
-        <Note title="This is an interactive preview">
-          Nothing here touches a blockchain, a payment provider or your inbox. It exists so you can
-          feel the whole journey before any of it is real.
-        </Note>
-      </div>
-
       <Separator className="my-12" />
 
       <div className="rounded-3xl border border-lavender-100 bg-linear-135 from-lavender-50 to-blush-50 p-8 text-center">
@@ -118,9 +103,6 @@ export function Help() {
           <ButtonLink to="/send" size="lg">
             Give a name
             <Icon name="arrow" size={18} />
-          </ButtonLink>
-          <ButtonLink to="/campaigns/new" variant="secondary" size="lg">
-            Welcome a community
           </ButtonLink>
         </div>
       </div>

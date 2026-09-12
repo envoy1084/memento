@@ -8,6 +8,17 @@
    a hex value.
 --------------------------------------------------------------------------- */
 @theme {
+  /* Temporary weight preview: move each Tailwind/UIKit weight up one step. */
+  --font-weight-thin: 200;
+  --font-weight-extralight: 300;
+  --font-weight-light: 400;
+  --font-weight-normal: 500;
+  --font-weight-medium: 600;
+  --font-weight-semibold: 700;
+  --font-weight-bold: 800;
+  --font-weight-extrabold: 900;
+  --font-weight-black: 900;
+
   --font-sans: "DM Sans Variable", ui-sans-serif, system-ui, sans-serif;
   --font-display: "Manrope Variable", "DM Sans Variable", ui-sans-serif, sans-serif;
 
@@ -105,6 +116,7 @@
   --field-placeholder: var(--color-ink-faint);
   --field-border: var(--color-rule);
   --field-border-width: 1px;
+  --field-shadow: 0 0 0 0 transparent inset;
   --field-radius: 0.875rem;
   --radius: 1rem;
 
@@ -120,7 +132,7 @@
 
 @layer base {
   body {
-    @apply m-0 bg-background font-sans text-foreground antialiased;
+    @apply m-0 bg-background font-sans font-normal text-foreground antialiased;
   }
   h1,
   h2,
@@ -149,6 +161,22 @@
 }
 
 @layer components {
+  .select__popover {
+    @apply rounded-[12px] border border-rule shadow-lg;
+  }
+
+  .select__popover .list-box-item {
+    @apply rounded-[6px];
+  }
+
+  .alert {
+    @apply rounded-[12px] border border-rule;
+  }
+
+  .radio-button-group__item {
+    @apply rounded-[12px];
+  }
+
   /* Charcoal pill controls. UIKit owns every state; this only sets the shape
      and lets link-styled buttons sit on the same baseline as real buttons. */
   .button {
