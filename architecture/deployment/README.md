@@ -42,9 +42,16 @@ Copy and fill the same root `.env`, then run:
 ```sh
 pnpm install
 # Starts only PostgreSQL and binds it to localhost.
-docker compose -f compose.yaml -f compose.dev.yaml up -d db
+docker compose -f compose.yml up -d --wait
 pnpm --filter @memento/server dev
 ```
+
+The standalone local `compose.yml` uses the installed `postgres:17-alpine` image without pulling.
+It only requires `POSTGRES_PASSWORD` in `.env`; no API domain or provider credentials are needed to
+start the database. Set `DATABASE_URL=postgresql://memento:<password>@localhost:5432/memento` for the
+server. Data persists in the `memento-local` project's volume, separate from the VPS stack. Use
+`docker compose -f compose.yml down` to stop it while retaining data. Always pass `-f compose.yml`
+for local use because Docker otherwise prefers the existing VPS `compose.yaml`.
 
 Set `WEB_ORIGIN=http://localhost:3000` for local browser integration. Keep the Alchemy Ethereum Sepolia HTTPS URL in server-only `RPC_URL`; browser clients use `http://localhost:3001/rpc/sepolia`. Production clients use the API origin plus `/rpc/sepolia`.
 
