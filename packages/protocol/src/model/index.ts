@@ -5,31 +5,24 @@ import {
   Amount,
   ClaimState,
   Digest,
-  GiftKind,
   GiftPolicy,
   GiftState,
   JobKind,
   JobState,
   RecipientConstraint,
-  StarterRecord,
   Timestamp,
 } from "../common/index.js";
 
 export const Gift = Schema.Struct({
   id: Digest,
-  campaignId: Schema.NullOr(Digest),
-  invitationIndex: Schema.NullOr(Schema.Int),
-  kind: GiftKind,
   sponsorWallet: Address,
   recipient: RecipientConstraint,
   policy: GiftPolicy,
   claimHash: Digest,
   secretCiphertext: Schema.NullOr(Schema.String),
   messageCiphertext: Schema.String,
-  records: Schema.Array(StarterRecord),
+  recipientContactCiphertext: Schema.optionalKey(Schema.NullOr(Schema.String)),
   theme: Schema.String,
-  label: Schema.NullOr(Schema.String),
-  proof: Schema.Array(Digest),
   metadataHash: Digest,
   status: GiftState,
   fundingHash: Schema.NullOr(Digest),
@@ -37,42 +30,23 @@ export const Gift = Schema.Struct({
 });
 export type Gift = typeof Gift.Type;
 
-export const Campaign = Schema.Struct({
-  id: Digest,
-  sponsorWallet: Address,
-  policy: GiftPolicy,
-  root: Digest,
-  count: Schema.Int,
-  status: Schema.Literals(["draft", "ready", "refunded"]),
-  fundingHash: Schema.NullOr(Digest),
-  createdAt: Timestamp,
-});
-export type Campaign = typeof Campaign.Type;
-
 export const Claim = Schema.Struct({
   id: Digest,
   giftId: Digest,
   userId: Schema.String,
   recipientWallet: Address,
   label: Schema.String,
-  hca: Address,
   resolver: Address,
   resolverSalt: Digest,
   labelhash: Digest,
   state: ClaimState,
   nonce: Digest,
   deadline: Timestamp,
-  sessionExpiry: Timestamp,
-  sessionKeyCiphertext: Schema.NullOr(Schema.String),
-  authorizationCiphertext: Schema.NullOr(Schema.String),
-  sessionPayload: Schema.Unknown,
   commitmentSecretCiphertext: Schema.NullOr(Schema.String),
   commitment: Digest,
   commitmentAt: Schema.NullOr(Timestamp),
   signature: Schema.NullOr(Schema.String),
-  eligibilityCiphertext: Schema.NullOr(Schema.String),
   recipientAuthorizationCiphertext: Schema.NullOr(Schema.String),
-  worldVerified: Schema.Boolean,
   price: Amount,
   lastError: Schema.NullOr(Schema.String),
   createdAt: Timestamp,
@@ -94,8 +68,4 @@ export const Job = Schema.Struct({
 });
 export type Job = typeof Job.Type;
 
-export * from "./preview.js";
-
 export * from "./deployment.js";
-
-export * from "./workflow.js";

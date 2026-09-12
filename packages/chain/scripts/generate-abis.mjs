@@ -1,7 +1,7 @@
 import { readFile, writeFile } from "node:fs/promises";
 
 const check = process.argv.includes("--check");
-const names = ["MementoSponsorship", "MementoNameVault"];
+const names = ["MementoSponsorship", "MementoRegistration"];
 
 await Promise.all(
   names.map(async (name) => {

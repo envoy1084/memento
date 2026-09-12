@@ -1,2 +1,2 @@
 export { MementoSponsorshipAbi } from "./abi/MementoSponsorship.js";
-export { MementoNameVaultAbi } from "./abi/MementoNameVault.js";
+export { MementoRegistrationAbi } from "./abi/MementoRegistration.js";

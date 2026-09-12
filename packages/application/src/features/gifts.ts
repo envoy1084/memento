@@ -1,19 +1,17 @@
-import { DateTime, Effect } from "effect";
+import { DateTime, Effect, Schema } from "effect";
 
 import {
   ClaimRepository,
   GiftRepository,
-  CampaignRepository,
   TransactionService,
   AuditRepository,
   JobRepository,
 } from "@memento/database";
 import {
+  GiftRecipientContact,
   type Actor,
   type CreateGift,
-  type CreateCampaign,
   type Gift,
-  type Campaign,
   NotFound,
   Forbidden,
   Conflict,
@@ -21,33 +19,11 @@ import {
 
 import { Chain, Product } from "../services/chain.js";
 import { Cryptography } from "../services/cryptography.js";
-import {
-  wallet,
-  validatePolicy,
-  recipient,
-  label,
-  invalid,
-  hashText,
-  hashSecret,
-  campaignClaimId,
-  invitationLeaf,
-  merkle,
-} from "./policy.js";
-
-const campaignView = (campaign: Campaign) => ({
-  id: campaign.id,
-  sponsorWallet: campaign.sponsorWallet,
-  policy: campaign.policy,
-  count: campaign.count,
-  status: campaign.status,
-  fundingHash: campaign.fundingHash,
-  createdAt: campaign.createdAt,
-});
+import { wallet, validatePolicy, recipient, invalid, hashText, hashSecret } from "./policy.js";
 
 export const makeGifts = Effect.gen(function* () {
   const gifts = yield* GiftRepository;
   const claims = yield* ClaimRepository;
-  const campaigns = yield* CampaignRepository;
   const tx = yield* TransactionService;
   const audit = yield* AuditRepository;
   const jobs = yield* JobRepository;
@@ -72,26 +48,28 @@ export const makeGifts = Effect.gen(function* () {
     return gift;
   });
 
-  const findCampaign = Effect.fn("Gifts.campaign")(function* (id: string, actor: Actor) {
-    const campaign = yield* campaigns.find(id);
+  const recipientContact = Effect.fn("Gifts.recipientContact")(function* (gift: Gift) {
+    if (!gift.recipientContactCiphertext) return null;
 
-    if (!campaign) return yield* new NotFound({ message: "Campaign not found" });
-
-    yield* wallet(actor, campaign.sponsorWallet);
-
-    return campaign;
+    return yield* Schema.decodeUnknownEffect(Schema.fromJsonString(GiftRecipientContact))(
+      yield* crypto.open(gift.recipientContactCiphertext, `gift:${gift.id}:recipient`),
+    ).pipe(
+      Effect.mapError(() =>
+        invalid("INVALID_RECIPIENT_CONTACT", "Stored recipient details are invalid"),
+      ),
+    );
   });
 
   const view = Effect.fn("Gifts.view")(function* (gift: Gift) {
     return {
       id: gift.id,
-      kind: gift.kind,
-      campaignId: gift.campaignId,
+      recipientName: (yield* recipientContact(gift))?.name ?? null,
+      emailStatus: yield* jobs.emailState(gift.id),
       sponsorWallet: gift.sponsorWallet,
       policy: gift.policy,
       status: gift.status,
       theme: gift.theme,
-      label: gift.label,
+      label: (yield* claims.forGift(gift.id))?.label ?? null,
       message: yield* crypto.open(gift.messageCiphertext, `gift:${gift.id}:message`),
     };
   });
@@ -111,6 +89,42 @@ export const makeGifts = Effect.gen(function* () {
   const event = (id: string, action: string, actor: Actor, createdAt: number) =>
     audit.record({ id: crypto.random(), subjectId: id, action, actorId: actor.userId, createdAt });
 
+  const queueEmail = Effect.fn("Gifts.queueEmail")(function* (
+    gift: Gift,
+    actor: Actor,
+    destination: string,
+    emailHash: string,
+    retry = false,
+  ) {
+    const id = gift.id;
+    const { url } = yield* link(gift);
+    const timestamp = yield* now;
+    const dedupeKey = `email:${id}:${emailHash}`;
+
+    yield* jobs.enqueue({
+      id: crypto.random(),
+      kind: "email",
+      subjectId: id,
+      dedupeKey,
+      state: "pending",
+      runAt: timestamp,
+      attempts: 0,
+      leaseToken: null,
+      leaseUntil: null,
+      lastError: null,
+      payloadCiphertext: crypto.seal(
+        JSON.stringify({
+          to: destination.trim().toLowerCase(),
+          url,
+          idempotencyKey: dedupeKey,
+        }),
+        `email:${id}`,
+      ),
+    });
+    if (retry) yield* jobs.retry(id, timestamp, dedupeKey);
+    yield* event(id, "email.requested", actor, timestamp);
+  });
+
   return {
     listGifts: Effect.fn("Application.listGifts")(function* (actor: Actor, offset = 0) {
       return yield* Effect.forEach(yield* gifts.list(actor.wallets, offset), view);
@@ -118,6 +132,16 @@ export const makeGifts = Effect.gen(function* () {
 
     getGift: Effect.fn("Application.getGift")(function* (actor: Actor, id: string) {
       return yield* view(yield* sponsor(id, actor));
+    }),
+
+    giftFundingPlan: Effect.fn("Application.giftFundingPlan")(function* (actor: Actor, id: string) {
+      const gift = yield* sponsor(id, actor);
+      if (gift.status !== "draft")
+        return yield* new Conflict({
+          code: "GIFT_NOT_DRAFT",
+          message: "Gift is not awaiting funding",
+        });
+      return { id, chainId: chain.chainId, calls: yield* chain.giftPlan(gift) };
     }),
 
     getGiftLink: Effect.fn("Application.getGiftLink")(function* (actor: Actor, id: string) {
@@ -132,17 +156,17 @@ export const makeGifts = Effect.gen(function* () {
       return yield* link(gift);
     }),
 
-    listCampaigns: (actor: Actor, offset = 0) =>
-      campaigns.list(actor.wallets, offset).pipe(Effect.map((rows) => rows.map(campaignView))),
-
-    getCampaign: Effect.fn("Application.getCampaign")(function* (actor: Actor, id: string) {
-      const campaign = campaignView(yield* findCampaign(id, actor));
-
-      return { campaign, invitations: yield* Effect.forEach(yield* gifts.campaign(id), view) };
-    }),
-
     createGift: Effect.fn("Application.createGift")(function* (actor: Actor, input: CreateGift) {
       yield* wallet(actor, input.sponsorWallet);
+
+      if (input.recipient.kind !== "email")
+        return yield* invalid(
+          "EMAIL_RECIPIENT_REQUIRED",
+          "Individual gifts require an email recipient",
+        );
+
+      if (!input.recipientName.trim())
+        return yield* invalid("RECIPIENT_NAME_REQUIRED", "Enter the recipient’s name");
 
       const createdAt = yield* now;
 
@@ -153,46 +177,28 @@ export const makeGifts = Effect.gen(function* () {
         product.maximumLifetime,
       );
 
-      if (new Set(input.records.map((record) => record.key)).size !== input.records.length)
-        return yield* invalid("DUPLICATE_RECORD", "Starter record keys must be unique");
-
       const restriction = yield* recipient(input.recipient, crypto);
-
-      if (input.kind === "existing_name" && (restriction.kind === "any" || !input.label))
-        return yield* invalid(
-          "INVALID_RECIPIENT",
-          "Existing names require a label and a wallet or email recipient",
-        );
-
-      const normalized = input.label ? yield* label(input.label) : null;
-
-      if (input.kind === "chosen_name" && normalized)
-        return yield* invalid(
-          "INVALID_LABEL",
-          "Chosen-name gifts let the recipient select the name",
-        );
 
       const id = crypto.random();
       const secret = crypto.random();
 
       const gift: Gift = {
         id,
-        campaignId: null,
-        invitationIndex: null,
-        kind: input.kind,
         sponsorWallet: input.sponsorWallet.toLowerCase(),
         recipient: restriction,
         policy: input.policy,
         claimHash: hashSecret(secret),
         secretCiphertext: crypto.seal(secret, `gift:${id}:secret`),
         messageCiphertext: crypto.seal(input.message, `gift:${id}:message`),
-        records: input.records,
-        theme: input.theme,
-        label: normalized,
-        proof: [],
-        metadataHash: hashText(
-          JSON.stringify({ message: input.message, records: input.records, theme: input.theme }),
+        recipientContactCiphertext: crypto.seal(
+          JSON.stringify({
+            name: input.recipientName.trim(),
+            email: input.recipient.value.trim().toLowerCase(),
+          }),
+          `gift:${id}:recipient`,
         ),
+        theme: input.theme,
+        metadataHash: hashText(JSON.stringify({ message: input.message, theme: input.theme })),
         status: "draft",
         fundingHash: null,
         createdAt,
@@ -210,90 +216,12 @@ export const makeGifts = Effect.gen(function* () {
       return { id, chainId: chain.chainId, calls };
     }),
 
-    createCampaign: Effect.fn("Application.createCampaign")(function* (
-      actor: Actor,
-      input: CreateCampaign,
-    ) {
-      yield* wallet(actor, input.sponsorWallet);
-
-      const createdAt = yield* now;
-
-      yield* validatePolicy(
-        input.policy,
-        Math.floor(createdAt / 1000),
-        product.maximumBudget,
-        product.maximumLifetime,
-      );
-
-      const id = crypto.random();
-
-      const invitations = yield* Effect.forEach(input.recipients, (restriction, index) =>
-        Effect.gen(function* () {
-          const giftId = campaignClaimId(id, index);
-          const secret = crypto.random();
-
-          return {
-            id: giftId,
-            campaignId: id,
-            invitationIndex: index,
-            kind: "chosen_name",
-            sponsorWallet: input.sponsorWallet.toLowerCase(),
-            recipient: yield* recipient(restriction, crypto),
-            policy: input.policy,
-            claimHash: hashSecret(secret),
-            secretCiphertext: crypto.seal(secret, `gift:${giftId}:secret`),
-            messageCiphertext: crypto.seal(input.message, `gift:${giftId}:message`),
-            records: [],
-            theme: input.theme,
-            label: null,
-            proof: [],
-            metadataHash: hashText(input.message),
-            status: "draft",
-            fundingHash: null,
-            createdAt,
-          } satisfies Gift;
-        }),
-      );
-
-      const tree = merkle(
-        invitations.map((gift, index) => invitationLeaf(index, gift.claimHash, gift.recipient)),
-      );
-
-      const campaign: Campaign = {
-        id,
-        sponsorWallet: input.sponsorWallet.toLowerCase(),
-        root: tree.root,
-        count: invitations.length,
-        policy: input.policy,
-        status: "draft",
-        fundingHash: null,
-        createdAt,
-      };
-
-      const calls = yield* chain.campaignPlan(campaign);
-
-      yield* tx.run(
-        Effect.gen(function* () {
-          yield* campaigns.create(campaign);
-          yield* Effect.forEach(invitations, (gift, index) =>
-            gifts.create({ ...gift, proof: tree.proof(index) }),
-          );
-          yield* event(id, "campaign.prepared", actor, createdAt);
-        }),
-      );
-
-      return { id, chainId: chain.chainId, calls };
-    }),
-
     confirmGift: Effect.fn("Application.confirmGift")(function* (
       actor: Actor,
       id: string,
       hash: string,
     ) {
       const gift = yield* sponsor(id, actor);
-
-      if (gift.campaignId)
-        return yield* invalid("CAMPAIGN_GIFT", "Confirm funding on the campaign");
 
       if (gift.status === "ready" && gift.fundingHash === hash) return yield* link(gift);
 
@@ -316,59 +244,13 @@ export const makeGifts = Effect.gen(function* () {
             });
 
           yield* event(id, "gift.funded", actor, timestamp);
+          const contact = yield* recipientContact(gift);
+          if (contact && gift.recipient.kind === "email")
+            yield* queueEmail(gift, actor, contact.email, gift.recipient.value);
         }),
       );
 
       return yield* link(gift);
-    }),
-
-    confirmCampaign: Effect.fn("Application.confirmCampaign")(function* (
-      actor: Actor,
-      id: string,
-      hash: string,
-    ) {
-      const campaign = yield* findCampaign(id, actor);
-
-      if (campaign.status === "ready" && campaign.fundingHash === hash) return { ok: true };
-
-      if (campaign.status !== "draft")
-        return yield* new Conflict({
-          code: "CAMPAIGN_CHANGED",
-          message: "Campaign is no longer awaiting funding",
-        });
-
-      yield* chain.confirmCampaign(campaign, hash);
-
-      const timestamp = yield* now;
-
-      yield* tx.run(
-        Effect.gen(function* () {
-          if (!(yield* campaigns.transition(id, "draft", "ready", hash)))
-            return yield* new Conflict({
-              code: "CAMPAIGN_CHANGED",
-              message: "Campaign changed during confirmation",
-            });
-
-          yield* Effect.forEach(yield* gifts.campaign(id), (gift) =>
-            gifts.transition(gift.id, "draft", "ready", hash),
-          );
-          yield* event(id, "campaign.funded", actor, timestamp);
-        }),
-      );
-
-      return { ok: true };
-    }),
-
-    invitations: Effect.fn("Application.invitations")(function* (actor: Actor, id: string) {
-      const campaign = yield* findCampaign(id, actor);
-
-      if (campaign.status !== "ready")
-        return yield* new Conflict({
-          code: "CAMPAIGN_NOT_READY",
-          message: "Fund the campaign before exporting invitations",
-        });
-
-      return yield* Effect.forEach(yield* gifts.campaign(id), link);
     }),
 
     openGift: Effect.fn("Application.openGift")(function* (id: string, secret: string) {
@@ -386,7 +268,11 @@ export const makeGifts = Effect.gen(function* () {
       return yield* view(gift);
     }),
 
-    emailGift: Effect.fn("Application.emailGift")(function* (actor: Actor, id: string, to: string) {
+    emailGift: Effect.fn("Application.emailGift")(function* (
+      actor: Actor,
+      id: string,
+      to?: string,
+    ) {
       const gift = yield* sponsor(id, actor);
 
       if (gift.status !== "ready")
@@ -395,37 +281,18 @@ export const makeGifts = Effect.gen(function* () {
           message: "Only unclaimed funded gifts can be emailed",
         });
 
-      const email = yield* recipient({ kind: "email", value: to }, crypto);
+      const contact = yield* recipientContact(gift);
+      const destination = to ?? contact?.email;
+
+      if (!destination)
+        return yield* invalid("EMAIL_REQUIRED", "This gift has no saved delivery email");
+
+      const email = yield* recipient({ kind: "email", value: destination }, crypto);
 
       if (gift.recipient.kind === "email" && !crypto.equal(gift.recipient.value, email.value))
         return yield* new Forbidden({ message: "Email does not match the gift recipient" });
 
-      const { url } = yield* link(gift);
-      const timestamp = yield* now;
-      const dedupeKey = `email:${id}:${email.value}`;
-
-      yield* tx.run(
-        Effect.gen(function* () {
-          yield* jobs.enqueue({
-            id: crypto.random(),
-            kind: "email",
-            subjectId: id,
-            dedupeKey,
-            state: "pending",
-            runAt: timestamp,
-            attempts: 0,
-            leaseToken: null,
-            leaseUntil: null,
-            lastError: null,
-            payloadCiphertext: crypto.seal(
-              JSON.stringify({ to: to.trim().toLowerCase(), url, idempotencyKey: dedupeKey }),
-              `email:${id}`,
-            ),
-          });
-          yield* jobs.retry(id, timestamp, dedupeKey);
-          yield* event(id, "email.requested", actor, timestamp);
-        }),
-      );
+      yield* tx.run(queueEmail(gift, actor, destination, email.value, true));
 
       return { ok: true };
     }),
@@ -452,10 +319,7 @@ export const makeGifts = Effect.gen(function* () {
             if (
               !(yield* claims.transition(claim.id, claim.state, {
                 state: "refunded",
-                sessionKeyCiphertext: null,
-                authorizationCiphertext: null,
                 commitmentSecretCiphertext: null,
-                eligibilityCiphertext: null,
                 recipientAuthorizationCiphertext: null,
               }))
             )
@@ -469,38 +333,10 @@ export const makeGifts = Effect.gen(function* () {
       return { ok: true };
     }),
 
-    confirmCampaignRefund: Effect.fn("Application.confirmCampaignRefund")(function* (
-      actor: Actor,
-      id: string,
-      hash: string,
-    ) {
-      const campaign = yield* findCampaign(id, actor);
-
-      yield* chain.confirmCampaignRefund(campaign, hash);
-      yield* tx.run(
-        Effect.gen(function* () {
-          yield* campaigns.transition(id, campaign.status, "refunded");
-
-          for (const gift of yield* gifts.campaign(id)) {
-            if (gift.status === "ready" || gift.status === "draft")
-              yield* gifts.transition(gift.id, gift.status, "refunded");
-          }
-        }),
-      );
-
-      return { ok: true };
-    }),
-
     refundGift: Effect.fn("Application.refundGift")(function* (actor: Actor, id: string) {
       const gift = yield* sponsor(id, actor);
 
       return { id, chainId: chain.chainId, calls: yield* chain.refundPlan(gift) };
-    }),
-
-    refundCampaign: Effect.fn("Application.refundCampaign")(function* (actor: Actor, id: string) {
-      const campaign = yield* findCampaign(id, actor);
-
-      return { id, chainId: chain.chainId, calls: yield* chain.campaignRefundPlan(campaign) };
     }),
   };
 });

@@ -9,10 +9,7 @@ import {
 
 import {
   Actor,
-  CampaignView,
-  CampaignDetail,
   CreateGift,
-  CreateCampaign,
   GiftPlan,
   GiftView,
   GiftLink,
@@ -21,13 +18,11 @@ import {
   PrepareClaim,
   ClaimPreparation,
   ClaimSetup,
-  HcaRecovery,
   RegistrationView,
   AuthorizeClaim,
   ClaimView,
   Quote,
   EmailRequest,
-  WorldProof,
   Success,
   Digest,
   InvalidRequest,
@@ -53,12 +48,7 @@ const Gifts = Group.make("gifts")
     Endpoint.get("list", "/gifts", { query: page, success: Schema.Array(GiftView), error }),
     Endpoint.get("get", "/gifts/:id", { params, success: GiftView, error }),
     Endpoint.get("link", "/gifts/:id/link", { params, success: GiftLink, error }),
-    Endpoint.get("listCampaigns", "/campaigns", {
-      query: page,
-      success: Schema.Array(CampaignView),
-      error,
-    }),
-    Endpoint.get("getCampaign", "/campaigns/:id", { params, success: CampaignDetail, error }),
+    Endpoint.get("fundingPlan", "/gifts/:id/funding", { params, success: GiftPlan, error }),
     Endpoint.post("prepare", "/gifts/prepare", { payload: CreateGift, success: GiftPlan, error }),
     Endpoint.post("confirm", "/gifts/:id/confirm", {
       params,
@@ -79,29 +69,6 @@ const Gifts = Group.make("gifts")
       error,
     }),
     Endpoint.post("refund", "/gifts/:id/refund", { params, success: GiftPlan, error }),
-    Endpoint.post("prepareCampaign", "/campaigns/prepare", {
-      payload: CreateCampaign,
-      success: GiftPlan,
-      error,
-    }),
-    Endpoint.post("confirmCampaign", "/campaigns/:id/confirm", {
-      params,
-      payload: ConfirmFunding,
-      success: Success,
-      error,
-    }),
-    Endpoint.get("invitations", "/campaigns/:id/invitations", {
-      params,
-      success: Schema.Array(GiftLink),
-      error,
-    }),
-    Endpoint.post("confirmCampaignRefund", "/campaigns/:id/refund/confirm", {
-      params,
-      payload: ConfirmFunding,
-      success: Success,
-      error,
-    }),
-    Endpoint.post("refundCampaign", "/campaigns/:id/refund", { params, success: GiftPlan, error }),
   )
   .middleware(Authentication)
   .prefix("/v1");
@@ -112,6 +79,11 @@ const Claims = Group.make("claims")
       params,
       payload: PrepareClaim,
       success: ClaimPreparation,
+      error,
+    }),
+    Endpoint.get("forGift", "/gifts/:id/claim", {
+      params,
+      success: Schema.NullOr(ClaimView),
       error,
     }),
     Endpoint.get("events", "/claims/:id/events", {
@@ -125,12 +97,6 @@ const Claims = Group.make("claims")
       success: RegistrationView,
       error,
     }),
-    Endpoint.post("recover", "/claims/:id/registration/recover", {
-      params,
-      payload: HcaRecovery,
-      success: Success,
-      error,
-    }),
     Endpoint.post("setup", "/claims/:id/setup", { params, success: ClaimSetup, error }),
     Endpoint.post("authorize", "/claims/:id/authorize", {
       params,
@@ -139,17 +105,6 @@ const Claims = Group.make("claims")
       error,
     }),
     Endpoint.post("retry", "/claims/:id/retry", { params, success: Success, error }),
-    Endpoint.post("worldRequest", "/claims/:id/world/request", {
-      params,
-      success: Schema.Unknown,
-      error,
-    }),
-    Endpoint.post("worldVerify", "/claims/:id/world/verify", {
-      params,
-      payload: WorldProof,
-      success: Success,
-      error,
-    }),
   )
   .middleware(Authentication)
   .prefix("/v1");

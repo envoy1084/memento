@@ -1,5 +1,46 @@
-// Generated from MementoSponsorship.sol by packages/chain/scripts/generate-abis.mjs.
-export const MementoSponsorshipAbi = [
+// Generated from MementoRegistration.sol by packages/chain/scripts/generate-abis.mjs.
+export const MementoRegistrationAbi = [
+  {
+    type: "constructor",
+    inputs: [
+      {
+        name: "token_",
+        type: "address",
+        internalType: "contract IERC20",
+      },
+      {
+        name: "registry_",
+        type: "address",
+        internalType: "contract IEnsRegistry",
+      },
+      {
+        name: "owner_",
+        type: "address",
+        internalType: "address",
+      },
+      {
+        name: "coordinator_",
+        type: "address",
+        internalType: "address",
+      },
+      {
+        name: "registrar_",
+        type: "address",
+        internalType: "contract IDirectRegistrar",
+      },
+      {
+        name: "resolverFactory_",
+        type: "address",
+        internalType: "contract IVerifiableFactory",
+      },
+      {
+        name: "resolverImplementation_",
+        type: "address",
+        internalType: "address",
+      },
+    ],
+    stateMutability: "nonpayable",
+  },
   {
     type: "function",
     name: "INTENT_TYPEHASH",
@@ -9,6 +50,45 @@ export const MementoSponsorshipAbi = [
         name: "",
         type: "bytes32",
         internalType: "bytes32",
+      },
+    ],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "REGISTRAR",
+    inputs: [],
+    outputs: [
+      {
+        name: "",
+        type: "address",
+        internalType: "contract IDirectRegistrar",
+      },
+    ],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "RESOLVER_FACTORY",
+    inputs: [],
+    outputs: [
+      {
+        name: "",
+        type: "address",
+        internalType: "contract IVerifiableFactory",
+      },
+    ],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
+    name: "RESOLVER_IMPLEMENTATION",
+    inputs: [],
+    outputs: [
+      {
+        name: "",
+        type: "address",
+        internalType: "address",
       },
     ],
     stateMutability: "view",
@@ -435,6 +515,76 @@ export const MementoSponsorshipAbi = [
         name: "id",
         type: "bytes32",
         internalType: "bytes32",
+      },
+    ],
+    outputs: [],
+    stateMutability: "nonpayable",
+  },
+  {
+    type: "function",
+    name: "registerGift",
+    inputs: [
+      {
+        name: "intent",
+        type: "tuple",
+        internalType: "struct ClaimAuthorization.Intent",
+        components: [
+          {
+            name: "giftId",
+            type: "bytes32",
+            internalType: "bytes32",
+          },
+          {
+            name: "recipient",
+            type: "address",
+            internalType: "address",
+          },
+          {
+            name: "resolver",
+            type: "address",
+            internalType: "address",
+          },
+          {
+            name: "labelhash",
+            type: "bytes32",
+            internalType: "bytes32",
+          },
+          {
+            name: "nonce",
+            type: "bytes32",
+            internalType: "bytes32",
+          },
+          {
+            name: "deadline",
+            type: "uint64",
+            internalType: "uint64",
+          },
+        ],
+      },
+      {
+        name: "invitationSecret",
+        type: "bytes32",
+        internalType: "bytes32",
+      },
+      {
+        name: "label",
+        type: "string",
+        internalType: "string",
+      },
+      {
+        name: "registrationSecret",
+        type: "bytes32",
+        internalType: "bytes32",
+      },
+      {
+        name: "signature",
+        type: "bytes",
+        internalType: "bytes",
+      },
+      {
+        name: "recipientAuthorization",
+        type: "bytes",
+        internalType: "bytes",
       },
     ],
     outputs: [],

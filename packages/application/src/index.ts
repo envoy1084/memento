@@ -29,13 +29,5 @@ export class Application extends Context.Service<Application, Effect.Success<typ
 export * from "./services/chain.js";
 export * from "./services/cryptography.js";
 export { claimIntent, claimView } from "./features/claims.js";
-export {
-  recipientId,
-  recipientKind,
-  hashText,
-  hashSecret,
-  claimSecret,
-  invitationLeaf,
-  campaignClaimId,
-} from "./features/policy.js";
+export { recipientId, hashText, hashSecret, claimSecret } from "./features/policy.js";
 export * from "./services/worker.js";

@@ -4,10 +4,8 @@ import {
   ClaimRepository,
   GiftRepository,
   JobRepository,
-  WorldRepository,
   TransactionService,
 } from "@memento/database";
-import type { HcaRecovery } from "@memento/protocol";
 import {
   type Actor,
   type PrepareClaim,
@@ -17,7 +15,6 @@ import {
   Forbidden,
   Conflict,
 } from "@memento/protocol";
-import { WorldId } from "@memento/world-id";
 
 import { Chain } from "../services/chain.js";
 import { Cryptography } from "../services/cryptography.js";
@@ -26,7 +23,6 @@ import { hashSecret, hashText, label, invalid, wallet } from "./policy.js";
 export const claimIntent = (claim: Claim): ClaimIntent => ({
   giftId: claim.giftId,
   recipient: claim.recipientWallet,
-  hca: claim.hca,
   resolver: claim.resolver,
   labelhash: claim.labelhash,
   nonce: claim.nonce,
@@ -39,7 +35,6 @@ export const claimView = (claim: Claim) => ({
   recipientWallet: claim.recipientWallet,
   label: claim.label,
   state: claim.state,
-  hca: claim.hca,
   resolver: claim.resolver,
   lastError: claim.lastError,
   commitmentAt: claim.commitmentAt,
@@ -49,11 +44,9 @@ export const makeClaims = Effect.gen(function* () {
   const claims = yield* ClaimRepository;
   const gifts = yield* GiftRepository;
   const jobs = yield* JobRepository;
-  const worlds = yield* WorldRepository;
   const tx = yield* TransactionService;
   const crypto = yield* Cryptography;
   const chain = yield* Chain;
-  const world = yield* WorldId;
   const now = DateTime.now.pipe(Effect.map(DateTime.toEpochMillis));
 
   const owned = Effect.fn("Claims.owned")(function* (actor: Actor, id: string) {
@@ -74,6 +67,12 @@ export const makeClaims = Effect.gen(function* () {
   });
 
   return {
+    claimForGift: Effect.fn("Application.claimForGift")(function* (actor: Actor, giftId: string) {
+      const claim = yield* claims.forGift(giftId);
+      if (!claim || claim.userId !== actor.userId) return null;
+      yield* owned(actor, claim.id);
+      return claimView(claim);
+    }),
     prepareClaim: Effect.fn("Application.prepareClaim")(function* (
       actor: Actor,
       giftId: string,
@@ -91,9 +90,8 @@ export const makeClaims = Effect.gen(function* () {
       const recipientWallet = input.recipientWallet.toLowerCase();
 
       if (
-        (gift.recipient.kind === "wallet" && gift.recipient.value !== recipientWallet) ||
-        (gift.recipient.kind === "email" &&
-          !actor.emails.some((email) => crypto.equal(crypto.emailId(email), gift.recipient.value)))
+        gift.recipient.kind === "email" &&
+        !actor.emails.some((email) => crypto.equal(crypto.emailId(email), gift.recipient.value))
       ) {
         return yield* new Forbidden({ message: "This gift is addressed to someone else" });
       }
@@ -106,10 +104,7 @@ export const makeClaims = Effect.gen(function* () {
 
       const normalized = yield* label(input.label);
 
-      if (gift.kind === "existing_name" && normalized !== gift.label)
-        return yield* invalid("WRONG_NAME", "This gift is for a specific name");
-
-      if (gift.kind === "chosen_name") {
+      {
         const length = Array.from(normalized).length;
 
         if (length < gift.policy.minLength || length > gift.policy.maxLength)
@@ -143,8 +138,6 @@ export const makeClaims = Effect.gen(function* () {
           id: existing.id,
           intent,
           typedData: chain.typedIntent(gift, intent),
-          session: existing.sessionPayload,
-          sessionExpiry: existing.sessionExpiry,
         };
       }
 
@@ -154,10 +147,7 @@ export const makeClaims = Effect.gen(function* () {
           message: "Gift is not available to claim",
         });
 
-      const quote =
-        gift.kind === "chosen_name"
-          ? yield* chain.quote(normalized, gift.policy.duration)
-          : { price: "0", available: true };
+      const quote = yield* chain.quote(normalized, gift.policy.duration);
 
       if (!quote.available)
         return yield* new Conflict({
@@ -179,17 +169,12 @@ export const makeClaims = Effect.gen(function* () {
         userId: actor.userId,
         recipientWallet,
         label: normalized,
-        hca: account.hca,
         resolver: account.resolver,
         resolverSalt: account.resolverSalt,
         labelhash: hashText(normalized),
         state: "prepared",
         nonce,
         deadline,
-        sessionExpiry: deadline,
-        sessionKeyCiphertext: crypto.seal(account.sessionKey, `claim:${id}:key`),
-        authorizationCiphertext: null,
-        sessionPayload: account.session,
         commitmentSecretCiphertext: crypto.seal(
           account.commitmentSecret,
           `claim:${id}:commitment-secret`,
@@ -197,9 +182,7 @@ export const makeClaims = Effect.gen(function* () {
         commitment: account.commitment,
         commitmentAt: null,
         signature: null,
-        eligibilityCiphertext: null,
         recipientAuthorizationCiphertext: null,
-        worldVerified: false,
         price: quote.price,
         lastError: null,
         createdAt: timestamp,
@@ -223,84 +206,11 @@ export const makeClaims = Effect.gen(function* () {
         id,
         intent,
         typedData: chain.typedIntent(gift, intent),
-        session: account.session,
-        sessionExpiry: deadline,
       };
     }),
 
     getClaim: Effect.fn("Application.getClaim")(function* (actor: Actor, id: string) {
       return claimView((yield* owned(actor, id)).claim);
-    }),
-
-    worldRequest: Effect.fn("Application.worldRequest")(function* (actor: Actor, id: string) {
-      const { claim, gift } = yield* owned(actor, id);
-
-      if (!gift.policy.worldRequired || claim.state !== "prepared")
-        return yield* invalid(
-          "WORLD_NOT_REQUIRED",
-          "World verification is not pending for this claim",
-        );
-
-      const signal = `${chain.chainId}:${gift.campaignId ?? gift.id}:${claim.id}:${claim.recipientWallet}:${claim.nonce}`;
-      const request = yield* world.request(signal);
-
-      yield* worlds.request({
-        claimId: id,
-        nonce: request.nonce,
-        signal,
-        expiresAt: request.expiresAt,
-        usedAt: null,
-      });
-
-      return request.configuration;
-    }),
-
-    verifyWorld: Effect.fn("Application.verifyWorld")(function* (
-      actor: Actor,
-      id: string,
-      proof: unknown,
-    ) {
-      const { claim, gift } = yield* owned(actor, id);
-
-      if (claim.worldVerified) return { ok: true };
-
-      if (claim.state !== "prepared")
-        return yield* invalid("CLAIM_NOT_PREPARED", "Claim is no longer awaiting verification");
-
-      const request = yield* worlds.find(id);
-      const timestamp = yield* now;
-
-      if (!request || request.usedAt || request.expiresAt <= Math.floor(timestamp / 1000))
-        return yield* new Forbidden({ message: "World verification request expired" });
-
-      const nullifier = yield* world.verify(proof, request);
-
-      yield* tx.run(
-        Effect.gen(function* () {
-          if (
-            !(yield* worlds.verify({
-              claimId: id,
-              action: `${world.action}:${gift.campaignId ?? gift.id}`,
-              nullifier,
-              requestNonce: request.nonce,
-              verifiedAt: timestamp,
-            }))
-          ) {
-            return yield* new Conflict({
-              code: "WORLD_NULLIFIER_USED",
-              message: "This person already verified another invitation in this campaign",
-            });
-          }
-
-          if (!(yield* claims.transition(id, "prepared", { worldVerified: true })))
-            return yield* new Conflict({
-              code: "CLAIM_CHANGED",
-              message: "Claim changed during verification",
-            });
-        }),
-      );
-
-      return { ok: true };
     }),
 
     registrationView: Effect.fn("Application.registrationView")(function* (
@@ -309,19 +219,6 @@ export const makeClaims = Effect.gen(function* () {
     ) {
       const { claim } = yield* owned(actor, id);
       return yield* chain.registrationView(claim);
-    }),
-
-    recoverRegistration: Effect.fn("Application.recoverRegistration")(function* (
-      actor: Actor,
-      id: string,
-      recovery: HcaRecovery,
-    ) {
-      const { claim, gift } = yield* owned(actor, id);
-      if (gift.kind !== "chosen_name" || ["prepared", "complete", "refunded"].includes(claim.state))
-        return yield* invalid("CLAIM_NOT_RETRYABLE", "Claim cannot be recovered in this state");
-      yield* chain.recoverRegistration(claim, recovery);
-      yield* jobs.retry(id, yield* now);
-      return { ok: true };
     }),
 
     setupClaim: Effect.fn("Application.setupClaim")(function* (actor: Actor, id: string) {
@@ -335,41 +232,30 @@ export const makeClaims = Effect.gen(function* () {
       actor: Actor,
       id: string,
       signature: string,
-      sessionAuthorization: unknown,
     ) {
       const { claim, gift } = yield* owned(actor, id);
       const timestamp = yield* now;
 
-      if (claim.state !== "prepared") return claimView(claim);
+      if (claim.state !== "prepared" && claim.state !== "authorized") return claimView(claim);
 
       if (claim.deadline <= Math.floor(timestamp / 1000))
         return yield* new Conflict({
-          code: "HCA_SESSION_EXPIRED",
+          code: "CLAIM_EXPIRED",
           message: "Claim authorization expired",
         });
 
-      if (gift.policy.worldRequired && !claim.worldVerified)
-        return yield* new Forbidden({ message: "World verification is required first" });
-
-      const authorization = yield* chain.authorize(gift, claim, signature, sessionAuthorization);
+      const authorization = yield* chain.authorize(gift, claim, signature);
 
       yield* tx.run(
         Effect.gen(function* () {
           if (
-            !(yield* claims.transition(id, "prepared", {
+            !(yield* claims.transition(id, claim.state, {
               state: "authorized",
+              lastError: null,
               signature,
-              authorizationCiphertext: crypto.seal(
-                authorization.session,
-                `claim:${id}:authorization`,
-              ),
               recipientAuthorizationCiphertext: crypto.seal(
                 authorization.recipientAuthorization,
                 `claim:${id}:recipient-authorization`,
-              ),
-              eligibilityCiphertext: crypto.seal(
-                authorization.eligibility,
-                `claim:${id}:eligibility`,
               ),
             }))
           )
@@ -377,6 +263,11 @@ export const makeClaims = Effect.gen(function* () {
               code: "CLAIM_CHANGED",
               message: "Claim already authorized",
             });
+
+          if (claim.state === "authorized") {
+            yield* jobs.retry(id, timestamp);
+            return;
+          }
 
           yield* jobs.enqueue({
             id: crypto.random(),

@@ -10,8 +10,6 @@ export const Amount = Schema.String.check(Schema.isPattern(/^(0|[1-9][0-9]{0,38}
 
 export const Timestamp = Schema.Int.check(Schema.isGreaterThanOrEqualTo(0));
 
-export const GiftKind = Schema.Literals(["chosen_name", "existing_name"]);
-
 export const GiftState = Schema.Literals([
   "draft",
   "ready",
@@ -25,26 +23,29 @@ export const GiftState = Schema.Literals([
 export const ClaimState = Schema.Literals([
   "prepared",
   "authorized",
-  "reserving",
-  "reserved",
   "committing",
   "waiting",
-  "funding",
   "registering",
-  "transferring",
-  "verifying",
-  "completing",
   "complete",
-  "action_required",
   "refunded",
 ]);
 
-export const JobKind = Schema.Literals(["claim", "email", "refund"]);
+export const JobKind = Schema.Literals(["claim", "email"]);
 
 export const JobState = Schema.Literals(["pending", "running", "complete", "failed"]);
 
+export const RecipientEmail = Schema.String.check(
+  Schema.isMaxLength(254),
+  Schema.isPattern(/^[^\s@]+@[^\s@]+\.[^\s@]+$/),
+);
+
+export const GiftRecipientContact = Schema.Struct({
+  name: Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(100)),
+  email: RecipientEmail,
+});
+
 export const RecipientConstraint = Schema.Struct({
-  kind: Schema.Literals(["any", "wallet", "email"]),
+  kind: Schema.Literal("email"),
   value: Schema.String,
 });
 export type RecipientConstraint = typeof RecipientConstraint.Type;
@@ -55,15 +56,8 @@ export const GiftPolicy = Schema.Struct({
   expiresAt: Timestamp,
   minLength: Schema.Int.check(Schema.isBetween({ minimum: 3, maximum: 63 })),
   maxLength: Schema.Int.check(Schema.isBetween({ minimum: 3, maximum: 63 })),
-  worldRequired: Schema.Boolean,
-  setPrimaryName: Schema.Boolean,
 });
 export type GiftPolicy = typeof GiftPolicy.Type;
-
-export const StarterRecord = Schema.Struct({
-  key: Schema.String.check(Schema.isMaxLength(100)),
-  value: Schema.String.check(Schema.isMaxLength(1000)),
-});
 
 export const Actor = Schema.Struct({
   userId: Schema.String,
@@ -74,3 +68,6 @@ export type Actor = typeof Actor.Type;
 
 export const Call = Schema.Struct({ to: Address, data: Hex, value: Amount });
 export type Call = typeof Call.Type;
+
+export const GiftTheme = Schema.Literals(["aura", "rose", "mint"]);
+export type GiftTheme = typeof GiftTheme.Type;

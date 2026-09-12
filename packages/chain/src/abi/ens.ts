@@ -7,10 +7,6 @@ export {
   permissionedResolverV2Abi as resolverAbi,
   defaultReverseRegistrarAdapterV2Abi as reverseAbi,
 } from "@ensforge/contracts/v2";
-export {
-  standaloneHcaFactoryV2Abi as hcaFactoryAbi,
-  standaloneSingleOwnerHcaV2Abi as hcaAbi,
-} from "@ensforge/contracts/v2/experimental/hca";
 
 export const profileAbi = parseAbi([
   "function addr(bytes32 node) view returns (address)",

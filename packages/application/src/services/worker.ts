@@ -91,10 +91,7 @@ const make = Effect.gen(function* () {
             ...(progress.price === undefined ? {} : { price: progress.price }),
             ...(["complete", "refunded"].includes(progress.state)
               ? {
-                  sessionKeyCiphertext: null,
-                  authorizationCiphertext: null,
                   commitmentSecretCiphertext: null,
-                  eligibilityCiphertext: null,
                   recipientAuthorizationCiphertext: null,
                 }
               : {}),
