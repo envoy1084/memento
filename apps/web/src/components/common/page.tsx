@@ -1,8 +1,8 @@
 import type { ComponentPropsWithRef, ReactNode } from "react";
 
-import { createLink, useCanGoBack, useNavigate, useRouter } from "@tanstack/react-router";
+import { createLink } from "@tanstack/react-router";
 
-import { Alert, Button, Chip, cn, EmptyState, Stepper, toast } from "@thenamespace/uikit";
+import { Alert, Button, cn, EmptyState, toast } from "@thenamespace/uikit";
 import { motion, useReducedMotion } from "motion/react";
 
 import { Icon, type IconName } from "#/components/common/icon";
@@ -133,63 +133,6 @@ export function PageHeader({
   );
 }
 
-export function Back({ to = "/", label = "Back" }: { to?: string; label?: string }) {
-  const navigate = useNavigate();
-  const router = useRouter();
-  const canGoBack = useCanGoBack();
-
-  return (
-    <Button
-      variant="ghost"
-      size="sm"
-      className="mb-5 -ml-3"
-      onPress={() => {
-        if (canGoBack) router.history.back();
-        else void navigate({ to });
-      }}
-    >
-      <Icon name="back" size={16} />
-      {label}
-    </Button>
-  );
-}
-
-const statusTone = {
-  ready: { color: "accent", label: "Ready to open" },
-  claimed: { color: "success", label: "Claimed" },
-  expired: { color: "warning", label: "Expired" },
-  refunded: { color: "default", label: "Returned" },
-  active: { color: "success", label: "Active" },
-  paused: { color: "warning", label: "Paused" },
-  closed: { color: "default", label: "Closed" },
-} as const;
-
-export function StatusChip({ state }: { state: keyof typeof statusTone }) {
-  const tone = statusTone[state] ?? statusTone.ready;
-
-  return (
-    <Chip size="sm" variant="soft" color={tone.color}>
-      {tone.label}
-    </Chip>
-  );
-}
-
-export function Steps({ labels, step }: { labels: string[]; step: number }) {
-  return (
-    <Stepper currentStep={step} size="sm" className="mb-8">
-      {labels.map((label) => (
-        <Stepper.Step key={label}>
-          <Stepper.Indicator />
-          <Stepper.Content>
-            <Stepper.Title>{label}</Stepper.Title>
-          </Stepper.Content>
-          <Stepper.Separator />
-        </Stepper.Step>
-      ))}
-    </Stepper>
-  );
-}
-
 export function EmptyPanel({
   title,
   description,
@@ -222,16 +165,19 @@ export function CopyButton({
   label = "Copy link",
   variant = "secondary",
   size = "md",
+  fullWidth = false,
 }: {
   value: string;
   label?: string;
   variant?: "primary" | "secondary" | "tertiary" | "ghost";
   size?: "sm" | "md";
+  fullWidth?: boolean;
 }) {
   return (
     <Button
       variant={variant}
       size={size}
+      fullWidth={fullWidth}
       onPress={() => {
         void navigator.clipboard.writeText(value).then(
           () => toast.success("Copied to clipboard"),
@@ -264,7 +210,6 @@ export function DetailRow({ label, children }: { label: string; children: ReactN
   );
 }
 
-/** Preview-only caveats, errors and reassurances all speak through Alert. */
 export function Note({
   children,
   status = "default",
@@ -275,7 +220,7 @@ export function Note({
   title?: string;
 }) {
   return (
-    <Alert status={status} className="rounded-2xl">
+    <Alert status={status}>
       <Alert.Indicator />
       <Alert.Content>
         {title ? <Alert.Title>{title}</Alert.Title> : null}

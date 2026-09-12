@@ -21,5 +21,5 @@ export const privyConfig = {
   },
   defaultChain: chain,
   supportedChains: [chain],
-  embeddedWallets: { ethereum: { createOnLogin: "users-without-wallets" } },
+  embeddedWallets: { showWalletUIs: false, ethereum: { createOnLogin: "users-without-wallets" } },
 } satisfies PrivyClientConfig;

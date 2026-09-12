@@ -1,6 +1,6 @@
 import { lazy, Suspense, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 
-import type { PreviewGift } from "@memento/protocol";
+import type { GiftTheme as Theme } from "@memento/protocol";
 import { cn, useMediaQuery } from "@thenamespace/uikit";
 import {
   motion,
@@ -15,7 +15,7 @@ import { NameMark, ShellMark } from "#/components/display/brand";
 
 const AuraShader = lazy(() => import("#/components/display/aura-shader"));
 
-export type Wrapping = PreviewGift["theme"];
+export type Wrapping = Theme;
 
 /** Wrapping papers. Tints resolve to brand ramp tokens, never raw hex. */
 const wraps: Record<Wrapping, string> = {
@@ -189,7 +189,7 @@ export function GiftArt({
           </span>
           <span className="absolute bottom-[11%] -left-1 hidden -rotate-2 items-center gap-2 rounded-full border border-white bg-white/85 px-3.5 py-2 text-[11px] text-ink-soft shadow-lift backdrop-blur-sm sm:flex">
             <span className="size-1.5 rounded-full bg-blush-300" />
-            Nothing to pay. Ever.
+            Nothing to pay.
           </span>
         </div>
       ) : null}

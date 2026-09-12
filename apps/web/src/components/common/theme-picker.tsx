@@ -1,7 +1,7 @@
-import type { PreviewGift } from "@memento/protocol";
+import type { GiftTheme as Theme } from "@memento/protocol";
 import { Description, Label, RadioButtonGroup } from "@thenamespace/uikit";
 
-export type GiftTheme = PreviewGift["theme"];
+export type GiftTheme = Theme;
 
 const wrappings: { id: GiftTheme; label: string; hint: string; swatch: string }[] = [
   {
@@ -47,7 +47,7 @@ export function ThemePicker({
     >
       <Label>{label}</Label>
       {description ? <Description>{description}</Description> : null}
-      <div className="mt-2 grid w-full grid-cols-3 gap-3">
+      <div className="mt-2 grid w-full grid-cols-3 gap-2 [&>[data-slot=radio-button-group-item]]:contents">
         {wrappings.map((wrapping) => (
           <RadioButtonGroup.Item key={wrapping.id} value={wrapping.id} className="!p-3">
             <RadioButtonGroup.ItemIcon>

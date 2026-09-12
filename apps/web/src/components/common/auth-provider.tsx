@@ -8,7 +8,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   if (!privyAppId) return children;
 
   return (
-    <Suspense fallback={children}>
+    <Suspense
+      fallback={
+        <p role="status" className="p-6 text-sm text-ink-soft">
+          Loading Memento…
+        </p>
+      }
+    >
       <PrivyAuth>{children}</PrivyAuth>
     </Suspense>
   );

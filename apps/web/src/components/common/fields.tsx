@@ -1,11 +1,12 @@
-import { useId, type ReactNode } from "react";
+import type { ReactNode } from "react";
 
 import {
   Description,
   FieldError,
   Input,
   Label,
-  NativeSelect,
+  ListBox,
+  Select,
   NumberField,
   Switch,
   TextArea,
@@ -106,10 +107,6 @@ export function NumberInput({
   );
 }
 
-/**
- * NativeSelect does not wire its own label, so the id/htmlFor pair is set here
- * once instead of being forgotten at every call site.
- */
 export function SelectField({
   label,
   value,
@@ -125,26 +122,32 @@ export function SelectField({
   description?: ReactNode;
   disabled?: boolean;
 }) {
-  const id = useId();
-
   return (
-    <NativeSelect fullWidth>
-      <Label htmlFor={id}>{label}</Label>
-      <NativeSelect.Trigger
-        id={id}
-        value={value}
-        disabled={disabled}
-        onChange={(event) => onChange(event.target.value)}
-      >
-        {options.map((option) => (
-          <NativeSelect.Option key={option.value} value={option.value}>
-            {option.label}
-          </NativeSelect.Option>
-        ))}
-        <NativeSelect.Indicator />
-      </NativeSelect.Trigger>
+    <Select
+      fullWidth
+      value={value}
+      isDisabled={disabled}
+      onChange={(key) => {
+        if (key !== null) onChange(String(key));
+      }}
+    >
+      <Label>{label}</Label>
+      <Select.Trigger>
+        <Select.Value />
+        <Select.Indicator />
+      </Select.Trigger>
+      <Select.Popover>
+        <ListBox>
+          {options.map((option) => (
+            <ListBox.Item key={option.value} id={option.value} textValue={option.label}>
+              {option.label}
+              <ListBox.ItemIndicator />
+            </ListBox.Item>
+          ))}
+        </ListBox>
+      </Select.Popover>
       {description ? <Description>{description}</Description> : null}
-    </NativeSelect>
+    </Select>
   );
 }
 

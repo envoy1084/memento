@@ -48,6 +48,9 @@ it("gets the current token for each authenticated request and keeps credentials 
   expect(
     transport.mock.calls.map(([, init]) => new Headers(init?.headers).get("authorization")),
   ).toEqual(["Bearer first-token", "Bearer refreshed-token"]);
+  const headers = new Headers(transport.mock.calls[0]?.[1]?.headers);
+  expect(headers.get("b3")).toBeTruthy();
+  expect(headers.get("traceparent")).toBeTruthy();
   expect(transport.mock.calls[0]?.[1]).toMatchObject({ credentials: "omit", redirect: "error" });
 });
 

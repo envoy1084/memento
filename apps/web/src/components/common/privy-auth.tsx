@@ -4,15 +4,19 @@ import { useAtomRefresh, useAtomValue } from "@effect/atom-react";
 import { AsyncResult } from "effect/unstable/reactivity";
 
 import { PrivyProvider, useLogin, usePrivy, useWallets } from "@privy-io/react-auth";
+import { useConnection } from "wagmi";
 
 import { makeSessionAtom } from "#/atoms/session";
+import { WalletProviders } from "#/components/common/wallet-providers";
 import { privyAppId, privyConfig } from "#/config/privy";
 import { AuthContext } from "#/hooks/use-auth";
 
 export default function PrivyAuth({ children }: { children: ReactNode }) {
   return (
     <PrivyProvider appId={privyAppId} config={privyConfig}>
-      <LoginState>{children}</LoginState>
+      <WalletProviders>
+        <LoginState>{children}</LoginState>
+      </WalletProviders>
     </PrivyProvider>
   );
 }
@@ -69,6 +73,7 @@ function VerifiedSession({
   const session = useAtomValue(sessionAtom);
   const retry = useAtomRefresh(sessionAtom);
   const { wallets, ready } = useWallets();
+  const connection = useConnection();
   const walletAddresses = wallets
     .map((wallet) => wallet.address.toLowerCase())
     .toSorted()
@@ -81,9 +86,15 @@ function VerifiedSession({
 
   const actor =
     userId && AsyncResult.isSuccess(session) && !session.waiting ? session.value : undefined;
-  const address = ready
-    ? wallets.find((wallet) => actor?.wallets.includes(wallet.address.toLowerCase()))?.address
-    : undefined;
+  const activeAddress = connection.address;
+  const address =
+    ready &&
+    connection.isConnected &&
+    activeAddress &&
+    actor?.wallets.includes(activeAddress.toLowerCase()) &&
+    wallets.some((wallet) => wallet.address.toLowerCase() === activeAddress.toLowerCase())
+      ? activeAddress
+      : undefined;
 
   return (
     <AuthContext.Provider

@@ -11,7 +11,6 @@ import { Wordmark } from "#/components/display/brand";
 const links = [
   { to: "/", label: "Discover", exact: true },
   { to: "/gifts", label: "Your gifts", exact: false },
-  { to: "/campaigns", label: "Communities", exact: false },
   { to: "/help", label: "How it works", exact: false },
 ] as const;
 
@@ -19,7 +18,7 @@ export function SiteHeader() {
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
   const pathname = useRouterState({ select: (state) => state.location.pathname });
-  const isInvitation = pathname.startsWith("/claim/") || pathname.startsWith("/invite/");
+  const isInvitation = pathname.startsWith("/claim/");
 
   const current = (to: string, exact: boolean) =>
     exact ? pathname === to : pathname.startsWith(to);
@@ -70,19 +69,17 @@ export function SiteHeader() {
         </Navbar.Content>
       </Navbar.Header>
       <Navbar.Menu className="px-6 pb-6">
-        {[...links, { to: "/profile", label: "Your identity", exact: false } as const].map(
-          (link) => (
-            <Navbar.MenuItem
-              href={link.to}
-              isCurrent={current(link.to, link.exact)}
-              key={link.to}
-              className="flex items-center justify-between border-b border-rule py-4 text-base"
-            >
-              {link.label}
-              <Icon name="arrow" size={16} />
-            </Navbar.MenuItem>
-          ),
-        )}
+        {links.map((link) => (
+          <Navbar.MenuItem
+            href={link.to}
+            isCurrent={current(link.to, link.exact)}
+            key={link.to}
+            className="flex items-center justify-between border-b border-rule py-4 text-base"
+          >
+            {link.label}
+            <Icon name="arrow" size={16} />
+          </Navbar.MenuItem>
+        ))}
         <Navbar.MenuItem
           href="/send"
           className="mt-5 justify-center rounded-full bg-accent px-5 py-3.5 text-center text-accent-foreground"

@@ -40,3 +40,23 @@ it("sends frontend RPC requests only through the configured API origin", async (
   expect(await publicClient.getChainId()).toBe(11155111);
   expect(String(upstream.mock.calls[0]?.[0])).toBe("https://api.memento.example/rpc/sepolia");
 });
+
+it("routes ENSForge's wagmi public client through the same proxy without a connected wallet", async () => {
+  vi.stubEnv("VITE_API_URL", "https://api.memento.example");
+  const upstream = vi.fn<typeof fetch>(async (_url, options) => {
+    const request = JSON.parse(String(options?.body));
+
+    return new Response(JSON.stringify({ jsonrpc: "2.0", id: request.id, result: "0xaa36a7" }), {
+      headers: { "content-type": "application/json" },
+    });
+  });
+  vi.stubGlobal("fetch", upstream);
+
+  const { wagmiConfig } = await import("#/config/wagmi");
+  const { createWagmiConfig } = await import("@ensforge/core/wagmi");
+  const config = createWagmiConfig({ network: "sepolia", wagmiConfig });
+
+  expect(wagmiConfig.state.status).toBe("disconnected");
+  expect(await config.publicClient.getChainId()).toBe(11155111);
+  expect(String(upstream.mock.calls[0]?.[0])).toBe("https://api.memento.example/rpc/sepolia");
+});
