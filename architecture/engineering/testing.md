@@ -14,6 +14,6 @@ Run pnpm check before each meaningful commit. Test TypeScript is included in pac
 - `pnpm test:postgres`: starts a private disposable PostgreSQL 17 container, verifies concurrency and removes it in a finally block. It does not use the development database.
 - `docker build -t memento-backend:local .`: verifies the production dependency graph and Node image.
 
-HTTP boundary tests exercise real Request/Response routing, authentication, CORS, body/rate limits, SSE and refund confirmation. ENS verification tests encode real ABI calls through a controlled RPC transport, including ENSIP-10 and reverse-name reads. Foundry tests exercise local registry/factory/token substitutes. These do not establish live ENS, Rhinestone, Privy, World or Resend configuration.
+HTTP boundary tests exercise real Request/Response routing, authentication, CORS, body/rate limits, SSE and refund confirmation. ENS verification tests encode real ABI calls through a controlled RPC transport, including ENSIP-10 and reverse-name reads. Foundry tests exercise local registry/factory/token substitutes. These do not establish live ENS, Privy or Resend configuration.
 
 Run these checks locally; this repository has no GitHub Actions workflows. ENSForge tests cover encrypted persistence/restart, session scope and confirmations, unsigned setup, funding policy and private HTTP routes. Live provider execution remains a separate integration check.

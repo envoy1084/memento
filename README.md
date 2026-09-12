@@ -1,20 +1,12 @@
 # Memento
 
-Memento is an ETHGlobal ETHOnline hackathon project for gifting a complete, self-custodial ENS
-identity.
+Gift someone a new ENS name. The sender chooses a USDC budget, registration years and name-length limits, then enters the recipient’s name, email and a note. The recipient signs in with that email and chooses their name without needing ETH or USDC.
 
-The backend implements chosen-name gifts, existing-name gifts, and invitation campaigns.
-`apps/server` runs an Effect HttpApi and durable workers in one Node process. Focused packages own
-protocol schemas, application workflows, Drizzle/PostgreSQL, Privy, World ID, and Solidity contracts.
-The frontend is not implemented. See [architecture](architecture/README.md) for boundaries and tests.
+The monorepo contains a React frontend, an Effect API and worker, PostgreSQL persistence, Privy authentication and sponsorship, ENSForge integration, and one registration escrow contract. See [architecture](architecture/README.md).
 
-## Requirements
+## Development
 
-- Node.js 24 (see `.node-version`)
-- Corepack
-- Foundry (Solidity builds and contract tests)
-
-## Getting started
+Use Node.js 24, the pinned pnpm version, and Foundry.
 
 ```sh
 corepack enable
@@ -22,25 +14,8 @@ pnpm install
 pnpm check
 ```
 
-## Commands
+Copy `.env.example` to `.env` and configure providers using the [deployment guide](architecture/deployment/README.md). Start local PostgreSQL with `docker compose -f compose.yml up -d --wait`, then run `pnpm dev`. The frontend runs at http://localhost:3000.
 
-| Command              | Purpose                                                      |
-| -------------------- | ------------------------------------------------------------ |
-| `pnpm dev`           | Run every package's development task                         |
-| `pnpm build`         | Build the workspace in dependency order                      |
-| `pnpm test:postgres` | Verify real PostgreSQL concurrency in a disposable container |
-| `pnpm test`          | Run workspace tests                                          |
-| `pnpm typecheck`     | Type-check root configuration and workspace code             |
-| `pnpm lint`          | Lint root configuration and workspace code                   |
-| `pnpm format`        | Format supported files with Oxfmt                            |
-| `pnpm format:check`  | Check formatting without writing                             |
-| `pnpm check`         | Run formatting, linting, type-checks, tests/build            |
+`pnpm check` runs formatting, lint, types, tests and builds. `pnpm test:postgres` runs concurrency checks against disposable PostgreSQL. `pnpm format` applies Oxfmt formatting.
 
-Klarity supplies the shared configuration for TypeScript, Oxfmt, Oxlint, Commitlint, Turborepo, and
-Lefthook. The research material is intentionally local-only and ignored by Git.
-
-For environment setup and a single VPS deployment, see [deployment](architecture/deployment/README.md).
-
-## Frontend preview
-
-Run `pnpm --filter @memento/web dev` and open http://localhost:3000. The Aura app includes sender, recipient, campaign, and profile journeys using local preview state; no backend or credentials are needed. See [frontend architecture](architecture/frontend/README.md) for the integration boundary.
+This is a fresh development schema and contract interface. Reset the development database and deploy the new escrow before a live test; old gifts are not migrated. Deployment is a manual operator action.
