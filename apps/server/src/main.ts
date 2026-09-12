@@ -19,7 +19,9 @@ import { EnsConfig } from "./integrations/ens/config.js";
 import { Hca } from "./integrations/ens/hca.js";
 import { TransactionJournal } from "./integrations/ens/journal.js";
 import { checkDeployment } from "./integrations/ens/readiness.js";
+import { Registration } from "./integrations/ens/registration.js";
 import { SepoliaRpc } from "./integrations/ens/rpc.js";
+import { EnsWorkflowStorage } from "./integrations/ens/storage.js";
 import { HttpPolicy } from "./layers/http.js";
 import { ApiRoutes } from "./routes/api.js";
 import { RpcRoutes } from "./routes/rpc/index.js";
@@ -64,8 +66,10 @@ Effect.gen(function* () {
   );
 
   const journal = TransactionJournal.layer.pipe(Layer.provideMerge(infrastructure));
-  const hca = Hca.layer.pipe(Layer.provideMerge(journal));
-  const chain = ChainLive.pipe(Layer.provideMerge(hca));
+  const storage = EnsWorkflowStorage.layer.pipe(Layer.provideMerge(journal));
+  const hca = Hca.layer.pipe(Layer.provideMerge(storage));
+  const registration = Registration.layer.pipe(Layer.provideMerge(hca));
+  const chain = ChainLive.pipe(Layer.provideMerge(registration));
 
   const dependencies = Layer.mergeAll(
     chain,

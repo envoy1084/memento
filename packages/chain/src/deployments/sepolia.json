@@ -1,18 +1,17 @@
 {
   "chainId": 11155111,
-  "ensRevision": "6cd019f567c8eb0ca306c78851d4d58876a8e1df",
+  "ensRevision": "09bf3ac64a6fb1b215573c019b17e8c501bb3ca0",
   "contracts": {
-    "registrar": null,
-    "registry": null,
-    "token": null,
+    "registrar": "0xa88553F454b77203B0D036A05c894d555EAAa2Cc",
+    "registry": "0xBDC85dD5b15D7ecb354cd7cb6f2c50b4f2c4F0E2",
+    "token": "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
     "sponsorship": null,
     "vault": null,
-    "hcaFactory": null,
-    "hcaImplementation": null,
-    "validator": null,
-    "verifiableFactory": null,
-    "proxyLogic": null,
-    "resolverImplementation": null,
-    "reverseAdapter": null
+    "hcaFactory": "0x900FF7cF617Ef9D802178B4ef480491e3A782672",
+    "hcaImplementation": "0xAA761541620fC1a42bb701a26a9f107A9DF1E904",
+    "validator": "0x5f249FCa8bB4949105651146858c347E8BFb0F7E",
+    "verifiableFactory": "0x10dC6333CDFe1FCEf624c6e0a8221b91804Cd7ef",
+    "resolverImplementation": "0x9EAe5C2730a7dD16BDD1DeE6421a1B91e3B0365e",
+    "reverseAdapter": "0x7a84e241f862D73960D73c26d68c3C8F89F0B18F"
   }
 }

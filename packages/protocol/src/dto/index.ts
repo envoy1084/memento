@@ -136,3 +136,5 @@ export const WorldProof = Schema.Struct({ proof: Schema.Unknown });
 export const Success = Schema.Struct({ ok: Schema.Boolean });
 
 export * from "./rpc.js";
+
+export * from "./hca.js";

@@ -10,8 +10,10 @@ Existing-name deposits require no other token-level delegates. The vault creates
 
 `packages/contracts/script/Deploy.s.sol` deploys both Memento contracts on Sepolia. It does not deploy ENS itself. Keep the admin separate from the coordinator, and run `pnpm --filter @memento/chain generate` after Solidity changes.
 
-`packages/contracts` owns Solidity, Foundry tests and deployment scripts only. `packages/chain` owns browser-safe TypeScript ABIs and pinned ENS integration signatures. The contracts build verifies checked-in ABIs against its artifacts; the server and frontend can build their TypeScript dependencies without Foundry.
+`packages/contracts` owns Solidity, Foundry tests and deployment scripts only. `packages/chain` owns browser-safe TypeScript ABIs and ENSForge ABI re-exports. The contracts build verifies checked-in ABIs against its artifacts; the server and frontend can build their TypeScript dependencies without Foundry.
 
 ## Public deployment configuration
 
-`packages/chain/src/deployments/sepolia.json` is the shared public manifest used by the Node adapter and Foundry deployment script. The protocol schema pins Sepolia and the ENS revision and rejects incomplete or zero-address deployments. Two confirmations are fixed in `@memento/chain/network`. Live bytecode, immutable bindings and ownership checks still run after configuration decoding. No deployment addresses have been verified yet; null entries explicitly record that outstanding integration work.
+`packages/chain/src/deployments/sepolia.json` is the shared public manifest used by the Node adapter and Foundry deployment script. The protocol schema pins Sepolia and the ENS revision and rejects incomplete or zero-address deployments. Two confirmations are fixed in `@memento/chain/network`. Live bytecode, immutable bindings and ownership checks still run after configuration decoding. ENS addresses are generated from the ENSForge 0.4.0 profile. The two Memento addresses remain null until deployment; package provenance does not replace live checks.
+
+The supported resolver uses `initialize(address,uint256,bytes[])`, `setAddr(bytes32,address)` and `setText(bytes32,string,string)`. Vault record nodes are the namehash of `<label>.eth`. Initializer setters run under upstream initialization semantics; afterward only the recipient controls the fresh resolver.

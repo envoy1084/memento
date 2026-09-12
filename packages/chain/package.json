@@ -39,12 +39,13 @@
     }
   },
   "scripts": {
-    "build": "tsdown",
+    "build": "node scripts/sync-ens-deployment.mjs --check && tsdown",
     "generate": "pnpm --filter @memento/contracts exec forge build && node scripts/generate-abis.mjs && oxfmt --write src/abi",
     "lint": "oxlint . --no-error-on-unmatched-pattern",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@ensforge/contracts": "catalog:",
     "viem": "catalog:"
   },
   "devDependencies": {

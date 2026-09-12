@@ -2,6 +2,9 @@ import { Context, type Effect } from "effect";
 
 import type {
   ApplicationError,
+  ClaimSetup,
+  RegistrationView,
+  HcaRecovery,
   Campaign,
   Claim,
   Gift,
@@ -31,6 +34,12 @@ export interface ChainProgress {
 export class Chain extends Context.Service<
   Chain,
   {
+    readonly registrationView: (claim: Claim) => Effect.Effect<RegistrationView, ApplicationError>;
+    readonly recoverRegistration: (
+      claim: Claim,
+      recovery: HcaRecovery,
+    ) => Effect.Effect<void, ApplicationError>;
+    readonly setup: (gift: Gift, claim: Claim) => Effect.Effect<ClaimSetup, ApplicationError>;
     readonly chainId: number;
     readonly quote: (label: string, duration: number) => Effect.Effect<Quote, ApplicationError>;
     readonly giftPlan: (

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.30;
 
-// Minimal integration surfaces pinned to ensdomains/contracts-v2 post-audit-2
-// 6cd019f567c8eb0ca306c78851d4d58876a8e1df.
+// Minimal integration surfaces pinned to ensdomains/contracts-v2 ENSForge 0.4.0 deployed generation
+// 09bf3ac64a6fb1b215573c019b17e8c501bb3ca0.
 interface IEnsRegistry {
     function getResource(uint256 anyId) external view returns (uint256);
 
@@ -40,14 +40,9 @@ interface IVerifiableFactory {
 }
 
 interface IPermissionedResolver {
-    struct Grant {
-        address account;
-        uint256 roleBitmap;
-    }
+    function initialize(address admin, uint256 roles, bytes[] calldata calls) external;
 
-    function initialize(Grant[] calldata grants, bytes[] calldata calls) external;
+    function setAddr(bytes32 node, address value) external;
 
-    function setAddress(bytes calldata name, uint256 coinType, bytes calldata value) external;
-
-    function setText(bytes calldata name, string calldata key, string calldata value) external;
+    function setText(bytes32 node, string calldata key, string calldata value) external;
 }

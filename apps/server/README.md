@@ -13,3 +13,14 @@ Requests require JSON-RPC 2.0 IDs. Batches contain 1–20 calls, with four concu
 `pnpm --filter @memento/server test` covers proxy envelopes, method filtering, body/batch/response limits, fixed upstream forwarding and error redaction without an Alchemy account.
 
 `GET /v1/session` requires a Privy bearer token and returns the verified actor (Privy user ID, linked Ethereum wallets, verified emails). It does not create a database user or persist tokens.
+
+## ENSForge registration
+
+SDK/core/HCA/contracts use 0.4.0; the Rhinestone 1.8.0 peer uses the exact patch published with HCA.
+`POST /v1/claims/:id/setup` returns staged owner-wallet calls. Authorization accepts the Memento
+signature plus `{ permissionId, enableTransactionHash }` session evidence. Registration then uses
+ENSForge's Rhinestone adapter and encrypted PostgreSQL WorkflowStorage.
+
+See [backend flow](../../architecture/backend/ensforge.md) for status/recovery endpoints, invariants,
+legacy claims and required live setup. `pnpm --filter @memento/server test` exercises these boundaries
+without credentials; `pnpm test:postgres` verifies concurrent storage operations.

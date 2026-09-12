@@ -109,17 +109,35 @@ contract Registry is IEnsRegistry {
 contract Resolver is IPermissionedResolver {
     address public controller;
     bool public initialized;
+    bool private initializing;
+    mapping(bytes32 => address) public addresses;
+    mapping(bytes32 => mapping(string => string)) public texts;
 
-    function initialize(Grant[] calldata grants, bytes[] calldata calls) external {
-        require(!initialized && grants.length == 1);
+    function initialize(address admin, uint256 roles, bytes[] calldata calls) external {
+        require(
+            !initialized
+                && roles == 0x1111111111111111111111111111111111111111111111111111111111111111
+        );
         initialized = true;
-        controller = grants[0].account;
+        controller = admin;
         require(calls.length >= 1);
+        initializing = true;
+        for (uint256 i; i < calls.length; i++) {
+            (bool success,) = address(this).delegatecall(calls[i]);
+            require(success);
+        }
+        initializing = false;
     }
 
-    function setAddress(bytes calldata, uint256, bytes calldata) external pure {}
+    function setAddr(bytes32 node, address value) external {
+        require(initializing || msg.sender == controller);
+        addresses[node] = value;
+    }
 
-    function setText(bytes calldata, string calldata, string calldata) external pure {}
+    function setText(bytes32 node, string calldata key, string calldata value) external {
+        require(initializing || msg.sender == controller);
+        texts[node][key] = value;
+    }
 }
 
 contract ResolverFactory is IVerifiableFactory {

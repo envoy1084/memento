@@ -21,6 +21,7 @@ import { Ethereum } from "../../src/integrations/ens/client.js";
 import { EnsConfig } from "../../src/integrations/ens/config.js";
 import { Hca } from "../../src/integrations/ens/hca.js";
 import { TransactionJournal } from "../../src/integrations/ens/journal.js";
+import { Registration } from "../../src/integrations/ens/registration.js";
 import { makeOwnershipVerification } from "../../src/integrations/ens/verification.js";
 import { Providers, address, alice, bob, digest } from "../fixtures/providers.js";
 
@@ -39,7 +40,6 @@ const config = EnsConfig.of({
   hcaImplementation: contract("8"),
   validator: contract("9"),
   verifiableFactory: contract("a"),
-  proxyLogic: contract("b"),
   resolverImplementation: contract("c"),
   reverseAdapter: contract("d"),
   confirmations: 1,
@@ -195,12 +195,9 @@ layer(application)("ENSv2 final ownership verification", (it) => {
 
         const dependencies = Layer.mergeAll(
           ethereum,
+          Layer.mock(Registration, {}),
           Layer.succeed(EnsConfig, config),
           Layer.mock(Hca, {
-            accountFor: async () => {
-              throw new Error("Unexpected account construction");
-            },
-
             verify: () => Effect.succeed(0n),
           }),
         );

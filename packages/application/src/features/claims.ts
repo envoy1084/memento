@@ -7,6 +7,7 @@ import {
   WorldRepository,
   TransactionService,
 } from "@memento/database";
+import type { HcaRecovery } from "@memento/protocol";
 import {
   type Actor,
   type PrepareClaim,
@@ -300,6 +301,34 @@ export const makeClaims = Effect.gen(function* () {
       );
 
       return { ok: true };
+    }),
+
+    registrationView: Effect.fn("Application.registrationView")(function* (
+      actor: Actor,
+      id: string,
+    ) {
+      const { claim } = yield* owned(actor, id);
+      return yield* chain.registrationView(claim);
+    }),
+
+    recoverRegistration: Effect.fn("Application.recoverRegistration")(function* (
+      actor: Actor,
+      id: string,
+      recovery: HcaRecovery,
+    ) {
+      const { claim, gift } = yield* owned(actor, id);
+      if (gift.kind !== "chosen_name" || ["prepared", "complete", "refunded"].includes(claim.state))
+        return yield* invalid("CLAIM_NOT_RETRYABLE", "Claim cannot be recovered in this state");
+      yield* chain.recoverRegistration(claim, recovery);
+      yield* jobs.retry(id, yield* now);
+      return { ok: true };
+    }),
+
+    setupClaim: Effect.fn("Application.setupClaim")(function* (actor: Actor, id: string) {
+      const { claim, gift } = yield* owned(actor, id);
+      if (["complete", "refunded"].includes(claim.state))
+        return yield* invalid("CLAIM_NOT_RETRYABLE", "Claim setup is no longer available");
+      return yield* chain.setup(gift, claim);
     }),
 
     authorizeClaim: Effect.fn("Application.authorizeClaim")(function* (

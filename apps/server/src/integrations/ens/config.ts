@@ -19,6 +19,18 @@ export const configuredDeployment = Effect.fn("EnsConfig.deployment")(function* 
     ),
   );
 
+  for (const [key, expected] of Object.entries(sepoliaDeployment.contracts)) {
+    if (key === "sponsorship" || key === "vault" || expected === null) continue;
+    const actual = deployment.contracts[key as keyof typeof deployment.contracts];
+    if (actual.toLowerCase() !== expected.toLowerCase())
+      return yield* new ProviderError({
+        provider: "deployment",
+        retryable: false,
+        message:
+          "ENS addresses must match the ENSForge profile in packages/chain/src/deployments/sepolia.json",
+      });
+  }
+
   // The shared schema has checked every nonzero address before applying viem's template type.
   return deployment.contracts as {
     readonly [K in keyof typeof deployment.contracts]: `0x${string}`;

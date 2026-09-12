@@ -1,477 +1,283 @@
-import { Context, Effect, Layer, Schema } from "effect";
+import { Context, Effect, Layer, Redacted, Schema } from "effect";
 
+import { sepoliaHcaDeployment } from "@ensforge/contracts/deployments";
+import { permissionedResolverV2Abi, ethRegistrarV2Abi } from "@ensforge/contracts/v2";
+import { rhinestone } from "@ensforge/hca/rhinestone";
 import { Cryptography } from "@memento/application";
 import {
-  factoryAbi,
-  hcaFactoryAbi,
-  hcaAbi,
-  registrarAbi,
-  resolverAbi,
-  reverseAbi,
-} from "@memento/chain/abi/ens";
-import { type Gift, type Claim, Conflict, Forbidden, ProviderError } from "@memento/protocol";
-import type { Session, ChainSessionConfig } from "@rhinestone/sdk";
-import {
-  toHex,
-  concat,
-  encodeAbiParameters,
-  encodeFunctionData,
-  erc20Abi,
-  getContractAddress,
-  keccak256,
-  zeroAddress,
-  zeroHash,
-  type Address,
-  type Hex,
-} from "viem";
+  type Gift,
+  type Claim,
+  type ClaimSetup,
+  type ApplicationError,
+  HcaSession,
+  HcaAuthorization,
+  Conflict,
+  Forbidden,
+} from "@memento/protocol";
+import { encodeFunctionData, type Address, type Hex, zeroHash } from "viem";
 import { generatePrivateKey, privateKeyToAccount, toAccount } from "viem/accounts";
 import { sepolia } from "viem/chains";
-import { packetToBytes } from "viem/ens";
+import { namehash } from "viem/ens";
 
-import { Ethereum, provider } from "./client.js";
+import { Ethereum, ensRequest, provider } from "./client.js";
 import { EnsConfig } from "./config.js";
-import { TransactionJournal, jsonValue } from "./journal.js";
-
-const SessionPayload = Schema.Struct({
-  salt: Schema.String,
-  nonce: Schema.String,
-  sessionKey: Schema.String,
-});
 
 const ALL_ROLES = BigInt(`0x${"1".repeat(64)}`);
 
-export const proxyAddress = (
-  factory: Address,
-  proxyLogic: Address,
-  deployer: Address,
-  salt: bigint,
-) => {
-  const outerSalt = keccak256(
-    encodeAbiParameters([{ type: "address" }, { type: "uint256" }], [deployer, salt]),
-  );
-
-  return getContractAddress({
-    from: factory,
-    opcode: "CREATE2",
-    salt: outerSalt,
-    bytecode: concat([
-      "0x3d604d80600a3d3981f3363d3d373d3d3d363d73",
-      proxyLogic,
-      "0x5af43d82803e903d91602b57fd5bf3",
-      outerSalt,
-    ]),
-  });
-};
-
 const make = Effect.gen(function* () {
   const config = yield* EnsConfig;
-  const { publicClient, sdk } = yield* Ethereum;
-  const journal = yield* TransactionJournal;
+  const { publicClient, ensforge, forOwner } = yield* Ethereum;
   const crypto = yield* Cryptography;
 
-  const accountFor = async (owner: Address, existing?: Address) =>
-    sdk.createAccount({
-      account: {
-        type: "hca",
-        version: "ens-standalone-1.1.0",
-        factory: config.hcaFactory,
-        implementation: config.hcaImplementation,
-        validator: config.validator,
-        verifiableFactory: config.verifiableFactory,
-        proxyLogic: config.proxyLogic,
-        userSalt: 0n,
-      },
-      owners: { type: "ecdsa", accounts: [toAccount(owner)], module: config.validator },
-      experimental_sessions: { enabled: true, module: config.validator },
-      ...(existing ? { initData: { address: existing } } : {}),
-    });
-
-  const verify = Effect.fn("Hca.verify")(function* (hca: Address, owner: Address) {
-    const code = yield* provider("rpc", () => publicClient.getCode({ address: hca }));
-
-    if (!code || code === "0x")
-      return yield* new Conflict({
-        code: "HCA_NOT_DEPLOYED",
-        message: "Recipient HCA is not deployed",
-      });
-
-    const actualOwner = yield* provider("rpc", () =>
-      publicClient.readContract({
-        address: config.hcaFactory,
-        abi: hcaFactoryAbi,
-        functionName: "authorizedOwnerOf",
-        args: [hca],
-      }),
+  const context = Effect.fn("Hca.context")(function* (claim: Claim) {
+    const payload = yield* Schema.decodeUnknownEffect(HcaSession)(claim.sessionPayload).pipe(
+      Effect.mapError(
+        () =>
+          new Conflict({
+            code: "LEGACY_HCA_SESSION",
+            message: "This claim uses an unsupported legacy session; recover it after expiry",
+          }),
+      ),
     );
-
-    const implementation = yield* provider("rpc", () =>
-      publicClient.readContract({
-        address: config.verifiableFactory,
-        abi: factoryAbi,
-        functionName: "verifyContract",
-        args: [hca],
-      }),
-    );
-
-    const [ownerOnAccount, nonce] = yield* provider("rpc", () =>
-      publicClient.readContract({
-        address: hca,
-        abi: hcaAbi,
-        functionName: "ownerAndSessionNonce",
-      }),
-    );
-
-    const accountId = yield* provider("rpc", () =>
-      publicClient.readContract({ address: hca, abi: hcaAbi, functionName: "accountId" }),
-    );
-
-    if (
-      actualOwner.toLowerCase() !== owner.toLowerCase() ||
-      ownerOnAccount.toLowerCase() !== owner.toLowerCase() ||
-      implementation.toLowerCase() !== config.hcaImplementation.toLowerCase() ||
-      accountId !== "ens-standalone-hca.1.1.0"
-    ) {
-      return yield* new Forbidden({
-        message: "HCA deployment does not match the recipient and supported implementation",
-      });
-    }
-
-    return nonce;
-  });
-
-  const sessionFor = Effect.fn("Hca.session")(function* (claim: Claim) {
     if (!claim.sessionKeyCiphertext)
       return yield* new Conflict({
         code: "SESSION_UNAVAILABLE",
         message: "Session key is unavailable",
       });
 
-    const payload = yield* Schema.decodeUnknownEffect(SessionPayload)(claim.sessionPayload).pipe(
-      Effect.mapError(
-        () =>
-          new ProviderError({
-            provider: "hca",
-            retryable: false,
-            message: "Invalid stored session",
-          }),
-      ),
-    );
-
     const key = yield* crypto.open(claim.sessionKeyCiphertext, `claim:${claim.id}:key`);
     const signer = privateKeyToAccount(key as Hex);
+    if (
+      signer.address.toLowerCase() !== payload.sessionKey.toLowerCase() ||
+      payload.validUntil !== claim.sessionExpiry
+    )
+      return yield* new Forbidden({ message: "Stored session does not match the claim" });
 
-    if (signer.address.toLowerCase() !== payload.sessionKey.toLowerCase())
-      return yield* new Forbidden({ message: "Session signer mismatch" });
-
-    const session: Session = {
+    const sdk = forOwner(claim.recipientWallet as Address);
+    const execution = rhinestone({
+      profile: sepoliaHcaDeployment,
       chain: sepolia,
-      account: claim.hca as Address,
-      salt: payload.salt as Hex,
-      owners: { type: "ecdsa", accounts: [signer] },
-    };
-
-    return { session, payload };
+      owner: toAccount(claim.recipientWallet as Address),
+      sessionSigner: signer,
+      sessionSalt: payload.salt as Hex,
+      sponsored: true,
+      sdk: {
+        auth: { mode: "apiKey", apiKey: Redacted.value(config.rhinestoneKey) },
+        provider: { type: "custom", urls: { [sepolia.id]: Redacted.value(config.rpcUrl) } },
+      },
+    });
+    return { sdk, execution, payload };
   });
 
+  const verify = (hca: Address, owner: Address) =>
+    ensRequest(ensforge.hca.verifyHca.effect({ hca, expectedOwner: owner })).pipe(
+      Effect.map((account) => account.sessionNonce),
+    );
+
+  const resolverAddress = (owner: Address, salt: string) =>
+    ensRequest(forOwner(owner).resolution.predictResolverAddress.effect({ salt: BigInt(salt) }));
+
   return {
-    accountFor,
+    context,
     verify,
+    resolverAddress,
 
     prepare: Effect.fn("Hca.prepare")(function* (
       gift: Gift,
       recipient: Address,
-      label: string,
+      _label: string,
       deadline: number,
     ) {
-      const commitmentSecret = crypto.random();
       const sessionKey = generatePrivateKey();
-      const signer = privateKeyToAccount(sessionKey);
-      const account = yield* provider("rhinestone", () => accountFor(recipient));
-      const hca = account.getAddress();
-      const code = yield* provider("rpc", () => publicClient.getCode({ address: hca }));
-      const nonce = code && code !== "0x" ? yield* verify(hca, recipient) : 0n;
-      const resolverSalt = gift.id as Hex;
-
-      const resolver = proxyAddress(
-        config.verifiableFactory,
-        config.proxyLogic,
-        hca,
-        BigInt(resolverSalt),
-      );
-
-      // Refund amounts are zero: execution gas is sponsored separately from the gift budget.
-      const salt = keccak256(
-        encodeAbiParameters(
-          [
-            { type: "uint96" },
-            { type: "uint48" },
-            { type: "address" },
-            { type: "address" },
-            { type: "uint96" },
-            { type: "uint48" },
-            { type: "uint96" },
-          ],
-          [nonce, deadline, resolver, config.token, 0n, 0, 0n],
-        ),
-      );
-
-      const session: Session = {
-        chain: sepolia,
-        account: hca,
-        salt,
-        owners: { type: "ecdsa", accounts: [signer] },
-      };
-
-      const details = yield* provider("rhinestone", () =>
-        account.experimental_getSessionDetails([session]),
-      );
-
-      const commitment = yield* provider("rpc", () =>
-        publicClient.readContract({
-          address: config.registrar,
-          abi: registrarAbi,
-          functionName: "makeCommitment",
-          args: [
-            label,
-            recipient,
-            commitmentSecret,
-            zeroAddress,
-            resolver,
-            BigInt(gift.policy.duration),
-            zeroHash,
-          ],
-        }),
-      );
+      const hca = yield* ensRequest(ensforge.hca.predictHcaAddress.effect({ owner: recipient }));
+      const resolver = yield* resolverAddress(recipient, gift.id);
 
       return {
         hca,
         resolver,
-        resolverSalt,
+        resolverSalt: gift.id,
         sessionKey,
-        commitmentSecret,
-        commitment,
+        // ENSForge generates and persists the real commitment secret when registration starts.
+        commitmentSecret: "",
+        commitment: zeroHash,
         typedData: null,
         session: {
-          salt,
-          nonce: nonce.toString(),
-          sessionKey: signer.address,
-          typedData: jsonValue(details.data),
+          version: 2,
+          salt: crypto.random(),
+          sessionKey: privateKeyToAccount(sessionKey).address,
+          validUntil: deadline,
         },
+      };
+    }),
+
+    setup: Effect.fn("Hca.setup")(function* (
+      gift: Gift,
+      claim: Claim,
+    ): Effect.fn.Return<ClaimSetup, ApplicationError> {
+      const from = claim.recipientWallet as Address;
+      const base = { chainId: 11155111 as const, from, authorization: null };
+      if (gift.kind === "existing_name") return { ...base, stage: "not-required", calls: [] };
+
+      const { sdk, execution } = yield* context(claim);
+      const block = yield* provider("rpc", () => publicClient.getBlock());
+      if (block.timestamp >= BigInt(claim.deadline))
+        return yield* new Conflict({
+          code: "HCA_SESSION_EXPIRED",
+          message: "Claim authorization expired",
+        });
+
+      const state = yield* ensRequest(
+        sdk.hca.verifyHca.effect({
+          hca: claim.hca as Address,
+          expectedOwner: from,
+          allowUndeployed: true,
+        }),
+      );
+      if (state.deployed === false) {
+        const calls = yield* ensRequest(
+          sdk.batch.prepareCalls.effect({ calls: [sdk.hca.deployHca.call({ owner: from })] }),
+        );
+        return {
+          ...base,
+          stage: "deploy-hca",
+          calls: calls.map((call) => ({
+            to: call.to,
+            data: call.data ?? "0x",
+            value: call.value.toString(),
+          })),
+        };
+      }
+
+      const code = yield* provider("rpc", () =>
+        publicClient.getCode({ address: claim.resolver as Address }),
+      );
+      if (!code || code === "0x") {
+        const node = namehash(`${claim.label}.eth`);
+        // Initializer setters bypass role checks. Only the HCA receives initial control.
+        const setters = [
+          encodeFunctionData({
+            abi: permissionedResolverV2Abi,
+            functionName: "setAddr",
+            args: [node, from],
+          }),
+          ...gift.records.map((record) =>
+            encodeFunctionData({
+              abi: permissionedResolverV2Abi,
+              functionName: "setText",
+              args: [node, record.key, record.value],
+            }),
+          ),
+        ];
+        const calls = yield* ensRequest(
+          sdk.batch.prepareCalls.effect({
+            calls: [
+              sdk.resolution.createResolver.call({
+                salt: BigInt(claim.resolverSalt),
+                admin: claim.hca,
+                roles: ALL_ROLES,
+                setters,
+              }),
+            ],
+          }),
+        );
+        return {
+          ...base,
+          stage: "deploy-resolver",
+          calls: calls.map((call) => ({
+            to: call.to,
+            data: call.data ?? "0x",
+            value: call.value.toString(),
+          })),
+        };
+      }
+
+      const prepared = yield* ensRequest(
+        execution.extensions.sessions.prepare.effect(sdk.config, {
+          hca: claim.hca as Address,
+          resolver: claim.resolver as Address,
+          validUntil: claim.sessionExpiry,
+        }),
+      );
+      const plan = yield* ensRequest(
+        sdk.hca.prepareHcaCalls.effect({
+          hca: claim.hca as Address,
+          authorization: { kind: "owner" },
+          calls: [sdk.hca.enableHcaSession.call(prepared.parameters)],
+        }),
+      );
+      return {
+        ...base,
+        stage: "enable-session",
+        authorization: { permissionId: prepared.parameters.permissionId },
+        calls: [{ to: claim.hca, data: plan.data, value: plan.value.toString() }],
       };
     }),
 
     authorize: Effect.fn("Hca.authorize")(function* (claim: Claim, input: unknown) {
-      const signature = yield* Schema.decodeUnknownEffect(
-        Schema.Struct({ signature: Schema.String.check(Schema.isPattern(/^0x[0-9a-fA-F]{130}$/)) }),
-      )(input).pipe(
+      const authorization = yield* Schema.decodeUnknownEffect(HcaAuthorization)(input).pipe(
         Effect.mapError(
-          () => new Forbidden({ message: "Expected the wallet's session signature" }),
+          () =>
+            new Forbidden({
+              message: "A confirmed session enable transaction and permission ID are required",
+            }),
         ),
       );
-
-      const { session } = yield* sessionFor(claim);
-      const account = yield* provider("rhinestone", () =>
-        accountFor(claim.recipientWallet as Address),
-      );
-
-      if (account.getAddress().toLowerCase() !== claim.hca.toLowerCase())
-        return yield* new Forbidden({ message: "HCA address mismatch" });
-
-      const details = yield* provider("rhinestone", () =>
-        account.experimental_getSessionDetails([session]),
-      );
-
-      const valid = yield* provider("rpc", () =>
-        publicClient.verifyTypedData({
-          ...details.data,
-          address: claim.recipientWallet as Address,
-          signature: signature.signature as Hex,
+      const { sdk, execution, payload } = yield* context(claim);
+      const expected = yield* ensRequest(
+        execution.extensions.sessions.prepare.effect(sdk.config, {
+          hca: claim.hca as Address,
+          resolver: claim.resolver as Address,
+          validUntil: claim.sessionExpiry,
         }),
       );
-
-      if (!valid) return yield* new Forbidden({ message: "Invalid HCA session signature" });
-
-      return signature.signature;
-    }),
-
-    execute: Effect.fn("Hca.execute")(function* (
-      gift: Gift,
-      claim: Claim,
-      stage: "commit" | "register",
-    ) {
-      const { session, payload } = yield* sessionFor(claim);
-
-      if (!claim.authorizationCiphertext)
-        return yield* new Conflict({
-          code: "SESSION_UNAVAILABLE",
-          message: "Session authorization is unavailable",
-        });
-
-      const signature = yield* crypto.open(
-        claim.authorizationCiphertext,
-        `claim:${claim.id}:authorization`,
-      );
-      const code = yield* provider("rpc", () =>
-        publicClient.getCode({ address: claim.hca as Address }),
-      );
-      const deployed = Boolean(code) && code !== "0x";
-
       if (
-        deployed &&
-        (yield* verify(claim.hca as Address, claim.recipientWallet as Address)) !==
-          BigInt(payload.nonce)
+        authorization.permissionId.toLowerCase() !== expected.parameters.permissionId.toLowerCase()
+      )
+        return yield* new Forbidden({ message: "Session permission does not match this claim" });
+
+      const receipt = yield* provider("rpc", () =>
+        publicClient.getTransactionReceipt({ hash: authorization.enableTransactionHash as Hex }),
+      );
+      const height = yield* provider("rpc", () => publicClient.getBlockNumber());
+      if (
+        receipt.status !== "success" ||
+        height < receipt.blockNumber + BigInt(config.confirmations - 1)
       )
         return yield* new Conflict({
-          code: "SESSION_REVOKED",
-          message: "Recipient revoked the HCA session",
+          code: "SESSION_ENABLE_PENDING",
+          message: "Session enable transaction is not confirmed",
         });
 
-      const account = yield* provider("rhinestone", () =>
-        accountFor(claim.recipientWallet as Address, deployed ? (claim.hca as Address) : undefined),
-      );
-      const details = yield* provider("rhinestone", () =>
-        account.experimental_getSessionDetails([session]),
-      );
-
-      const enableData: NonNullable<ChainSessionConfig["enableData"]> = {
-        userSignature: concat([zeroAddress, signature as Hex]),
-        hashesAndChainIds: details.hashesAndChainIds,
-        sessionToEnableIndex: 0,
-        hcaSessionNonce: BigInt(payload.nonce),
-        hcaSessionConfig: {
-          sessionKey: payload.sessionKey as Address,
-          validUntil: claim.sessionExpiry,
-          resolver: claim.resolver as Address,
-          refundToken: config.token,
-          maxRefundExchangeRate: 0n,
-          maxRefundGasOverhead: 0,
-          maxRefundAmount: 0n,
-        },
-      };
-
-      const calls: { to: Address; data: Hex; value: bigint }[] = [];
-
-      if (stage === "commit")
-        calls.push({
-          to: config.registrar,
-          value: 0n,
-          data: encodeFunctionData({
-            abi: registrarAbi,
-            functionName: "commit",
-            args: [claim.commitment as Hex],
-          }),
-        });
-      else {
-        if (!claim.commitmentSecretCiphertext)
-          return yield* new Conflict({
-            code: "SECRET_UNAVAILABLE",
-            message: "Commitment secret is unavailable",
-          });
-
-        const secret = yield* crypto.open(
-          claim.commitmentSecretCiphertext,
-          `claim:${claim.id}:commitment-secret`,
-        );
-        const resolverCode = yield* provider("rpc", () =>
-          publicClient.getCode({ address: claim.resolver as Address }),
-        );
-        const name = toHex(packetToBytes(`${claim.label}.eth`));
-
-        const records = [
-          encodeFunctionData({
-            abi: resolverAbi,
-            functionName: "setAddress",
-            args: [name, 60n, claim.recipientWallet as Hex],
-          }),
-          ...gift.records.map((record) =>
-            encodeFunctionData({
-              abi: resolverAbi,
-              functionName: "setText",
-              args: [name, record.key, record.value],
-            }),
-          ),
-        ];
-
-        if (!resolverCode || resolverCode === "0x") {
-          calls.push({
-            to: config.verifiableFactory,
-            value: 0n,
-            data: encodeFunctionData({
-              abi: factoryAbi,
-              functionName: "deployProxy",
-              args: [
-                config.resolverImplementation,
-                BigInt(claim.resolverSalt),
-                encodeFunctionData({
-                  abi: resolverAbi,
-                  functionName: "initialize",
-                  args: [
-                    [
-                      { account: claim.hca as Address, roleBitmap: ALL_ROLES },
-                      { account: claim.recipientWallet as Address, roleBitmap: ALL_ROLES },
-                    ],
-                    records,
-                  ],
-                }),
-              ],
-            }),
-          });
-        } else
-          for (const data of records)
-            calls.push({ to: claim.resolver as Address, data, value: 0n });
-
-        calls.push(
-          {
-            to: config.token,
-            value: 0n,
-            data: encodeFunctionData({
-              abi: erc20Abi,
-              functionName: "approve",
-              args: [config.registrar, BigInt(claim.price)],
-            }),
+      const plan = yield* ensRequest(
+        sdk.hca.prepareHcaCalls.effect({
+          hca: claim.hca as Address,
+          authorization: {
+            kind: "session",
+            permissionId: authorization.permissionId as Hex,
+            enableTransactionHash: authorization.enableTransactionHash as Hex,
           },
-          {
-            to: config.registrar,
-            value: 0n,
-            data: encodeFunctionData({
-              abi: registrarAbi,
-              functionName: "register",
-              args: [
-                claim.label,
-                claim.recipientWallet as Address,
-                secret as Hex,
-                zeroAddress,
-                claim.resolver as Address,
-                BigInt(gift.policy.duration),
-                config.token,
-                zeroHash,
-              ],
-            }),
-          },
-        );
-
-        if (gift.policy.setPrimaryName)
-          calls.push({
-            to: config.reverseAdapter,
-            value: 0n,
-            data: encodeFunctionData({
-              abi: reverseAbi,
-              functionName: "setNameWithHCA",
-              args: [claim.recipientWallet as Address, `${claim.label}.eth`],
-            }),
-          });
-      }
-
-      yield* journal.intent(claim.id, `hca:${stage}`, account, async () =>
-        account.signTransaction(
-          await account.prepareTransaction({
-            chain: sepolia,
-            calls,
-            signers: { type: "experimental_session", session, enableData, verifyExecutions: true },
-            sponsored: { gas: true, bridging: true, swaps: true },
-          }),
-        ),
+          calls: [
+            {
+              to: config.registrar,
+              data: encodeFunctionData({
+                abi: ethRegistrarV2Abi,
+                functionName: "commit",
+                args: [zeroHash],
+              }),
+            },
+          ],
+        }),
       );
+      if (
+        !plan.session ||
+        plan.session.sessionKey.toLowerCase() !== payload.sessionKey.toLowerCase() ||
+        plan.session.resolver.toLowerCase() !== claim.resolver.toLowerCase() ||
+        plan.session.validUntil !== claim.sessionExpiry ||
+        plan.session.refund !== undefined
+      )
+        return yield* new Forbidden({ message: "Enabled session does not match this claim" });
+
+      return JSON.stringify(authorization);
     }),
   };
 });

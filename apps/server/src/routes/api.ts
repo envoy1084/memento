@@ -188,6 +188,23 @@ const Claims = HttpApiBuilder.group(
           safe,
         ),
 
+      registration: ({ params }) =>
+        CurrentActor.pipe(
+          Effect.flatMap((actor) => app.registrationView(actor, params.id)),
+          safe,
+        ),
+      recover: ({ params, payload }) =>
+        CurrentActor.pipe(
+          Effect.flatMap((actor) => app.recoverRegistration(actor, params.id, payload)),
+          safe,
+        ),
+
+      setup: ({ params }) =>
+        CurrentActor.pipe(
+          Effect.flatMap((actor) => app.setupClaim(actor, params.id)),
+          safe,
+        ),
+
       authorize: ({ params, payload }) =>
         CurrentActor.pipe(
           Effect.flatMap((actor) =>

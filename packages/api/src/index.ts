@@ -20,6 +20,9 @@ import {
   OpenGift,
   PrepareClaim,
   ClaimPreparation,
+  ClaimSetup,
+  HcaRecovery,
+  RegistrationView,
   AuthorizeClaim,
   ClaimView,
   Quote,
@@ -117,6 +120,18 @@ const Claims = Group.make("claims")
       error,
     }),
     Endpoint.get("get", "/claims/:id", { params, success: ClaimView, error }),
+    Endpoint.get("registration", "/claims/:id/registration", {
+      params,
+      success: RegistrationView,
+      error,
+    }),
+    Endpoint.post("recover", "/claims/:id/registration/recover", {
+      params,
+      payload: HcaRecovery,
+      success: Success,
+      error,
+    }),
+    Endpoint.post("setup", "/claims/:id/setup", { params, success: ClaimSetup, error }),
     Endpoint.post("authorize", "/claims/:id/authorize", {
       params,
       payload: AuthorizeClaim,

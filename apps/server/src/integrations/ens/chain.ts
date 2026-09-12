@@ -35,9 +35,11 @@ import { sepolia } from "viem/chains";
 
 import { Ethereum, provider } from "./client.js";
 import { EnsConfig } from "./config.js";
-import { Hca, proxyAddress } from "./hca.js";
+import { registrationFunding } from "./funding.js";
+import { Hca } from "./hca.js";
 import { TransactionJournal, jsonValue } from "./journal.js";
 import { makePlans, restriction } from "./plans.js";
+import { Registration } from "./registration.js";
 import { makeOwnershipVerification } from "./verification.js";
 
 const intentTypes = {
@@ -76,6 +78,7 @@ const make = Effect.gen(function* () {
   const crypto = yield* Cryptography;
   const journal = yield* TransactionJournal;
   const hca = yield* Hca;
+  const registration = yield* Registration;
   const plans = yield* makePlans;
 
   const domain = (gift: Gift) => ({
@@ -107,53 +110,21 @@ const make = Effect.gen(function* () {
         message: `Registrar requires at least ${minimum} seconds`,
       });
 
-    // ENSForge's public config pins deployments. Custom post-audit deployments use the exact branch ABI.
-    if (
-      ensforge.config.deployments.protocol === "v2" &&
-      ensforge.config.deployments.v2.contracts.ethRegistrar.toLowerCase() ===
-        config.registrar.toLowerCase()
-    ) {
-      const price = yield* provider("ensforge", () =>
-        ensforge.registration.getRegistrationPrice({
-          name: `${label}.eth`,
-          duration: BigInt(duration),
-          paymentToken: config.token,
-        }),
-      );
-
-      if (price.status === "available")
-        return { label, duration, available: true, price: price.total.toString() };
-
-      if (price.status === "unavailable") return { label, duration, available: false, price: "0" };
-
-      return yield* new ProviderError({
-        provider: "ensforge",
-        retryable: false,
-        message: "Configured payment token is unsupported by the registrar",
-      });
-    }
-
-    const available = yield* provider("rpc", () =>
-      publicClient.readContract({
-        address: config.registrar,
-        abi: registrarAbi,
-        functionName: "isAvailable",
-        args: [label],
+    const price = yield* provider("ensforge", () =>
+      ensforge.registration.getRegistrationPrice({
+        name: `${label}.eth`,
+        duration: BigInt(duration),
+        paymentToken: config.token,
       }),
     );
-
-    if (!available) return { label, duration, available: false, price: "0" };
-
-    const [base, premium] = yield* provider("rpc", () =>
-      publicClient.readContract({
-        address: config.registrar,
-        abi: registrarAbi,
-        functionName: "getRegisterPrice",
-        args: [label, BigInt(duration), config.token],
-      }),
-    );
-
-    return { label, duration, available, price: (base + premium).toString() };
+    if (price.status === "available")
+      return { label, duration, available: true, price: price.total.toString() };
+    if (price.status === "unavailable") return { label, duration, available: false, price: "0" };
+    return yield* new ProviderError({
+      provider: "ensforge",
+      retryable: false,
+      message: "Configured payment token is unsupported",
+    });
   });
 
   const verifyOwnership = yield* makeOwnershipVerification;
@@ -192,24 +163,24 @@ const make = Effect.gen(function* () {
 
     typedIntent: (gift, intent) => jsonValue(typedIntent(gift, intent)),
 
-    prepare: (gift, recipient, label, _nonce, deadline) =>
-      gift.kind === "chosen_name"
-        ? hca.prepare(gift, recipient as Address, label, deadline)
-        : Effect.succeed({
-            hca: zeroAddress,
-            resolver: proxyAddress(
-              config.verifiableFactory,
-              config.proxyLogic,
-              config.vault,
-              BigInt(gift.id),
-            ),
-            resolverSalt: gift.id,
-            session: null,
-            sessionKey: "",
-            commitmentSecret: "",
-            commitment: zeroHash,
-            typedData: null,
-          }),
+    setup: hca.setup,
+    registrationView: registration.view,
+    recoverRegistration: registration.recover,
+
+    prepare: Effect.fn("Chain.prepare")(function* (gift, recipient, label, _nonce, deadline) {
+      if (gift.kind === "chosen_name")
+        return yield* hca.prepare(gift, recipient as Address, label, deadline);
+      return {
+        hca: zeroAddress,
+        resolver: yield* hca.resolverAddress(config.vault, gift.id),
+        resolverSalt: gift.id,
+        session: null,
+        sessionKey: "",
+        commitmentSecret: "",
+        commitment: zeroHash,
+        typedData: null,
+      };
+    }),
 
     authorize: Effect.fn("Chain.authorize")(
       function* (gift, claim, signature, sessionAuthorization) {
@@ -399,98 +370,57 @@ const make = Effect.gen(function* () {
         return { state: "reserved" };
       }
 
-      const committedAt = yield* provider("rpc", () =>
-        publicClient.readContract({
-          address: config.registrar,
-          abi: registrarAbi,
-          functionName: "commitmentAt",
-          args: [claim.commitment as Hex],
-        }),
-      );
+      const progress = yield* registration.advance(gift, claim);
+      switch (progress.status) {
+        case "registered":
+          return { state: "verifying" };
+        case "waiting":
+          return { state: "waiting", retryAt: Number(progress.readyAt) * 1000 + 1000 };
+        case "created":
+          return { state: "committing" };
+        case "submitted":
+        case "submitting":
+          if (!progress.attempt.tracking)
+            return yield* new Conflict({
+              code: "ENSFORGE_SUBMISSION_UNCERTAIN",
+              message:
+                "Submission outcome is uncertain; reconcile its provider reference before retrying",
+            });
+          return {
+            state: progress.attempt.step === "commit" ? "committing" : "registering",
+            retryAt: Date.now() + 10000,
+          };
+        case "needs-funding": {
+          const amount = yield* registrationFunding(
+            progress,
+            config.token,
+            BigInt(gift.policy.maxPrice),
+            actual[9],
+          );
 
-      if (committedAt === 0n) {
-        yield* hca.execute(gift, claim, "commit");
-
-        return { state: "committing" };
-      }
-
-      const minimum = yield* provider("rpc", () =>
-        publicClient.readContract({
-          address: config.registrar,
-          abi: registrarAbi,
-          functionName: "MIN_COMMITMENT_AGE",
-        }),
-      );
-
-      const maximum = yield* provider("rpc", () =>
-        publicClient.readContract({
-          address: config.registrar,
-          abi: registrarAbi,
-          functionName: "MAX_COMMITMENT_AGE",
-        }),
-      );
-
-      if (block.timestamp >= committedAt + maximum)
-        return yield* new Conflict({
-          code: "COMMITMENT_EXPIRED",
-          message: "Commitment expired; recover unspent escrow after gift expiry",
-        });
-
-      if (block.timestamp < committedAt + minimum)
-        return {
-          state: "waiting",
-          commitmentAt: Number(committedAt),
-          retryAt: Number(committedAt + minimum) * 1000 + 1000,
-        };
-
-      const fresh = yield* quote(claim.label, gift.policy.duration);
-
-      if (!fresh.available)
-        return yield* new Conflict({
-          code: "NAME_UNAVAILABLE",
-          message: "Name was registered by someone else",
-        });
-
-      if (BigInt(fresh.price) > BigInt(gift.policy.maxPrice))
-        return yield* new Conflict({
-          code: "PRICE_EXCEEDS_BUDGET",
-          message: "Current registrar price exceeds the gift budget",
-        });
-
-      if (actual[9] === 2) {
-        yield* hca.verify(claim.hca as Address, claim.recipientWallet as Address);
-
-        if (BigInt(fresh.price) === 0n)
+          yield* hca.verify(claim.hca as Address, claim.recipientWallet as Address);
+          yield* journal.send(
+            claim.id,
+            "escrow:release",
+            config.sponsorship,
+            encodeFunctionData({
+              abi: escrowAbi,
+              functionName: "releaseToHca",
+              args: [gift.id as Hex, amount],
+            }),
+          );
+          return { state: "registering", price: amount.toString() };
+        }
+        case "needs-authorization":
+        case "needs-review":
+        case "failed":
+        case "expired":
+        case "cancelled":
           return yield* new Conflict({
-            code: "ZERO_QUOTE",
-            message: "Registrar returned an unsupported zero quote",
+            code: `ENSFORGE_${progress.status.toUpperCase().replaceAll("-", "_")}`,
+            message: progress.reason,
           });
-
-        yield* journal.send(
-          claim.id,
-          "escrow:release",
-          config.sponsorship,
-          encodeFunctionData({
-            abi: escrowAbi,
-            functionName: "releaseToHca",
-            args: [gift.id as Hex, BigInt(fresh.price)],
-          }),
-        );
-
-        return { state: "registering", price: fresh.price, commitmentAt: Number(committedAt) };
       }
-
-      const released = BigInt(gift.policy.maxPrice) - actual[8];
-
-      if (BigInt(fresh.price) > released)
-        return yield* new Conflict({
-          code: "PRICE_CHANGED_AFTER_FUNDING",
-          message: "Price increased after funding; recipient can recover their HCA balance",
-        });
-
-      yield* hca.execute(gift, { ...claim, price: released.toString() }, "register");
-
-      return { state: "verifying", price: released.toString(), commitmentAt: Number(committedAt) };
     }),
   });
 });

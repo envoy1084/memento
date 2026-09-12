@@ -164,27 +164,28 @@ contract MementoNameVault is ClaimAuthorization, IERC1155Receiver, ReentrancyGua
         g.status = Status.Complete;
         delete activeGift[g.input.labelhash];
 
-        bytes memory dnsName = abi.encodePacked(uint8(bytes(label).length), label, hex"0365746800");
+        bytes32 ethNode = keccak256(abi.encodePacked(bytes32(0), keccak256("eth")));
+        bytes32 node = keccak256(abi.encodePacked(ethNode, g.input.labelhash));
         bytes[] memory calls = new bytes[](records.length + 1);
-        calls[0] = abi.encodeCall(
-            IPermissionedResolver.setAddress, (dnsName, 60, abi.encodePacked(intent.recipient))
-        );
+        calls[0] = abi.encodeCall(IPermissionedResolver.setAddr, (node, intent.recipient));
         for (uint256 i; i < records.length; i++) {
             calls[i + 1] = abi.encodeCall(
-                IPermissionedResolver.setText, (dnsName, records[i].key, records[i].value)
+                IPermissionedResolver.setText, (node, records[i].key, records[i].value)
             );
         }
 
-        IPermissionedResolver.Grant[] memory grants = new IPermissionedResolver.Grant[](1);
-
-        // Fresh resolver: neither sponsor nor vault ever receives resolver permissions.
-        grants[0] = IPermissionedResolver.Grant(
-            intent.recipient, 0x1111111111111111111111111111111111111111111111111111111111111111
-        );
+        // Fresh resolver: neither sponsor nor vault receives resolver permissions.
         address resolver = factory.deployProxy(
             resolverImplementation,
             uint256(intent.giftId),
-            abi.encodeCall(IPermissionedResolver.initialize, (grants, calls))
+            abi.encodeCall(
+                IPermissionedResolver.initialize,
+                (
+                    intent.recipient,
+                    0x1111111111111111111111111111111111111111111111111111111111111111,
+                    calls
+                )
+            )
         );
 
         if (

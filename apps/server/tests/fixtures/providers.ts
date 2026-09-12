@@ -23,7 +23,7 @@ export const carol: Actor = {
   emails: ["carol@example.test"],
 };
 
-export const digest = `0x${"44".repeat(32)}`;
+export const digest: `0x${string}` = `0x${"44".repeat(32)}`;
 
 export const address: `0x${string}` = `0x${"55".repeat(20)}`;
 
@@ -102,6 +102,24 @@ const chain = Layer.effect(
           typedData: {},
         }),
 
+      registrationView: () =>
+        Effect.succeed({
+          status: "not-started",
+          readyAt: null,
+          transactionHash: null,
+          reason: null,
+          step: null,
+          planFingerprint: null,
+        }),
+      recoverRegistration: () => Effect.void,
+      setup: (_, claim) =>
+        Effect.succeed({
+          stage: "enable-session",
+          chainId: 11155111,
+          from: claim.recipientWallet,
+          calls: [],
+          authorization: null,
+        }),
       typedIntent: (_, intent) => intent,
 
       authorize: (_, __, signature) =>

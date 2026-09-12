@@ -4,12 +4,11 @@ import {
   MementoSponsorshipAbi as escrowAbi,
   MementoNameVaultAbi as vaultAbi,
 } from "@memento/chain";
-import { hcaAbi, factoryAbi, hcaFactoryAbi } from "@memento/chain/abi/ens";
 import { sepolia } from "@memento/chain/network";
 import { ProviderError } from "@memento/protocol";
-import { erc20Abi, parseAbi, type Address } from "viem";
+import { erc20Abi } from "viem";
 
-import { Ethereum, provider } from "./client.js";
+import { Ethereum, ensRequest, provider } from "./client.js";
 import { EnsConfig } from "./config.js";
 
 const fail = (message: string) =>
@@ -17,7 +16,7 @@ const fail = (message: string) =>
 
 export const checkDeployment = Effect.gen(function* () {
   const config = yield* EnsConfig;
-  const { publicClient, account } = yield* Ethereum;
+  const { publicClient, account, ensforge } = yield* Ethereum;
 
   if ((yield* provider("rpc", () => publicClient.getChainId())) !== sepolia.id)
     return yield* fail("RPC must use the configured Sepolia chain");
@@ -32,7 +31,6 @@ export const checkDeployment = Effect.gen(function* () {
     config.hcaImplementation,
     config.validator,
     config.verifiableFactory,
-    config.proxyLogic,
     config.resolverImplementation,
     config.reverseAdapter,
   ]) {
@@ -48,57 +46,9 @@ export const checkDeployment = Effect.gen(function* () {
 
   if (decimals !== 6) return yield* fail("Payment token must use six decimals");
 
-  const id = yield* provider("rpc", () =>
-    publicClient.readContract({
-      address: config.hcaImplementation,
-      abi: hcaAbi,
-      functionName: "accountId",
-    }),
-  );
-
-  if (id !== "ens-standalone-hca.1.1.0")
-    return yield* fail("Unsupported HCA implementation version");
-
-  const approved = yield* provider("rpc", () =>
-    publicClient.readContract({
-      address: config.hcaFactory,
-      abi: hcaFactoryAbi,
-      functionName: "approvedImplementations",
-      args: [config.hcaImplementation],
-    }),
-  );
-
-  if (!approved) return yield* fail("HCA implementation is not factory approved");
-
-  const expectations: readonly [Address, string, Address][] = [
-    [config.registrar, "ETH_REGISTRY", config.registry],
-    [config.validator, "ETH_REGISTRY", config.registry],
-    [config.validator, "PERMITTED_RESOLVER_IMPL", config.resolverImplementation],
-    [config.validator, "VERIFIABLE_FACTORY", config.verifiableFactory],
-    [config.validator, "VERIFIABLE_PROXY_LOGIC", config.proxyLogic],
-    [config.validator, "DEFAULT_REVERSE_REGISTRAR_HCA_ADAPTER", config.reverseAdapter],
-    [config.hcaFactory, "VERIFIABLE_FACTORY", config.verifiableFactory],
-  ];
-
-  for (const [address, getter, expected] of expectations) {
-    const actual = yield* provider("rpc", () =>
-      publicClient.readContract({
-        address,
-        abi: parseAbi([`function ${getter}() view returns (address)`]),
-        functionName: getter,
-      }),
-    );
-
-    if (typeof actual !== "string" || actual.toLowerCase() !== expected.toLowerCase())
-      return yield* fail(`Deployment mismatch for ${getter}`);
-  }
-
-  const proxyLogic = yield* provider("rpc", () =>
-    publicClient.readContract({
-      address: config.verifiableFactory,
-      abi: factoryAbi,
-      functionName: "proxyLogic",
-    }),
+  const hca = yield* ensRequest(ensforge.hca.predictHcaAddress.effect({ owner: account.address }));
+  yield* ensRequest(
+    ensforge.hca.verifyHca.effect({ hca, expectedOwner: account.address, allowUndeployed: true }),
   );
 
   const coordinator = yield* provider("rpc", () =>
@@ -157,7 +107,6 @@ export const checkDeployment = Effect.gen(function* () {
   );
 
   for (const [actual, expected] of [
-    [proxyLogic, config.proxyLogic],
     [coordinator, account.address],
     [vaultCoordinator, account.address],
     [token, config.token],

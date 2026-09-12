@@ -8,9 +8,7 @@ import { configuredDeployment } from "../../src/integrations/ens/config.js";
 const address = `0x${"12".repeat(20)}`;
 const configured = {
   ...sepoliaDeployment,
-  contracts: Object.fromEntries(
-    Object.keys(sepoliaDeployment.contracts).map((name) => [name, address]),
-  ),
+  contracts: { ...sepoliaDeployment.contracts, sponsorship: address, vault: address },
 };
 
 it("decodes public deployment settings and rejects missing, zero, wrong-chain and wrong-revision values", async () => {
@@ -22,6 +20,7 @@ it("decodes public deployment settings and rejects missing, zero, wrong-chain an
       { ...configured, contracts: { ...configured.contracts, registry: `0x${"00".repeat(20)}` } },
       { ...configured, chainId: 1 },
       { ...configured, ensRevision: "unverified" },
+      { ...configured, contracts: { ...configured.contracts, registrar: address } },
     ].map(async (manifest) => {
       const result = await Effect.runPromise(configuredDeployment(manifest).pipe(Effect.flip));
 

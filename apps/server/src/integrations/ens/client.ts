@@ -1,10 +1,11 @@
 import { Context, Effect, Layer, Redacted } from "effect";
 
+import { sepoliaHcaDeployment } from "@ensforge/contracts/deployments";
+import { HcaError } from "@ensforge/core";
 import { Ensforge } from "@ensforge/sdk";
 import { ProviderError } from "@memento/protocol";
-import { RhinestoneSDK } from "@rhinestone/sdk";
 import { createPublicClient, createWalletClient, http } from "viem";
-import { privateKeyToAccount } from "viem/accounts";
+import { privateKeyToAccount, toAccount } from "viem/accounts";
 import { sepolia } from "viem/chains";
 
 import { EnsConfig } from "./config.js";
@@ -32,13 +33,20 @@ const make = Effect.gen(function* () {
     transport: http(rpcUrl, { timeout: 15000, retryCount: 1 }),
   });
 
-  const sdk = new RhinestoneSDK({
-    auth: { mode: "apiKey", apiKey: Redacted.value(config.rhinestoneKey) },
-    provider: { type: "custom", urls: { [sepolia.id]: rpcUrl } },
-  });
-  const ensforge = new Ensforge({ network: "sepolia", publicClient });
+  const forOwner = (owner: `0x${string}`) =>
+    new Ensforge({
+      network: "sepolia",
+      publicClient,
+      hca: sepoliaHcaDeployment,
+      walletClient: createWalletClient({
+        chain: sepolia,
+        account: toAccount(owner),
+        transport: http(rpcUrl),
+      }),
+    });
+  const ensforge = new Ensforge({ network: "sepolia", publicClient, hca: sepoliaHcaDeployment });
 
-  return { publicClient, walletClient, account, sdk, ensforge };
+  return { publicClient, walletClient, account, ensforge, forOwner };
 });
 
 export class Ethereum extends Context.Service<Ethereum, Effect.Success<typeof make>>()(
@@ -46,3 +54,19 @@ export class Ethereum extends Context.Service<Ethereum, Effect.Success<typeof ma
 ) {
   static readonly layer = Layer.effect(Ethereum, make);
 }
+
+// Preserve actionable SDK failures without exposing provider payloads or signed material.
+export const ensRequest = <A, E>(request: Effect.Effect<A, E>) =>
+  request.pipe(
+    Effect.mapError(
+      (error) =>
+        new ProviderError({
+          provider: "ensforge",
+          retryable: !(error instanceof HcaError) || error.code === "ADAPTER_FAILED",
+          message:
+            error instanceof HcaError
+              ? `ENSForge ${String(error.code)}`
+              : "ENSForge request failed",
+        }),
+    ),
+  );

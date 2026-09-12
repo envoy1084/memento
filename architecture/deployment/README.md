@@ -13,16 +13,20 @@ terminates TLS for `api.memento.envoy1084.xyz`. The frontend origin is
 3. Configure Privy for the frontend origin. Enable Selfie Check for the World app and configure the
    matching RP ID and signing key. The action is `memento-claim`, defined in server product policy. Use `staging` only with the simulator. Configure a verified
    sender domain in Resend and sponsored gas access in Rhinestone.
-4. Use compatible ENSv2 Sepolia deployments from `post-audit-2` revision
-   `6cd019f567c8eb0ca306c78851d4d58876a8e1df`. Historical deployment manifests are insufficient:
-   Record verified addresses in the shared Sepolia manifest. Unset or zero addresses stop startup with an explicit configuration error. The repository does not currently contain verified deployment addresses. Runtime startup checks the HCA version, approved implementation, immutable bindings, Memento contract
-   configuration, and coordinator address.
+4. Use the ENSForge 0.4.0 recorded Sepolia profile (source
+   `09bf3ac64a6fb1b215573c019b17e8c501bb3ca0`). Run
+   `node packages/chain/scripts/sync-ens-deployment.mjs` after an intentional SDK upgrade; it preserves
+   Memento addresses. The build checks profile drift. ENS addresses are populated from the package;
+   `sponsorship` and `vault` remain null until deployment. Startup verifies live HCA wiring through
+   ENSForge and checks Memento bindings and the coordinator. Old branch-tip vault deployments cannot
+   be reused with the changed single-admin resolver initializer.
 5. Import the separate deployer wallet into an encrypted Foundry keystore with `cast wallet import memento-deployer --interactive`. Never place the deployer key in the server environment. Deploy Memento contracts with Foundry. From
    `packages/contracts`, with deployment variables exported, run
    `forge script script/Deploy.s.sol --account memento-deployer --rpc-url "$RPC_URL" --broadcast`. Put the two returned addresses
    in the manifest’s `contracts.sponsorship` and `contracts.vault` fields. The deployment script reads its ENS/token addresses from that same manifest; only `CONTRACT_ADMIN` and `COORDINATOR_ADDRESS` remain deployment-time environment inputs. Supply native Sepolia ETH to the coordinator for
    escrow/vault transactions. Registration costs use the configured six-decimal payment token;
-   Rhinestone sponsors HCA execution gas separately.
+   Rhinestone sponsors HCA registration execution gas separately. Recipients need Sepolia ETH for the
+   three owner-wallet setup stages; the adapter does not sponsor counterfactual deployment.
 6. Run `docker compose up -d --build`. Inspect `docker compose logs server` and
    `https://api.memento.envoy1084.xyz/health/ready`. API documentation is at `/docs` and `/openapi.json`.
 
@@ -54,6 +58,9 @@ Layers and migrated PGlite, without live provider credentials. No bypass authent
 - Jobs survive restarts. Leases fence stale workers; transaction journals preserve signed operations
   before broadcast. Use one coordinator key exclusively for this deployment. Rotating that key
   requires the contracts' delayed coordinator rotation and a planned journal/nonce migration.
+- ENSForge registration state lives in encrypted `ens_workflows` records. Keep the session signer,
+  original adapter settings and encryption key available across restarts. See
+  [ENSForge recovery](../backend/ensforge.md) for session replacement and uncertain submissions.
 - A failed claim retains its phase and a safe error. The recipient can request a retry. Permanent
   onchain reverts reuse the recorded operation and require operator review or expiry recovery;
   retries do not authorize replacement transactions.

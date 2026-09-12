@@ -3,7 +3,7 @@ pragma solidity ^0.8.30;
 
 import {MementoNameVault} from "../src/MementoNameVault.sol";
 import {ClaimAuthorization} from "../src/ClaimAuthorization.sol";
-import {Registry, ResolverFactory, TestBase} from "./Fixtures.sol";
+import {Registry, Resolver, ResolverFactory, TestBase} from "./Fixtures.sol";
 
 contract NameVaultTest is TestBase {
     Registry registry;
@@ -61,6 +61,12 @@ contract NameVaultTest is TestBase {
             i, SECRET, "bob", new MementoNameVault.TextRecord[](0), signature(vault, i), "", ""
         );
         require(registry.getOwner(uint256(labelhash)) == bob && factory.next().controller() == bob);
+        bytes32 ethNode = keccak256(abi.encodePacked(bytes32(0), keccak256("eth")));
+        require(factory.next().addresses(keccak256(abi.encodePacked(ethNode, labelhash))) == bob);
+        Resolver resolver = factory.next();
+        vm.prank(alice);
+        vm.expectRevert();
+        resolver.setAddr(labelhash, alice);
     }
 
     function testRejectUnsolicitedDeposits() public {

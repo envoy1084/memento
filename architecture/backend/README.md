@@ -25,9 +25,9 @@ Funding and refund routes return calldata for the sponsor's wallet. Confirmation
 contract event and current chain state before updating the database. No server key signs for a user.
 
 New-name and campaign recipients prepare a claim, optionally verify World ID, then authorize their
-EIP-712 claim and HCA session. Authorization commits the encrypted signing material and a job together.
-The worker reserves, commits, waits, re-quotes, releases bounded funds, registers and verifies the
-result. Existing-name claims use the vault and skip the HCA stages.
+EIP-712 claim after completing owner-wallet HCA setup. Authorization verifies the confirmed session
+enablement and commits encrypted authorization plus a job together. The worker reserves escrow,
+advances the ENSForge registration, releases bounded funds when requested, and verifies the result. Existing-name claims use the vault and skip the HCA stages.
 
 Completion checks registry ownership, resolver implementation, recipient roles, forward address,
 starter text records and requested primary name. ENSv2 profile reads use ENSIP-10 `resolve(name, data)`.
@@ -57,10 +57,15 @@ expiry recovery described in [deployment](../deployment/README.md), rather than 
 
 ## Integration choices
 
-ENSv2 targets `ensdomains/contracts-v2` branch `post-audit-2`, revision
-`6cd019f567c8eb0ca306c78851d4d58876a8e1df`. Temporary HCA actions are confined to the server adapter.
-ENSForge handles compatible public quotes; custom deployments use the pinned branch ABI. The patched
-Rhinestone SDK transports stateless HCA sessions, with enable data on every operation.
+ENSForge SDK/core/HCA/contracts are pinned to 0.4.0. ENS ABIs come from `@ensforge/contracts`;
+HCA derivation, verification, setup, session validation and registration use ENSForge actions.
+`@ensforge/hca/rhinestone` is the only registration execution adapter. Its required Rhinestone 1.8.0
+peer uses the exact patch shipped by `@ensforge/hca@0.4.0`. No direct Rhinestone account/execution
+implementation or custom ENS deployment fallback remains.
+
+The supported profile is `ens-standalone-hca-1.1.0`, source
+`09bf3ac64a6fb1b215573c019b17e8c501bb3ca0`, rather than the former branch-tip resolver interface.
+See [ENSForge flow](ensforge.md) for setup, durable storage and recovery contracts.
 
 World uses IDKit 4's `selfieCheckLegacy` preset and the v4 verification endpoint. Provider verification
 checks the original proof; the server additionally binds its action, RP nonce, environment, signal and

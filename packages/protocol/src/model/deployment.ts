@@ -14,7 +14,6 @@ export const DeploymentContracts = Schema.Struct({
   hcaImplementation: DeployedAddress,
   validator: DeployedAddress,
   verifiableFactory: DeployedAddress,
-  proxyLogic: DeployedAddress,
   resolverImplementation: DeployedAddress,
   reverseAdapter: DeployedAddress,
 });
@@ -22,6 +21,6 @@ export type DeploymentContracts = typeof DeploymentContracts.Type;
 
 export const SepoliaDeployment = Schema.Struct({
   chainId: Schema.Literal(11155111),
-  ensRevision: Schema.Literal("6cd019f567c8eb0ca306c78851d4d58876a8e1df"),
+  ensRevision: Schema.Literal("09bf3ac64a6fb1b215573c019b17e8c501bb3ca0"),
   contracts: DeploymentContracts,
 });
