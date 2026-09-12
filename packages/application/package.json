@@ -33,7 +33,6 @@
     "@memento/database": "workspace:*",
     "@memento/privy": "workspace:*",
     "@memento/protocol": "workspace:*",
-    "@memento/world-id": "workspace:*",
     "effect": "catalog:",
     "viem": "catalog:"
   },

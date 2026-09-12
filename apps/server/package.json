@@ -38,9 +38,6 @@
   },
   "dependencies": {
     "@effect/platform-node": "catalog:",
-    "@ensforge/contracts": "catalog:",
-    "@ensforge/core": "catalog:",
-    "@ensforge/hca": "catalog:",
     "@ensforge/sdk": "catalog:",
     "@memento/api": "workspace:*",
     "@memento/application": "workspace:*",
@@ -48,8 +45,6 @@
     "@memento/database": "workspace:*",
     "@memento/privy": "workspace:*",
     "@memento/protocol": "workspace:*",
-    "@memento/world-id": "workspace:*",
-    "@rhinestone/sdk": "catalog:",
     "effect": "catalog:",
     "resend": "catalog:",
     "viem": "catalog:"
