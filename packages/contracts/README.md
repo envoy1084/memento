@@ -1,7 +1,7 @@
 # Memento contracts
 
-Nonupgradeable sponsorship escrow and ENSv2 name vault. ENS interfaces target contracts-v2
-ENSForge 0.4.0 deployed source `09bf3ac64a6fb1b215573c019b17e8c501bb3ca0`; upstream implementations are not copied.
+Nonupgradeable escrow for new ENS name gifts. ENS interfaces target contracts-v2
+ENSForge 0.4.0 deployed source `d0c902eeb388c7fbde3f95d9eaf6076eeedff1d7`; upstream implementations are not copied.
 Run `pnpm --filter @memento/contracts test` with Foundry installed.
 
 TypeScript ABIs live in `@memento/chain`. After changing Solidity, run `pnpm --filter @memento/chain generate`. `pnpm --filter @memento/contracts build` compiles contracts and verifies ABI freshness. This Foundry-only package has no TypeScript runtime exports.
@@ -20,3 +20,12 @@ are excluded. The project-wide `uninitialized-state` lint is temporarily exclude
 upstream analysis is fixed; compiler warnings remain enabled. Assembly-hashing and single-use
 modifier suggestions are excluded to preserve readable digest code and explicit authorization.
 Other intentional exceptions are scoped beside the relevant source with their rationale.
+
+## Direct registration
+
+`Deploy.s.sol` deploys only `MementoRegistration`. Registration inherits deposit
+and refund accounting from the sponsorship base. Its `registerGift` entrypoint combines resolver
+creation, bounded registrar payment, recipient ownership verification and refund in one transaction
+after a separate ENS commitment. `DirectRegistration.t.sol` covers the delay and atomic rollback.
+
+Deployment is manual. See [commands and fresh setup](../../architecture/deployment/README.md).

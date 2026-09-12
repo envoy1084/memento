@@ -5,7 +5,6 @@ pragma solidity ^0.8.30;
 // forge-lint: disable-next-line(unused-import)
 import {IEnsRegistry} from "./IEnsRegistry.sol";
 // forge-lint: disable-next-line(unused-import)
-import {IHcaFactory} from "./IHcaFactory.sol";
 // forge-lint: disable-next-line(unused-import)
 import {IVerifiableFactory} from "./IVerifiableFactory.sol";
 // forge-lint: disable-next-line(unused-import)

@@ -13,20 +13,11 @@ import {Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 /// @title Memento claim authorization
 /// @notice Verifies recipient consent and coordinator attestations for relayed claims.
 /// @dev EIP-712 domains bind signatures to this contract and chain. Supports EOAs and ERC-1271
-///      wallets. Email ownership and World ID proofs are verified offchain by the coordinator.
+///      wallets. Email ownership is verified offchain by the coordinator.
 abstract contract ClaimAuthorization is EIP712, Ownable2Step {
-    /// @notice Restricts who may redeem a claim secret.
-    /// @param kind 0 for bearer, 1 for a wallet, 2 for a coordinator-attested email identity.
-    /// @param id Zero for bearer, left-padded address for wallet, opaque nonzero ID for email.
-    struct Recipient {
-        uint8 kind;
-        bytes32 id;
-    }
-
     /// @notice Recipient-signed claim terms; changing any field invalidates consent.
-    /// @param giftId Gift ID, or the derived campaign invitation ID.
+    /// @param giftId Gift ID.
     /// @param recipient Wallet that signs and ultimately owns the name.
-    /// @param hca Recipient HCA for sponsorship; unused by the existing-name vault.
     /// @param resolver Expected resolver address; must be nonzero.
     /// @param labelhash Keccak-256 of the normalized label without the .eth suffix.
     /// @param nonce One-use value scoped to the recipient and this contract.
@@ -34,7 +25,6 @@ abstract contract ClaimAuthorization is EIP712, Ownable2Step {
     struct Intent {
         bytes32 giftId;
         address recipient;
-        address hca;
         address resolver;
         bytes32 labelhash;
         bytes32 nonce;
@@ -43,11 +33,11 @@ abstract contract ClaimAuthorization is EIP712, Ownable2Step {
 
     /// @notice EIP-712 type hash shared with client-side claim signing.
     bytes32 public constant INTENT_TYPEHASH = keccak256(
-        "ClaimIntent(bytes32 giftId,address recipient,address hca,address resolver,bytes32 labelhash,bytes32 nonce,uint64 deadline)"
+        "ClaimIntent(bytes32 giftId,address recipient,address resolver,bytes32 labelhash,bytes32 nonce,uint64 deadline)"
     );
     bytes32 private constant AUTH_TYPEHASH =
-        keccak256("ClaimAuthorization(bytes32 intentHash,bytes32 recipientId,bool eligible)");
-    /// @notice Current signer of identity/eligibility attestations and sponsorship funding operator.
+        keccak256("ClaimAuthorization(bytes32 intentHash,bytes32 recipientId)");
+    /// @notice Current signer of email attestations.
     address public coordinator;
     /// @notice Proposed coordinator, or zero when no rotation is pending.
     address public pendingCoordinator;
@@ -74,7 +64,7 @@ abstract contract ClaimAuthorization is EIP712, Ownable2Step {
     /// @dev Initializes the EIP-712 domain and two-step ownership.
     /// @param name Domain name for the concrete escrow.
     /// @param owner_ Initial administrator; must be nonzero.
-    /// @param coordinator_ Initial attestation signer and funding operator; must be nonzero.
+    /// @param coordinator_ Initial email attestation signer; must be nonzero.
     constructor(string memory name, address owner_, address coordinator_)
         EIP712(name, "1")
         Ownable(owner_)
@@ -82,17 +72,6 @@ abstract contract ClaimAuthorization is EIP712, Ownable2Step {
         if (coordinator_ == address(0)) revert InvalidClaim();
 
         coordinator = coordinator_;
-    }
-
-    /// @dev Restricts sponsorship funding to the active coordinator.
-    modifier onlyCoordinator() {
-        _checkCoordinator();
-        _;
-    }
-
-    /// @dev Keeps the authorization check out of the expanded modifier body.
-    function _checkCoordinator() private view {
-        if (msg.sender != coordinator) revert Unauthorized();
     }
 
     /// @notice Proposes a nonzero coordinator with a one-day activation delay.
@@ -129,45 +108,31 @@ abstract contract ClaimAuthorization is EIP712, Ownable2Step {
         return _hashTypedDataV4(keccak256(abi.encode(INTENT_TYPEHASH, intent)));
     }
 
-    /// @notice Returns the digest for a coordinator identity or eligibility attestation.
+    /// @notice Returns the digest for a coordinator email attestation.
     /// @param intent Recipient claim being attested.
     /// @param recipientId Restriction ID committed by the sponsor.
-    /// @param eligible False for email ownership, true for the World ID eligibility attestation.
     /// @return Digest that cannot be reused for different claim terms or attestation purposes.
-    function authorizationDigest(Intent calldata intent, bytes32 recipientId, bool eligible)
+    function authorizationDigest(Intent calldata intent, bytes32 recipientId)
         public
         view
         returns (bytes32)
     {
         return _hashTypedDataV4(
-            keccak256(abi.encode(AUTH_TYPEHASH, intentDigest(intent), recipientId, eligible))
+            keccak256(abi.encode(AUTH_TYPEHASH, intentDigest(intent), recipientId))
         );
     }
 
-    /// @dev Enforces supported recipient kinds and their zero/nonzero ID convention.
-    /// @param restriction Sponsor-selected recipient restriction.
-    function _validateRecipient(Recipient memory restriction) internal pure {
-        if (
-            restriction.kind > 2 || (restriction.kind == 0 && restriction.id != bytes32(0))
-                || (restriction.kind != 0 && restriction.id == bytes32(0))
-        ) revert InvalidClaim();
-    }
-
-    /// @dev Validates consent and optional attestations, then consumes the recipient nonce.
+    /// @dev Validates consent and the email attestation, then consumes the recipient nonce.
     ///      Callers must validate gift state and bind the intent to the stored gift first.
     /// @param intent Signed claim terms.
-    /// @param restriction Stored recipient restriction.
-    /// @param worldRequired Whether coordinator-attested World ID eligibility is mandatory.
+    /// @param recipientId Stored recipient email identity.
     /// @param signature Recipient EOA or ERC-1271 signature over intentDigest.
-    /// @param recipientAuthorization Coordinator email signature; ignored for other recipient kinds.
-    /// @param eligibility Coordinator eligibility signature; ignored when worldRequired is false.
+    /// @param recipientAuthorization Coordinator signature attesting to the recipient email.
     function _authorize(
         Intent calldata intent,
-        Recipient memory restriction,
-        bool worldRequired,
+        bytes32 recipientId,
         bytes calldata signature,
-        bytes calldata recipientAuthorization,
-        bytes calldata eligibility
+        bytes calldata recipientAuthorization
     ) internal {
         if (
             intent.recipient == address(0) || intent.resolver == address(0)
@@ -178,23 +143,9 @@ abstract contract ClaimAuthorization is EIP712, Ownable2Step {
                 intent.recipient, intentDigest(intent), signature
             )) revert Unauthorized();
 
-        if (restriction.kind == 1 && bytes32(uint256(uint160(intent.recipient))) != restriction.id) revert Unauthorized();
-
-        if (
-            restriction.kind == 2
-                && !SignatureChecker.isValidSignatureNow(
-                    coordinator,
-                    authorizationDigest(intent, restriction.id, false),
-                    recipientAuthorization
-                )
-        ) revert Unauthorized();
-
-        if (
-            worldRequired
-                && !SignatureChecker.isValidSignatureNow(
-                    coordinator, authorizationDigest(intent, restriction.id, true), eligibility
-                )
-        ) revert Unauthorized();
+        if (!SignatureChecker.isValidSignatureNow(
+                coordinator, authorizationDigest(intent, recipientId), recipientAuthorization
+            )) revert Unauthorized();
 
         // Any subsequent escrow failure reverts nonce consumption with the rest of the claim.
         usedNonces[intent.recipient][intent.nonce] = true;

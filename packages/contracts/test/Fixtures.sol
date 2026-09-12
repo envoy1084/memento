@@ -5,10 +5,8 @@ pragma solidity ^0.8.30;
 // forge-lint: disable-start(multi-contract-file)
 
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import {IERC1155Receiver} from "@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol";
 import {
     IEnsRegistry,
-    IHcaFactory,
     IVerifiableFactory,
     IPermissionedResolver
 } from "../src/interfaces/IEnsV2.sol";
@@ -38,35 +36,7 @@ contract Token is ERC20 {
     }
 }
 
-contract HcaFactory is IHcaFactory {
-    mapping(address => address) public authorizedOwnerOf;
-
-    function certify(address hca, address owner) external {
-        authorizedOwnerOf[hca] = owner;
-    }
-}
-
-contract Hca {}
-
 contract Registry is IEnsRegistry {
-    bool public hasDelegate;
-
-    function delegate(bool value) external {
-        hasDelegate = value;
-    }
-
-    function getResource(uint256 id) external pure returns (uint256) {
-        return id;
-    }
-
-    function roles(uint256 id, address account) external view returns (uint256) {
-        return owners[id] == account ? (uint256(1) << 24) | (uint256(1) << 156) : 0;
-    }
-
-    function roleCount(uint256) external view returns (uint256) {
-        return (uint256(hasDelegate ? 2 : 1) << 24) | (uint256(1) << 156);
-    }
-
     mapping(uint256 => address) public owners;
     mapping(uint256 => uint256) public versions;
     mapping(uint256 => address) public resolvers;
@@ -90,26 +60,6 @@ contract Registry is IEnsRegistry {
     function setResolver(uint256 id, address resolver) external {
         require(owners[id] == msg.sender);
         resolvers[id] = resolver;
-    }
-
-    function safeTransferFrom(
-        address from,
-        address to,
-        uint256 id,
-        uint256 amount,
-        bytes calldata data
-    ) external {
-        require(msg.sender == from && owners[id] == from && amount == 1);
-        // This test double checks ownership rather than reproducing upstream registry events.
-        // forge-lint: disable-next-line(missing-events-access-control)
-        owners[id] = to;
-
-        if (to.code.length > 0) {
-            require(
-                IERC1155Receiver(to).onERC1155Received(msg.sender, from, id, amount, data)
-                    == IERC1155Receiver.onERC1155Received.selector
-            );
-        }
     }
 }
 
@@ -159,7 +109,7 @@ contract ResolverFactory is IVerifiableFactory {
         returns (address)
     {
         require(implementation_ == implementation);
-        // Execute the actual encoded initializer to exercise the vault/factory integration.
+        // Execute the actual encoded initializer to exercise the registration/factory integration.
         // forge-lint: disable-next-line(low-level-calls)
         (bool success,) = address(next).call(initData);
         require(success);
@@ -177,10 +127,20 @@ contract ResolverFactory is IVerifiableFactory {
 abstract contract TestBase {
     IVm internal constant VM = IVm(address(uint160(uint256(keccak256("hevm cheat code")))));
     uint256 internal constant BOB_KEY = 1234;
+    uint256 internal constant COORDINATOR_KEY = 5678;
     address internal bob;
     address internal alice = address(0xa11ce);
     bytes32 internal constant ID = keccak256("gift");
     bytes32 internal constant SECRET = keccak256("secret");
+
+    function authorization(ClaimAuthorization contract_, ClaimAuthorization.Intent memory intent)
+        internal
+        returns (bytes memory)
+    {
+        (uint8 v, bytes32 r, bytes32 s) =
+            VM.sign(COORDINATOR_KEY, contract_.authorizationDigest(intent, ID));
+        return abi.encodePacked(r, s, v);
+    }
 
     function signature(ClaimAuthorization contract_, ClaimAuthorization.Intent memory intent)
         internal
