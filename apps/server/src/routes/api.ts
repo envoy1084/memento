@@ -65,15 +65,9 @@ const Gifts = HttpApiBuilder.group(
           safe,
         ),
 
-      listCampaigns: ({ query }) =>
+      fundingPlan: ({ params }) =>
         CurrentActor.pipe(
-          Effect.flatMap((actor) => app.listCampaigns(actor, query.offset)),
-          safe,
-        ),
-
-      getCampaign: ({ params }) =>
-        CurrentActor.pipe(
-          Effect.flatMap((actor) => app.getCampaign(actor, params.id)),
+          Effect.flatMap((actor) => app.giftFundingPlan(actor, params.id)),
           safe,
         ),
 
@@ -101,41 +95,9 @@ const Gifts = HttpApiBuilder.group(
           safe,
         ),
 
-      confirmCampaignRefund: ({ params, payload }) =>
-        CurrentActor.pipe(
-          Effect.flatMap((actor) =>
-            app.confirmCampaignRefund(actor, params.id, payload.transactionHash),
-          ),
-          safe,
-        ),
-
       refund: ({ params }) =>
         CurrentActor.pipe(
           Effect.flatMap((actor) => app.refundGift(actor, params.id)),
-          safe,
-        ),
-
-      prepareCampaign: ({ payload }) =>
-        CurrentActor.pipe(
-          Effect.flatMap((actor) => app.createCampaign(actor, payload)),
-          safe,
-        ),
-
-      confirmCampaign: ({ params, payload }) =>
-        CurrentActor.pipe(
-          Effect.flatMap((actor) => app.confirmCampaign(actor, params.id, payload.transactionHash)),
-          safe,
-        ),
-
-      invitations: ({ params }) =>
-        CurrentActor.pipe(
-          Effect.flatMap((actor) => app.invitations(actor, params.id)),
-          safe,
-        ),
-
-      refundCampaign: ({ params }) =>
-        CurrentActor.pipe(
-          Effect.flatMap((actor) => app.refundCampaign(actor, params.id)),
           safe,
         ),
     });
@@ -149,6 +111,11 @@ const Claims = HttpApiBuilder.group(
     const app = yield* Application;
 
     return handlers.handleAll({
+      forGift: ({ params }) =>
+        CurrentActor.pipe(
+          Effect.flatMap((actor) => app.claimForGift(actor, params.id)),
+          safe,
+        ),
       prepare: ({ params, payload }) =>
         CurrentActor.pipe(
           Effect.flatMap((actor) => app.prepareClaim(actor, params.id, payload)),
@@ -193,11 +160,6 @@ const Claims = HttpApiBuilder.group(
           Effect.flatMap((actor) => app.registrationView(actor, params.id)),
           safe,
         ),
-      recover: ({ params, payload }) =>
-        CurrentActor.pipe(
-          Effect.flatMap((actor) => app.recoverRegistration(actor, params.id, payload)),
-          safe,
-        ),
 
       setup: ({ params }) =>
         CurrentActor.pipe(
@@ -207,27 +169,13 @@ const Claims = HttpApiBuilder.group(
 
       authorize: ({ params, payload }) =>
         CurrentActor.pipe(
-          Effect.flatMap((actor) =>
-            app.authorizeClaim(actor, params.id, payload.signature, payload.sessionAuthorization),
-          ),
+          Effect.flatMap((actor) => app.authorizeClaim(actor, params.id, payload.signature)),
           safe,
         ),
 
       retry: ({ params }) =>
         CurrentActor.pipe(
           Effect.flatMap((actor) => app.retryClaim(actor, params.id)),
-          safe,
-        ),
-
-      worldRequest: ({ params }) =>
-        CurrentActor.pipe(
-          Effect.flatMap((actor) => app.worldRequest(actor, params.id)),
-          safe,
-        ),
-
-      worldVerify: ({ params, payload }) =>
-        CurrentActor.pipe(
-          Effect.flatMap((actor) => app.verifyWorld(actor, params.id, payload.proof)),
           safe,
         ),
     });

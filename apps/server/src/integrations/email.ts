@@ -1,4 +1,4 @@
-import { Effect, Layer, Redacted } from "effect";
+import { Config, Console, Effect, Layer, Redacted, Schema } from "effect";
 
 import { Mailer } from "@memento/application";
 import { ProviderError } from "@memento/protocol";
@@ -43,3 +43,30 @@ export const MailerLive = (apiKey: Redacted.Redacted<string>, from: string) =>
       }),
     });
   });
+
+// Development emails stay in the local console rather than the telemetry log pipeline.
+export const MailerConsole = Layer.succeed(
+  Mailer,
+  Mailer.of({
+    send: Effect.fn("Mailer.console")(function* ({ to, url }) {
+      yield* Console.log({
+        to,
+        subject: "You received a Memento ENS gift",
+        text: `Someone sent you an ENS gift. Open your private claim link:\n\n${url}`,
+      });
+    }),
+  }),
+);
+
+export const MailerConfigured = Layer.unwrap(
+  Effect.gen(function* () {
+    const environment = yield* Config.schema(
+      Schema.Literals(["development", "test", "production"]),
+      "NODE_ENV",
+    ).pipe(Config.withDefault("development"));
+    if (environment !== "production") return MailerConsole;
+    const apiKey = yield* Config.redacted("RESEND_API_KEY");
+    const from = yield* Config.string("EMAIL_FROM");
+    return MailerLive(apiKey, from);
+  }),
+);

@@ -1,7 +1,7 @@
 import { createServer } from "node:http";
 
 import { NodeHttpServer, NodeRuntime } from "@effect/platform-node";
-import { Config, Effect, Layer, Schema } from "effect";
+import { Config, Effect, Layer } from "effect";
 import { HttpRouter } from "effect/unstable/http";
 import { HttpApiScalar } from "effect/unstable/httpapi";
 
@@ -9,19 +9,15 @@ import { Api } from "@memento/api";
 import { Application, Cryptography, Product, Worker } from "@memento/application";
 import { Database, MigrationsLive, RepositoriesLive } from "@memento/database";
 import { Privy } from "@memento/privy";
-import { WorldId } from "@memento/world-id";
 
 import { productPolicy } from "./config/product.js";
-import { MailerLive } from "./integrations/email.js";
+import { MailerConfigured } from "./integrations/email.js";
 import { ChainLive } from "./integrations/ens/chain.js";
 import { Ethereum } from "./integrations/ens/client.js";
 import { EnsConfig } from "./integrations/ens/config.js";
-import { Hca } from "./integrations/ens/hca.js";
-import { TransactionJournal } from "./integrations/ens/journal.js";
+import { DirectRegistration } from "./integrations/ens/direct-registration.js";
 import { checkDeployment } from "./integrations/ens/readiness.js";
-import { Registration } from "./integrations/ens/registration.js";
 import { SepoliaRpc } from "./integrations/ens/rpc.js";
-import { EnsWorkflowStorage } from "./integrations/ens/storage.js";
 import { HttpPolicy } from "./layers/http.js";
 import { ApiRoutes } from "./routes/api.js";
 import { RpcRoutes } from "./routes/rpc/index.js";
@@ -47,15 +43,6 @@ Effect.gen(function* () {
   const emailKey = yield* Config.redacted("EMAIL_HMAC_KEY");
   const privyId = yield* Config.string("PRIVY_APP_ID");
   const privySecret = yield* Config.redacted("PRIVY_APP_SECRET");
-  const worldId = yield* Config.string("WORLD_APP_ID");
-  const rpId = yield* Config.string("WORLD_RP_ID");
-  const worldKey = yield* Config.redacted("WORLD_SIGNING_KEY");
-  const environment = yield* Config.schema(
-    Schema.Literals(["staging", "production"]),
-    "WORLD_ENVIRONMENT",
-  );
-  const resendKey = yield* Config.redacted("RESEND_API_KEY");
-  const from = yield* Config.string("EMAIL_FROM");
   const database = MigrationsLive.pipe(Layer.provideMerge(Database.live(url)));
   const persistence = RepositoriesLive.pipe(Layer.provideMerge(database));
 
@@ -65,22 +52,12 @@ Effect.gen(function* () {
     Ethereum.layer.pipe(Layer.provideMerge(EnsConfig.layer)),
   );
 
-  const journal = TransactionJournal.layer.pipe(Layer.provideMerge(infrastructure));
-  const storage = EnsWorkflowStorage.layer.pipe(Layer.provideMerge(journal));
-  const hca = Hca.layer.pipe(Layer.provideMerge(storage));
-  const registration = Registration.layer.pipe(Layer.provideMerge(hca));
+  const registration = DirectRegistration.layer.pipe(Layer.provideMerge(infrastructure));
   const chain = ChainLive.pipe(Layer.provideMerge(registration));
 
   const dependencies = Layer.mergeAll(
     chain,
-    WorldId.live({
-      appId: worldId,
-      rpId,
-      action: productPolicy.worldAction,
-      signingKey: worldKey,
-      environment,
-    }),
-    MailerLive(resendKey, from),
+    MailerConfigured,
     Layer.succeed(Product, {
       webOrigin,
       maximumBudget: productPolicy.maximumBudget,

@@ -87,21 +87,17 @@ it("streams the authenticated claim status and confirms sponsor refunds", async 
     const prepared = await web.handler(
       request("/v1/gifts/prepare", "alice", {
         sponsorWallet: alice.wallets[0],
-        kind: "chosen_name",
-        recipient: { kind: "any", value: "" },
+        recipient: { kind: "email", value: "bob@example.test" },
+        recipientName: "Bob",
         policy: {
           maxPrice: "1000",
           expiresAt: Math.floor(Date.now() / 1000) + 86400,
           duration: 31536000,
           minLength: 3,
           maxLength: 63,
-          worldRequired: false,
-          setPrimaryName: true,
         },
         message: "Hello",
         theme: "moon",
-        records: [],
-        label: null,
       }),
     );
 
@@ -200,13 +196,15 @@ it("returns only the verified actor and rejects missing or invalid session token
         headers: {
           origin,
           "access-control-request-method": "GET",
-          "access-control-request-headers": "authorization",
+          "access-control-request-headers": "authorization,b3,traceparent",
         },
       }),
     );
 
     expect(preflight.headers.get("access-control-allow-origin")).toBe(origin);
-    expect(preflight.headers.get("access-control-allow-headers")).toContain("authorization");
+    expect(preflight.status).toBe(204);
+    const allowedHeaders = preflight.headers.get("access-control-allow-headers")?.split(",");
+    expect(allowedHeaders).toEqual(expect.arrayContaining(["authorization", "b3", "traceparent"]));
   } finally {
     await web.dispose();
   }

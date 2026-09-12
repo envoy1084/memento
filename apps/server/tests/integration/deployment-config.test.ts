@@ -8,7 +8,7 @@ import { configuredDeployment } from "../../src/integrations/ens/config.js";
 const address = `0x${"12".repeat(20)}`;
 const configured = {
   ...sepoliaDeployment,
-  contracts: { ...sepoliaDeployment.contracts, sponsorship: address, vault: address },
+  contracts: { ...sepoliaDeployment.contracts, sponsorship: address },
 };
 
 it("decodes public deployment settings and rejects missing, zero, wrong-chain and wrong-revision values", async () => {

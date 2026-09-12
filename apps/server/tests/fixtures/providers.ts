@@ -3,7 +3,6 @@ import { Context, Effect, Layer, Redacted, Ref } from "effect";
 import { Chain, Cryptography, Mailer, Product } from "@memento/application";
 import { Privy } from "@memento/privy";
 import { type Actor, type Claim, Conflict, Forbidden, Unauthorized } from "@memento/protocol";
-import { WorldId } from "@memento/world-id";
 
 export const alice: Actor = {
   userId: "alice",
@@ -53,12 +52,10 @@ const chain = Layer.effect(
     const test = yield* TestProviders;
 
     const states: Partial<Record<Claim["state"], Claim["state"]>> = {
-      authorized: "reserved",
-      reserved: "committing",
+      authorized: "committing",
       committing: "waiting",
       waiting: "registering",
-      registering: "verifying",
-      verifying: "complete",
+      registering: "complete",
     };
 
     return Chain.of({
@@ -74,16 +71,7 @@ const chain = Layer.effect(
 
       giftPlan: () => Effect.succeed([{ to: address, data: "0x", value: "0" }]),
 
-      campaignPlan: () => Effect.succeed([{ to: address, data: "0x", value: "0" }]),
-
       confirmGift: (_, hash) =>
-        hash === digest
-          ? Effect.void
-          : Effect.fail(
-              new Conflict({ code: "FUNDING_MISMATCH", message: "Invalid funding transaction" }),
-            ),
-
-      confirmCampaign: (_, hash) =>
         hash === digest
           ? Effect.void
           : Effect.fail(
@@ -92,46 +80,36 @@ const chain = Layer.effect(
 
       prepare: () =>
         Effect.succeed({
-          hca: address,
           resolver: address,
           resolverSalt: digest,
-          session: { bounded: true },
-          sessionKey: "test-key",
           commitmentSecret: digest,
           commitment: digest,
-          typedData: {},
         }),
 
       registrationView: () =>
         Effect.succeed({
           status: "not-started",
           readyAt: null,
-          transactionHash: null,
           reason: null,
           step: null,
-          planFingerprint: null,
         }),
-      recoverRegistration: () => Effect.void,
       setup: (_, claim) =>
         Effect.succeed({
-          stage: "enable-session",
+          stage: "commit-name",
           chainId: 11155111,
           from: claim.recipientWallet,
           calls: [],
-          authorization: null,
         }),
       typedIntent: (_, intent) => intent,
 
       authorize: (_, __, signature) =>
-        signature === "0x1234"
+        ["0x1234", "0x5678"].includes(signature)
           ? Effect.succeed({
-              session: "verified-session",
               recipientAuthorization: "0x",
-              eligibility: "0x",
             })
           : Effect.fail(new Forbidden({ message: "Invalid signature" })),
 
-      advance: (gift, claim) =>
+      advance: (_gift, claim) =>
         Effect.gen(function* () {
           if (yield* Ref.get(test.hangChain)) yield* Effect.never;
 
@@ -139,18 +117,13 @@ const chain = Layer.effect(
             return yield* new Conflict({ code: "SESSION_REVOKED", message: "Session was revoked" });
 
           return {
-            state:
-              gift.kind === "existing_name" ? "complete" : (states[claim.state] ?? claim.state),
+            state: states[claim.state] ?? claim.state,
           };
         }),
 
       confirmRefund: () => Effect.void,
 
-      confirmCampaignRefund: () => Effect.void,
-
       refundPlan: () => Effect.succeed([]),
-
-      campaignRefundPlan: () => Effect.succeed([]),
     });
   }),
 );
@@ -166,26 +139,6 @@ const mailer = Layer.effect(
           emails.includes(mail.idempotencyKey) ? emails : [...emails, mail.idempotencyKey],
         ),
     });
-  }),
-);
-
-const world = Layer.succeed(
-  WorldId,
-  WorldId.of({
-    action: "claim",
-
-    request: (signal) =>
-      Effect.succeed({
-        nonce: digest,
-        signal,
-        expiresAt: 2000000000,
-        configuration: { nonce: digest, signal },
-      }),
-
-    verify: (proof) =>
-      proof === "valid"
-        ? Effect.succeed("12345")
-        : Effect.fail(new Forbidden({ message: "Invalid proof" })),
   }),
 );
 
@@ -208,7 +161,6 @@ const privy = Layer.succeed(
 export const Providers = Layer.mergeAll(
   chain,
   mailer,
-  world,
   privy,
   Cryptography.live(Redacted.make("77".repeat(32)), Redacted.make("88".repeat(32))),
   Layer.succeed(Product, {

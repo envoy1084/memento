@@ -20,7 +20,7 @@ export const configuredDeployment = Effect.fn("EnsConfig.deployment")(function* 
   );
 
   for (const [key, expected] of Object.entries(sepoliaDeployment.contracts)) {
-    if (key === "sponsorship" || key === "vault" || expected === null) continue;
+    if (key === "sponsorship" || expected === null) continue;
     const actual = deployment.contracts[key as keyof typeof deployment.contracts];
     if (actual.toLowerCase() !== expected.toLowerCase())
       return yield* new ProviderError({
@@ -42,7 +42,6 @@ const make = Effect.gen(function* () {
   const secrets = yield* Config.all({
     rpcUrl: Config.redacted("RPC_URL"),
     coordinatorKey: Config.redacted("COORDINATOR_PRIVATE_KEY"),
-    rhinestoneKey: Config.redacted("RHINESTONE_API_KEY"),
   });
 
   return { ...deployment, ...secrets, confirmations: chainConfirmations };

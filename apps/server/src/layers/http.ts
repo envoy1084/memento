@@ -58,7 +58,8 @@ export const HttpPolicy = (origin: string) =>
         HttpRouter.cors({
           allowedOrigins: [origin],
           allowedMethods: ["GET", "POST", "OPTIONS"],
-          allowedHeaders: ["authorization", "content-type"],
+          // Effect HttpClient propagates both B3 and W3C tracing headers.
+          allowedHeaders: ["authorization", "content-type", "b3", "traceparent"],
           maxAge: 600,
         }),
       );

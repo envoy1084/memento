@@ -1,14 +1,11 @@
 import { Effect } from "effect";
 
-import {
-  MementoSponsorshipAbi as escrowAbi,
-  MementoNameVaultAbi as vaultAbi,
-} from "@memento/chain";
+import { MementoSponsorshipAbi as escrowAbi, MementoRegistrationAbi } from "@memento/chain";
 import { sepolia } from "@memento/chain/network";
 import { ProviderError } from "@memento/protocol";
 import { erc20Abi } from "viem";
 
-import { Ethereum, ensRequest, provider } from "./client.js";
+import { Ethereum, provider } from "./client.js";
 import { EnsConfig } from "./config.js";
 
 const fail = (message: string) =>
@@ -16,7 +13,7 @@ const fail = (message: string) =>
 
 export const checkDeployment = Effect.gen(function* () {
   const config = yield* EnsConfig;
-  const { publicClient, account, ensforge } = yield* Ethereum;
+  const { publicClient, account } = yield* Ethereum;
 
   if ((yield* provider("rpc", () => publicClient.getChainId())) !== sepolia.id)
     return yield* fail("RPC must use the configured Sepolia chain");
@@ -26,13 +23,8 @@ export const checkDeployment = Effect.gen(function* () {
     config.registry,
     config.token,
     config.sponsorship,
-    config.vault,
-    config.hcaFactory,
-    config.hcaImplementation,
-    config.validator,
     config.verifiableFactory,
     config.resolverImplementation,
-    config.reverseAdapter,
   ]) {
     const code = yield* provider("rpc", () => publicClient.getCode({ address }));
 
@@ -46,23 +38,26 @@ export const checkDeployment = Effect.gen(function* () {
 
   if (decimals !== 6) return yield* fail("Payment token must use six decimals");
 
-  const hca = yield* ensRequest(ensforge.hca.predictHcaAddress.effect({ owner: account.address }));
-  yield* ensRequest(
-    ensforge.hca.verifyHca.effect({ hca, expectedOwner: account.address, allowUndeployed: true }),
-  );
+  for (const [functionName, expected] of [
+    ["REGISTRAR", config.registrar],
+    ["RESOLVER_FACTORY", config.verifiableFactory],
+    ["RESOLVER_IMPLEMENTATION", config.resolverImplementation],
+  ] as const) {
+    const actual = yield* provider("deployment", () =>
+      publicClient.readContract({
+        address: config.sponsorship,
+        abi: MementoRegistrationAbi,
+        functionName,
+      }),
+    );
+    if (actual.toLowerCase() !== expected.toLowerCase())
+      return yield* fail("Direct registration configuration differs from the server");
+  }
 
   const coordinator = yield* provider("rpc", () =>
     publicClient.readContract({
       address: config.sponsorship,
       abi: escrowAbi,
-      functionName: "coordinator",
-    }),
-  );
-
-  const vaultCoordinator = yield* provider("rpc", () =>
-    publicClient.readContract({
-      address: config.vault,
-      abi: vaultAbi,
       functionName: "coordinator",
     }),
   );
@@ -75,14 +70,6 @@ export const checkDeployment = Effect.gen(function* () {
     }),
   );
 
-  const factory = yield* provider("rpc", () =>
-    publicClient.readContract({
-      address: config.sponsorship,
-      abi: escrowAbi,
-      functionName: "hcaFactory",
-    }),
-  );
-
   const registry = yield* provider("rpc", () =>
     publicClient.readContract({
       address: config.sponsorship,
@@ -91,30 +78,10 @@ export const checkDeployment = Effect.gen(function* () {
     }),
   );
 
-  const vaultRegistry = yield* provider("rpc", () =>
-    publicClient.readContract({ address: config.vault, abi: vaultAbi, functionName: "registry" }),
-  );
-  const vaultFactory = yield* provider("rpc", () =>
-    publicClient.readContract({ address: config.vault, abi: vaultAbi, functionName: "factory" }),
-  );
-
-  const vaultResolver = yield* provider("rpc", () =>
-    publicClient.readContract({
-      address: config.vault,
-      abi: vaultAbi,
-      functionName: "resolverImplementation",
-    }),
-  );
-
   for (const [actual, expected] of [
     [coordinator, account.address],
-    [vaultCoordinator, account.address],
     [token, config.token],
-    [factory, config.hcaFactory],
     [registry, config.registry],
-    [vaultRegistry, config.registry],
-    [vaultFactory, config.verifiableFactory],
-    [vaultResolver, config.resolverImplementation],
   ]) {
     if (actual?.toLowerCase() !== expected?.toLowerCase())
       return yield* fail("Memento contract configuration differs from the server");

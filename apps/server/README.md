@@ -16,11 +16,21 @@ Requests require JSON-RPC 2.0 IDs. Batches contain 1–20 calls, with four concu
 
 ## ENSForge registration
 
-SDK/core/HCA/contracts use 0.4.0; the Rhinestone 1.8.0 peer uses the exact patch published with HCA.
-`POST /v1/claims/:id/setup` returns staged owner-wallet calls. Authorization accepts the Memento
-signature plus `{ permissionId, enableTransactionHash }` session evidence. Registration then uses
-ENSForge's Rhinestone adapter and encrypted PostgreSQL WorkflowStorage.
+New-name claims use ENSForge for quotes, commitments and readiness, and Privy for two sponsored
+receiver transactions. Setup returns `commit-name`, `waiting`, `register-name`, or `not-required`.
+The final MementoRegistration call atomically registers and refunds unused funding. No Rhinestone
+credentials or HCA session is required. See [backend flow](../../architecture/backend/ensforge.md).
 
-See [backend flow](../../architecture/backend/ensforge.md) for status/recovery endpoints, invariants,
-legacy claims and required live setup. `pnpm --filter @memento/server test` exercises these boundaries
-without credentials; `pnpm test:postgres` verifies concurrent storage operations.
+Browser CORS allows the configured `WEB_ORIGIN` and the `authorization`, `content-type`, `b3` and `traceparent` request headers. The tracing headers are emitted by Effect HttpClient, including session verification; omitting them blocks browser preflight before authentication runs.
+
+## Email delivery
+
+Funding confirmation automatically creates a durable email job in the same database transaction as
+the funded gift. The worker sends it with a per-gift/recipient idempotency key. The sender page polls
+the backend delivery state and displays “Gift email sent” only after the job completes.
+
+With `NODE_ENV=development` (the default) or `test`, the Mailer console Layer prints the recipient,
+subject and private claim link to the server console without contacting Resend or requiring email
+credentials. These local previews contain private invitation links. `NODE_ENV=production` selects
+Resend and requires `RESEND_API_KEY` and `EMAIL_FROM`; it never falls back to console delivery.
+The production adapter currently sends plain text; designed templates remain future work.
