@@ -68,6 +68,37 @@ const create = Effect.gen(function* () {
 });
 
 layer(testLayer)("backend HTTP workflows with migrated PGlite", (it) => {
+  it.effect("restricts HCA setup, registration status and recovery to the linked recipient", () =>
+    Effect.gen(function* () {
+      yield* (yield* TestDatabase).reset;
+      const gift = yield* create;
+      const recipient = yield* client("bob");
+      const stranger = yield* client("carol");
+      const prepared = yield* recipient.claims.prepare({
+        params: { id: gift.id },
+        payload: { secret: gift.secret, recipientWallet: bob.wallets[0] ?? "", label: "bob" },
+      });
+      const params = { id: prepared.id };
+
+      expect((yield* recipient.claims.setup({ params })).stage).toBe("enable-session");
+      expect((yield* recipient.claims.registration({ params })).status).toBe("not-started");
+      expect((yield* stranger.claims.setup({ params }).pipe(Effect.flip))._tag).toBe("Forbidden");
+      expect((yield* stranger.claims.registration({ params }).pipe(Effect.flip))._tag).toBe(
+        "Forbidden",
+      );
+      const payload = {
+        kind: "session" as const,
+        authorization: { permissionId: digest, enableTransactionHash: digest },
+      };
+      expect((yield* stranger.claims.recover({ params, payload }).pipe(Effect.flip))._tag).toBe(
+        "Forbidden",
+      );
+      expect((yield* recipient.claims.recover({ params, payload }).pipe(Effect.flip))._tag).toBe(
+        "InvalidRequest",
+      );
+    }),
+  );
+
   it.effect("funds, opens, authorizes and completes a chosen-name gift", () =>
     Effect.gen(function* () {
       yield* (yield* TestDatabase).reset;
