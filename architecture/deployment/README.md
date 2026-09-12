@@ -6,13 +6,20 @@ Enable email login and Sepolia gas sponsorship for embedded wallets in Privy. Br
 
 ## Manual contract deployment
 
-The following command broadcasts only when **you** run it. Import an encrypted deployer keystore first, and export `RPC_URL`, `CONTRACT_ADMIN` and `COORDINATOR_ADDRESS` in your shell. The coordinator address must match the server signing key. The deployer needs Sepolia ETH.
+The following command broadcasts only when **you** run it. Import an encrypted deployer keystore first, and export `RPC_URL`, `CONTRACT_ADMIN`, `COORDINATOR_ADDRESS` and `ETHERSCAN_API_KEY` in your shell. The coordinator address must match the server signing key. The deployer needs Sepolia ETH.
 
 ```sh
 cast wallet import memento-deployer --interactive
 cd packages/contracts
-forge script script/Deploy.s.sol:Deploy --account memento-deployer --rpc-url "$RPC_URL" --broadcast
+forge script script/Deploy.s.sol:Deploy \
+  --account memento-deployer \
+  --rpc-url "$RPC_URL" \
+  --broadcast \
+  --verify \
+  --etherscan-api-key "$ETHERSCAN_API_KEY"
 ```
+
+The command deploys and submits the source for Etherscan verification. Check both results before recording the address.
 
 The script deploys one `MementoRegistration` using the checked-in ENS/token dependencies. Put its address into `contracts.sponsorship` in `packages/chain/src/deployments/sepolia.json`, then rebuild/restart the apps. No old contract address is compatible with this fresh interface. ENS itself is not redeployed. The coordinator only signs attestations and does not need funds for broadcasting claims.
 
