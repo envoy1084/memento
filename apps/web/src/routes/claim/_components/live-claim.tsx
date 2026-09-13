@@ -41,8 +41,15 @@ export function LiveClaim({ giftId }: { giftId: string }) {
 
 function OpenInvitation({ giftId, secret }: { giftId: string; secret: string }) {
   const auth = useAuth();
+  const [enteredName, setEnteredName] = useState("");
   const opened = useRemote(invitationAtom(new InvitationQuery({ id: giftId, secret })));
   const gift = opened.data;
+  const previewLabel =
+    gift?.label ??
+    enteredName
+      .trim()
+      .toLowerCase()
+      .replace(/\.eth$/, "");
 
   if ((auth.configured && !auth.ready) || auth.verifying || opened.loading)
     return (
@@ -62,12 +69,12 @@ function OpenInvitation({ giftId, secret }: { giftId: string; secret: string }) 
           <Button onPress={opened.refresh}>Retry</Button>
         </Note>
       ) : (
-        <div className="grid items-start gap-8 lg:grid-cols-2">
-          <div className="overflow-hidden rounded-2xl border border-rule bg-paper-raised shadow-lift">
+        <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
+          <div className="min-w-0 overflow-hidden rounded-2xl border border-rule bg-paper-raised shadow-lift">
             <GiftArt
-              name={gift.label ? `${gift.label}.eth` : "yourname.eth"}
+              name={previewLabel ? `${previewLabel}.eth` : "yourname.eth"}
               theme={giftTheme(gift.theme)}
-              size="md"
+              size="lg"
             />
             <div className="border-t border-rule p-7 text-center">
               <p>For {gift.recipientName ?? "you"}</p>
@@ -77,7 +84,7 @@ function OpenInvitation({ giftId, secret }: { giftId: string; secret: string }) 
               ) : null}
             </div>
           </div>
-          <Card className="rounded-2xl border border-rule p-7 shadow-none">
+          <Card className="min-w-0 rounded-2xl border border-rule p-7 shadow-none">
             <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
               <p className="m-0 text-xs font-semibold tracking-[0.18em] text-lavender-700 uppercase">
                 A gift, just for you
@@ -94,6 +101,8 @@ function OpenInvitation({ giftId, secret }: { giftId: string; secret: string }) 
                 key={`${auth.actor?.userId}:${auth.address}:${giftId}`}
                 gift={gift}
                 secret={secret}
+                enteredName={enteredName}
+                setEnteredName={setEnteredName}
               />
             )}
           </Card>
@@ -103,12 +112,21 @@ function OpenInvitation({ giftId, secret }: { giftId: string; secret: string }) 
   );
 }
 
-function RecipientClaim({ gift, secret }: { gift: typeof GiftView.Type; secret: string }) {
+function RecipientClaim({
+  gift,
+  secret,
+  enteredName,
+  setEnteredName,
+}: {
+  gift: typeof GiftView.Type;
+  secret: string;
+  enteredName: string;
+  setEnteredName: (name: string) => void;
+}) {
   const auth = useAuth();
   const saved = useRemote(
     recipientClaimAtom(new GiftQuery({ id: gift.id, userId: auth.actor?.userId ?? "" })),
   );
-  const [enteredName, setEnteredName] = useState("");
   const [phase, setPhase] = useState<ClaimPhase>("confirming");
   const [startedAt, setStartedAt] = useState<number | null>(null);
   const [readyAt, setReadyAt] = useState<number | null>(null);
