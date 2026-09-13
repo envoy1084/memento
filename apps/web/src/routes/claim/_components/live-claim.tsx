@@ -286,6 +286,7 @@ function RecipientClaim({ gift, secret }: { gift: typeof GiftView.Type; secret: 
           {
             <Field
               label="Choose your name"
+              hideLabel
               value={enteredName}
               onChange={setEnteredName}
               placeholder="yourname.eth"

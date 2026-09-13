@@ -15,6 +15,7 @@ import {
 
 export function Field({
   label,
+  hideLabel = false,
   value,
   onChange,
   placeholder,
@@ -27,6 +28,7 @@ export function Field({
   autoComplete,
 }: {
   label: string;
+  hideLabel?: boolean;
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
@@ -47,7 +49,7 @@ export function Field({
       type={type}
       {...(maxLength === undefined ? {} : { maxLength })}
     >
-      <Label>{label}</Label>
+      <Label className={hideLabel ? "sr-only" : undefined}>{label}</Label>
       {multiline ? (
         <TextArea placeholder={placeholder ?? ""} rows={rows} />
       ) : (
