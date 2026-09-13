@@ -73,6 +73,9 @@ function OpenInvitation({ giftId, secret }: { giftId: string; secret: string }) 
             <div className="border-t border-rule p-7 text-center">
               <p>For {gift.recipientName ?? "you"}</p>
               <p className="mt-3 text-lg leading-relaxed">“{gift.message}”</p>
+              {gift.senderName ? (
+                <p className="mt-4 mb-0 text-sm text-ink-soft">From {gift.senderName}</p>
+              ) : null}
             </div>
           </div>
           <Card className="rounded-2xl border border-rule p-7 shadow-none">
@@ -81,12 +84,7 @@ function OpenInvitation({ giftId, secret }: { giftId: string; secret: string }) 
             </p>
             <h1 className="text-display-md">A name of your own.</h1>
             {!auth.address ? (
-              <>
-                <p className="text-sm text-ink-soft">
-                  Sign in using the email this gift was sent to.
-                </p>
-                <AccountRequired />
-              </>
+              <AccountRequired />
             ) : (
               <RecipientClaim
                 key={`${auth.actor?.userId}:${auth.address}:${giftId}`}

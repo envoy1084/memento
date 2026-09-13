@@ -7,7 +7,7 @@ import { useAuth } from "#/hooks/use-auth";
 export function AccountRequired() {
   const auth = useAuth();
   return (
-    <div className="rounded-2xl border border-rule bg-lavender-50/50 p-4">
+    <div className="rounded-lg border border-rule bg-lavender-50/50 p-4">
       <div className="flex flex-wrap items-center gap-4">
         <span
           aria-hidden="true"
