@@ -139,3 +139,16 @@ docker run --rm -p 127.0.0.1:8080:80 memento-web
 
 The API needs the runtime variables and a reachable PostgreSQL instance to start. These commands
 only build images and preview the web app; they do not deploy contracts or send gifts.
+
+## Vercel frontend alternative
+
+The frontend can run on Vercel while the API and PostgreSQL stay on Dokploy. Set the Vercel project's
+Root Directory to `apps/web` and enable inclusion of files outside the root for workspace imports.
+Choose Vite, build with `pnpm build`, and publish `dist`. Configure the same two public Vite variables
+listed above and redeploy whenever they change. `apps/web/vercel.json` supplies the SPA fallback for
+direct invitation links; the URL and its private fragment remain unchanged. Add the frontend domain
+to Vercel and Privy, and use that exact origin for the API's `WEB_ORIGIN`.
+
+If `/` works but `/send` returns Vercel `NOT_FOUND`, check that this rewrite was included in the latest
+production deployment. `DEPLOYMENT_NOT_FOUND` on the homepage instead indicates a deployment/domain
+mapping problem. See [Vercel's Vite SPA guide](https://vercel.com/docs/frameworks/frontend/vite).
