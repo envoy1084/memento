@@ -16,9 +16,9 @@ import { claimSignature } from "#/atoms/claim-signature";
 import { GiftQuery, InvitationQuery, invitationAtom, recipientClaimAtom } from "#/atoms/gifts";
 import { AccountRequired } from "#/components/common/account-required";
 import { Field } from "#/components/common/fields";
-import { CopyButton, DetailList, DetailRow, Note, Section } from "#/components/common/page";
+import { CopyButton, Note, Section } from "#/components/common/page";
 import { GiftArt } from "#/components/display/gift-art";
-import { formatDate, formatTimeLeft, formatRegistrationDuration } from "#/format/date";
+import { formatDate } from "#/format/date";
 import { giftTheme } from "#/format/gift";
 import { JourneyError, useApiTask, useRemote } from "#/hooks/use-api-task";
 import { useAuth } from "#/hooks/use-auth";
@@ -85,7 +85,6 @@ function OpenInvitation({ giftId, secret }: { giftId: string; secret: string }) 
               </p>
               <p className="m-0 ml-auto text-right text-xs text-ink-soft">
                 Claim by {formatDate(gift.policy.expiresAt)}
-                <span className="mt-1 block">{formatTimeLeft(gift.policy.expiresAt)}</span>
               </p>
             </div>
             <h1 className="text-display-md">A name of your own.</h1>
@@ -111,7 +110,6 @@ function RecipientClaim({ gift, secret }: { gift: typeof GiftView.Type; secret: 
     recipientClaimAtom(new GiftQuery({ id: gift.id, userId: auth.actor?.userId ?? "" })),
   );
   const [enteredName, setEnteredName] = useState("");
-  const [review, setReview] = useState(false);
   const [phase, setPhase] = useState<ClaimPhase>("confirming");
   const [startedAt, setStartedAt] = useState<number | null>(null);
   const [readyAt, setReadyAt] = useState<number | null>(null);
@@ -279,7 +277,7 @@ function RecipientClaim({ gift, secret }: { gift: typeof GiftView.Type; secret: 
 
   return (
     <div className="space-y-5">
-      {!review && !claim ? (
+      {!claim ? (
         <>
           <p className="text-sm leading-relaxed text-ink-soft">
             Choose something that feels like you. Your gift covers registration, and we cover the
@@ -321,54 +319,29 @@ function RecipientClaim({ gift, secret }: { gift: typeof GiftView.Type; secret: 
               Retry lookup
             </Button>
           ) : null}
-          <Button size="md" isDisabled={!available || !valid} onPress={() => setReview(true)}>
-            This is my name
-          </Button>
         </>
       ) : (
-        <>
-          <DetailList>
-            <DetailRow label="Name">{label}.eth</DetailRow>
-            <DetailRow label="Registration">
-              {formatRegistrationDuration(gift.policy.duration)}
-            </DetailRow>
-            <DetailRow label="Claim by">{formatDate(gift.policy.expiresAt)}</DetailRow>
-            <DetailRow label="You pay">Nothing — it’s a gift</DetailRow>
-          </DetailList>
-          <p className="text-sm text-ink-soft">
-            Confirm once and we’ll take it from here. There’s a short wait before your name is
-            ready.
-          </p>
-          {task.error ? (
-            <div role="alert">
-              <Note status="danger">{task.error}</Note>
-            </div>
-          ) : null}
-          <Button
-            size="md"
-            isDisabled={task.busy}
-            onPress={() => {
-              void start();
-            }}
-          >
-            {task.busy
-              ? "Getting your name ready…"
-              : claim
-                ? "Continue claiming"
-                : "Claim this name"}
-          </Button>
-          {!claim ? (
-            <Button
-              size="md"
-              variant="ghost"
-              isDisabled={task.busy}
-              onPress={() => setReview(false)}
-            >
-              Change name
-            </Button>
-          ) : null}
-        </>
+        <p className="text-lg font-medium">{label}.eth</p>
       )}
+      {task.error ? (
+        <div role="alert">
+          <Note status="danger">{task.error}</Note>
+        </div>
+      ) : null}
+      <Button
+        size="md"
+        isDisabled={
+          task.busy ||
+          !available ||
+          !valid ||
+          (!claim && (price.isWaiting || price.isInitial || price.isFailure))
+        }
+        onPress={() => {
+          void start();
+        }}
+      >
+        {claim ? "Continue claiming" : "Claim my name"}
+      </Button>
     </div>
   );
 }
