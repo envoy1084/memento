@@ -189,7 +189,7 @@ export function useGiftTransactions() {
           if (sponsored) {
             const result = await sendTransaction(
               { to: call.to, data: call.data, value: toHex(BigInt(call.value)), chainId },
-              { address: account, sponsor: true, uiOptions: { showWalletUIs: false } },
+              { address: account, sponsor: true, uiOptions: { showWalletUIs: true } },
             );
             hash = result.hash;
           } else {
