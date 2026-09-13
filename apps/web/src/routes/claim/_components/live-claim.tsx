@@ -79,9 +79,15 @@ function OpenInvitation({ giftId, secret }: { giftId: string; secret: string }) 
             </div>
           </div>
           <Card className="rounded-2xl border border-rule p-7 shadow-none">
-            <p className="mb-3 text-xs font-semibold tracking-[0.18em] text-lavender-700 uppercase">
-              A gift, just for you
-            </p>
+            <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
+              <p className="m-0 text-xs font-semibold tracking-[0.18em] text-lavender-700 uppercase">
+                A gift, just for you
+              </p>
+              <p className="m-0 ml-auto text-right text-xs text-ink-soft">
+                Claim by {formatDate(gift.policy.expiresAt)}
+                <span className="mt-1 block">{formatTimeLeft(gift.policy.expiresAt)}</span>
+              </p>
+            </div>
             <h1 className="text-display-md">A name of your own.</h1>
             {!auth.address ? (
               <AccountRequired />
@@ -287,14 +293,6 @@ function RecipientClaim({ gift, secret }: { gift: typeof GiftView.Type; secret: 
               placeholder="yourname.eth"
             />
           }
-          <p className="text-sm text-ink-soft">
-            {gift.policy.minLength}–{gift.policy.maxLength} characters ·{" "}
-            {formatRegistrationDuration(gift.policy.duration)} ·{" "}
-            <ClaimAmount amount={gift.policy.maxPrice} /> funded
-          </p>
-          <p className="text-xs text-ink-soft" title={formatDate(gift.policy.expiresAt)}>
-            {formatTimeLeft(gift.policy.expiresAt)} · Claim by {formatDate(gift.policy.expiresAt)}
-          </p>
           {valid ? (
             <p role="status" className="text-sm">
               {price.isFailure ? (
