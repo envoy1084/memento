@@ -176,7 +176,7 @@ function GiftForm() {
                   {step === 0 ? (
                     <>
                       <div className="space-y-6">
-                        <div className="grid gap-5 sm:grid-cols-2">
+                        <div className="flex w-full flex-col gap-5">
                           <NumberInput
                             label="Maximum amount (USDC)"
                             value={maxUsdc}
