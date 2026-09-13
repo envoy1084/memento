@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://memento.envoy1084.xyz/sitemap.xml

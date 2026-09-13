@@ -23,3 +23,11 @@ root for workspace dependencies, and use the Vite preset (build `pnpm build`, ou
 Set `VITE_API_URL` and `VITE_PRIVY_APP_ID` in Vercel's environment settings before building.
 The app-owned `vercel.json` rewrites direct routes to `index.html` so invitation URLs and browser
 refreshes load the SPA. Redeploy after adding the configuration. The API remains on Dokploy.
+
+SEO metadata lives in `index.html`: title, description, canonical URL, Open Graph and Twitter cards.
+Public assets include a 1200×630 PNG share image, SVG/PNG favicon and Apple touch icon. The sitemap
+lists the homepage, which is the canonical landing page for this SPA. Both Vercel and Nginx send
+`X-Robots-Tag: noindex, nofollow` for gift, claim and dashboard routes. Robots can crawl those routes
+to read the directive; this is indexing policy, not access control. Social previews contain only
+product copy, never recipient information. Update the production domain in metadata, sitemap and
+robots.txt if the frontend moves. Full page-content SEO still depends on JavaScript rendering.
