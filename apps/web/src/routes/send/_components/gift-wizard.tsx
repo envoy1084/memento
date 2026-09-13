@@ -5,7 +5,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { Effect, Schema } from "effect";
 
 import { Digest, CreateGift, GiftRecipientContact } from "@memento/protocol";
-import { Button, Card, Form, NumberValue } from "@thenamespace/uikit";
+import { Button, Card, Form, NumberValue, Spinner } from "@thenamespace/uikit";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { formatUnits, parseUnits } from "viem";
 
@@ -286,7 +286,6 @@ function GiftForm() {
                         <DetailRow label="From">{senderName.trim()}</DetailRow>
                         <DetailRow label="For">{recipient}</DetailRow>
                         <DetailRow label="Email">{recipientEmail.trim().toLowerCase()}</DetailRow>
-                        <DetailRow label="Gift">A name they choose</DetailRow>
                         <DetailRow label="Registration">
                           {years} year{years > 1 ? "s" : ""}
                         </DetailRow>
@@ -309,10 +308,6 @@ function GiftForm() {
                           )}
                         </DetailRow>
                         <DetailRow label="Claim within">30 days</DetailRow>
-                        <DetailRow label="Network">Sepolia</DetailRow>
-                        <DetailRow label="Wrapping">
-                          {theme === "aura" ? "Lavender" : theme === "rose" ? "Blush" : "Sage"}
-                        </DetailRow>
                       </DetailList>
                     </>
                   ) : null}
@@ -351,13 +346,17 @@ function GiftForm() {
                   isDisabled={task.busy || (step === 2 && (!auth.address || !amount))}
                 >
                   {task.busy
-                    ? "Confirm in your wallet…"
+                    ? "Creating…"
                     : step === 2
                       ? "Create this gift"
                       : step === 1
                         ? "Review"
                         : "Add your note"}
-                  <Icon name="arrow" size={18} />
+                  {task.busy ? (
+                    <Spinner size="sm" color="current" />
+                  ) : (
+                    <Icon name="arrow" size={18} />
+                  )}
                 </Button>
               </div>
             </Card>
