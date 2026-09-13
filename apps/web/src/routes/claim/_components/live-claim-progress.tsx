@@ -47,10 +47,12 @@ export function ClaimProgress({
   return (
     <div className="space-y-7">
       <div className="rounded-2xl border border-rule bg-paper-sunken px-5 py-6">
-        <p className="m-0 text-xs font-semibold tracking-[0.16em] text-lavender-700 uppercase">
-          {phase === "complete" ? "Yours to keep" : "Your new name"}
-        </p>
-        <p className="mt-2 mb-0 break-all text-3xl font-semibold tracking-tight">
+        {phase === "complete" ? (
+          <p className="mt-0 mb-2 text-xs font-semibold tracking-[0.16em] text-lavender-700 uppercase">
+            Yours to keep
+          </p>
+        ) : null}
+        <p className="m-0 break-all text-3xl font-semibold tracking-tight">
           {name}
           <span className="text-lavender-700">.eth</span>
         </p>
