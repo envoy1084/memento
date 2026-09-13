@@ -9,7 +9,7 @@ import { useRegistrationPrice } from "@ensforge/react";
 import { sepoliaDeployment } from "@memento/chain/deployments/sepolia";
 import { Digest, type GiftView } from "@memento/protocol";
 import { toViemAccount, useWallets } from "@privy-io/react-auth";
-import { Button, Card, NumberValue } from "@thenamespace/uikit";
+import { Button, Card, NumberValue, Spinner } from "@thenamespace/uikit";
 import { formatUnits } from "viem";
 
 import { claimSignature } from "#/atoms/claim-signature";
@@ -44,11 +44,20 @@ function OpenInvitation({ giftId, secret }: { giftId: string; secret: string }) 
   const auth = useAuth();
   const opened = useRemote(invitationAtom(new InvitationQuery({ id: giftId, secret })));
   const gift = opened.data;
+
+  if ((auth.configured && !auth.ready) || auth.verifying || opened.loading)
+    return (
+      <Section className="flex min-h-[65svh] items-center justify-center">
+        <div role="status" className="text-lavender-600">
+          <Spinner aria-hidden="true" />
+          <span className="sr-only">Opening your gift…</span>
+        </div>
+      </Section>
+    );
+
   return (
     <Section className="py-14">
-      {opened.loading ? (
-        <p role="status">Opening your gift…</p>
-      ) : opened.failed || !gift ? (
+      {opened.failed || !gift ? (
         <Note status="warning">
           This invitation could not be opened. Check the full link or try again.{" "}
           <Button onPress={opened.refresh}>Retry</Button>

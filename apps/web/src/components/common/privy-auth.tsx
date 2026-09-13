@@ -103,7 +103,13 @@ function VerifiedSession({
         actor,
         address,
         retry,
-        verifying: Boolean(userId) && (AsyncResult.isInitial(session) || session.waiting || !ready),
+        verifying:
+          Boolean(userId) &&
+          (AsyncResult.isInitial(session) ||
+            session.waiting ||
+            !ready ||
+            connection.isConnecting ||
+            connection.isReconnecting),
         error:
           value.error ??
           (userId && AsyncResult.isFailure(session)
