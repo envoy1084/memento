@@ -42,6 +42,7 @@ const input = {
   sponsorWallet: alice.wallets[0] ?? "",
   recipient: { kind: "email", value: "bob@example.test" },
   recipientName: "Bob",
+  senderName: " Alice ",
   policy: {
     maxPrice: "1000",
     expiresAt: 86400,
@@ -76,6 +77,8 @@ layer(testLayer)("backend HTTP workflows with migrated PGlite", (it) => {
         expect(() => decode({ ...input, recipient })).toThrow();
       }
       expect(() => decode({ ...input, recipientName: "" })).toThrow();
+      for (const senderName of ["", "   ", "x".repeat(101)])
+        expect(() => decode({ ...input, senderName })).toThrow();
     }),
   );
 
@@ -98,11 +101,12 @@ layer(testLayer)("backend HTTP workflows with migrated PGlite", (it) => {
               `gift:${gift.id}:recipient`,
             ),
           ),
-        ).toEqual({ name: "Bob", email: "bob@example.test" });
+        ).toEqual({ name: "Bob", email: "bob@example.test", senderName: "Alice" });
         const publicView = yield* gift.sender.public.open({
           params: { id: gift.id },
           payload: { secret: gift.secret },
         });
+        expect(publicView.senderName).toBe("Alice");
         expect(JSON.stringify(publicView)).not.toContain("bob@example.test");
         expect((yield* gift.sender.gifts.get({ params: { id: gift.id } })).emailStatus).toBe(
           "pending",
@@ -120,11 +124,17 @@ layer(testLayer)("backend HTTP workflows with migrated PGlite", (it) => {
         });
         yield* (yield* Worker).tick();
         expect(yield* Ref.get((yield* TestProviders).emails)).toHaveLength(1);
+        expect((yield* Ref.get((yield* TestProviders).emails))[0]).toMatchObject({
+          senderName: "Alice",
+        });
         expect((yield* gift.sender.gifts.get({ params: { id: gift.id } })).emailStatus).toBe(
           "complete",
         );
         yield* (yield* Worker).tick();
         expect(yield* Ref.get((yield* TestProviders).emails)).toHaveLength(1);
+        expect((yield* Ref.get((yield* TestProviders).emails))[0]).toMatchObject({
+          senderName: "Alice",
+        });
       }),
   );
 
@@ -365,6 +375,9 @@ layer(testLayer)("backend HTTP workflows with migrated PGlite", (it) => {
       yield* (yield* Worker).tick();
       yield* (yield* Worker).tick();
       expect(yield* Ref.get((yield* TestProviders).emails)).toHaveLength(1);
+      expect((yield* Ref.get((yield* TestProviders).emails))[0]).toMatchObject({
+        senderName: "Alice",
+      });
     }),
   );
   it.effect("retries a failed email job without creating duplicate deliveries", () =>
@@ -389,6 +402,9 @@ layer(testLayer)("backend HTTP workflows with migrated PGlite", (it) => {
       yield* gift.sender.gifts.email(payload);
       yield* (yield* Worker).tick();
       expect(yield* Ref.get((yield* TestProviders).emails)).toHaveLength(1);
+      expect((yield* Ref.get((yield* TestProviders).emails))[0]).toMatchObject({
+        senderName: "Alice",
+      });
     }),
   );
   it.effect(

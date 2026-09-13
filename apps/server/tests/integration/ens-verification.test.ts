@@ -48,6 +48,7 @@ layer(application)("ENSv2 final ownership verification", (it) => {
         sponsorWallet: alice.wallets[0] ?? "",
         recipient: { kind: "email", value: "bob@example.test" },
         recipientName: "Bob",
+        senderName: " Alice ",
         policy: {
           maxPrice: "1000",
           expiresAt: 86400,

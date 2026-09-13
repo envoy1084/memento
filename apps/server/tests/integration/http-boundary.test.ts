@@ -89,6 +89,7 @@ it("streams the authenticated claim status and confirms sponsor refunds", async 
         sponsorWallet: alice.wallets[0],
         recipient: { kind: "email", value: "bob@example.test" },
         recipientName: "Bob",
+        senderName: " Alice ",
         policy: {
           maxPrice: "1000",
           expiresAt: Math.floor(Date.now() / 1000) + 86400,

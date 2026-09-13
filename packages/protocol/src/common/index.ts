@@ -39,9 +39,16 @@ export const RecipientEmail = Schema.String.check(
   Schema.isPattern(/^[^\s@]+@[^\s@]+\.[^\s@]+$/),
 );
 
+export const SenderName = Schema.String.check(
+  Schema.isMinLength(1),
+  Schema.isMaxLength(100),
+  Schema.isPattern(/\S/),
+);
+
 export const GiftRecipientContact = Schema.Struct({
   name: Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(100)),
   email: RecipientEmail,
+  senderName: Schema.optionalKey(SenderName),
 });
 
 export const RecipientConstraint = Schema.Struct({

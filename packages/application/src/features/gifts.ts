@@ -61,9 +61,11 @@ export const makeGifts = Effect.gen(function* () {
   });
 
   const view = Effect.fn("Gifts.view")(function* (gift: Gift) {
+    const contact = yield* recipientContact(gift);
     return {
       id: gift.id,
-      recipientName: (yield* recipientContact(gift))?.name ?? null,
+      recipientName: contact?.name ?? null,
+      senderName: contact?.senderName ?? null,
       emailStatus: yield* jobs.emailState(gift.id),
       sponsorWallet: gift.sponsorWallet,
       policy: gift.policy,
@@ -117,6 +119,7 @@ export const makeGifts = Effect.gen(function* () {
           to: destination.trim().toLowerCase(),
           url,
           idempotencyKey: dedupeKey,
+          senderName: (yield* recipientContact(gift))?.senderName,
         }),
         `email:${id}`,
       ),
@@ -165,6 +168,9 @@ export const makeGifts = Effect.gen(function* () {
           "Individual gifts require an email recipient",
         );
 
+      if (!input.senderName.trim())
+        return yield* invalid("SENDER_NAME_REQUIRED", "Enter your name");
+
       if (!input.recipientName.trim())
         return yield* invalid("RECIPIENT_NAME_REQUIRED", "Enter the recipient’s name");
 
@@ -193,6 +199,7 @@ export const makeGifts = Effect.gen(function* () {
         recipientContactCiphertext: crypto.seal(
           JSON.stringify({
             name: input.recipientName.trim(),
+            senderName: input.senderName.trim(),
             email: input.recipient.value.trim().toLowerCase(),
           }),
           `gift:${id}:recipient`,

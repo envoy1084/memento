@@ -15,6 +15,7 @@ afterEach(() => vi.restoreAllMocks());
 
 const invitation = {
   to: "bob@example.test",
+  senderName: "Alice",
   url: "https://memento.example/g/example#private",
   idempotencyKey: "gift-example",
 };
@@ -33,7 +34,10 @@ it("prints development email contents without requiring Resend credentials", asy
   resend.send.mockClear();
   await deliver({ NODE_ENV: "development" });
   expect(log).toHaveBeenCalledWith(
-    expect.objectContaining({ to: invitation.to, text: expect.stringContaining(invitation.url) }),
+    expect.objectContaining({
+      to: invitation.to,
+      text: expect.stringContaining("Alice sent you an ENS gift."),
+    }),
   );
   expect(resend.send).not.toHaveBeenCalled();
 });
@@ -46,9 +50,15 @@ it("uses the production email provider with idempotency and does not print the i
     RESEND_API_KEY: "test-key",
     EMAIL_FROM: "gifts@example.test",
   });
-  expect(resend.send).toHaveBeenCalledWith(expect.objectContaining({ to: invitation.to }), {
-    idempotencyKey: invitation.idempotencyKey,
-  });
+  expect(resend.send).toHaveBeenCalledWith(
+    expect.objectContaining({
+      to: invitation.to,
+      text: expect.stringContaining("Alice sent you an ENS gift."),
+    }),
+    {
+      idempotencyKey: invitation.idempotencyKey,
+    },
+  );
   expect(log).not.toHaveBeenCalled();
 });
 

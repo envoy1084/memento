@@ -26,10 +26,12 @@ export const digest: `0x${string}` = `0x${"44".repeat(32)}`;
 
 export const address: `0x${string}` = `0x${"55".repeat(20)}`;
 
+type DeliveredEmail = Parameters<Mailer["Service"]["send"]>[0];
+
 export class TestProviders extends Context.Service<
   TestProviders,
   {
-    readonly emails: Ref.Ref<readonly string[]>;
+    readonly emails: Ref.Ref<readonly DeliveredEmail[]>;
     readonly failChain: Ref.Ref<boolean>;
     readonly hangChain: Ref.Ref<boolean>;
   }
@@ -38,7 +40,7 @@ export class TestProviders extends Context.Service<
     TestProviders,
     Effect.gen(function* () {
       return {
-        emails: yield* Ref.make<readonly string[]>([]),
+        emails: yield* Ref.make<readonly DeliveredEmail[]>([]),
         failChain: yield* Ref.make(false),
         hangChain: yield* Ref.make(false),
       };
@@ -136,7 +138,9 @@ const mailer = Layer.effect(
     return Mailer.of({
       send: (mail) =>
         Ref.update(state.emails, (emails) =>
-          emails.includes(mail.idempotencyKey) ? emails : [...emails, mail.idempotencyKey],
+          emails.some((email) => email.idempotencyKey === mail.idempotencyKey)
+            ? emails
+            : [...emails, mail],
         ),
     });
   }),

@@ -69,6 +69,7 @@ export class Mailer extends Context.Service<
       to: string;
       url: string;
       idempotencyKey: string;
+      senderName?: string;
     }) => Effect.Effect<void, ApplicationError>;
   }
 >()("@memento/application/Mailer") {}

@@ -21,6 +21,7 @@ const Mail = Schema.Struct({
   to: Schema.String,
   url: Schema.String,
   idempotencyKey: Schema.String,
+  senderName: Schema.optionalKey(Schema.String),
 });
 
 const make = Effect.gen(function* () {

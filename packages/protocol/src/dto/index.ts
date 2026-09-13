@@ -10,12 +10,14 @@ import {
   GiftState,
   Hex,
   RecipientEmail,
+  SenderName,
   Timestamp,
 } from "../common/index.js";
 
 export const CreateGift = Schema.Struct({
   sponsorWallet: Address,
   recipient: Schema.Struct({ kind: Schema.Literal("email"), value: RecipientEmail }),
+  senderName: SenderName,
   recipientName: Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(100)),
   policy: GiftPolicy,
   message: Schema.String.check(Schema.isMaxLength(2000)),
@@ -29,6 +31,7 @@ export const GiftView = Schema.Struct({
   ),
   id: Digest,
   recipientName: Schema.NullOr(Schema.String),
+  senderName: Schema.NullOr(Schema.String),
   sponsorWallet: Address,
   policy: GiftPolicy,
   status: GiftState,

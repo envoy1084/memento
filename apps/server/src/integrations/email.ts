@@ -9,7 +9,7 @@ export const MailerLive = (apiKey: Redacted.Redacted<string>, from: string) =>
     const resend = new Resend(Redacted.value(apiKey));
 
     return Mailer.of({
-      send: Effect.fn("Mailer.send")(function* ({ to, url, idempotencyKey }) {
+      send: Effect.fn("Mailer.send")(function* ({ to, url, idempotencyKey, senderName }) {
         const result = yield* Effect.tryPromise({
           try: () =>
             resend.emails.send(
@@ -17,7 +17,7 @@ export const MailerLive = (apiKey: Redacted.Redacted<string>, from: string) =>
                 from,
                 to,
                 subject: "You received a Memento ENS gift",
-                text: `Someone sent you an ENS gift. Open your private claim link:\n\n${url}\n\nKeep this link private. Never share wallet passwords or seed phrases.`,
+                text: `${senderName ?? "Someone"} sent you an ENS gift. Open your private claim link:\n\n${url}\n\nKeep this link private. Never share wallet passwords or seed phrases.`,
               },
               { idempotencyKey },
             ),
@@ -48,11 +48,11 @@ export const MailerLive = (apiKey: Redacted.Redacted<string>, from: string) =>
 export const MailerConsole = Layer.succeed(
   Mailer,
   Mailer.of({
-    send: Effect.fn("Mailer.console")(function* ({ to, url }) {
+    send: Effect.fn("Mailer.console")(function* ({ to, url, senderName }) {
       yield* Console.log({
         to,
         subject: "You received a Memento ENS gift",
-        text: `Someone sent you an ENS gift. Open your private claim link:\n\n${url}`,
+        text: `${senderName ?? "Someone"} sent you an ENS gift. Open your private claim link:\n\n${url}`,
       });
     }),
   }),

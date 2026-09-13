@@ -15,7 +15,6 @@ import { Icon } from "#/components/common/icon";
 import { DetailList, DetailRow, Eyebrow, Note, Section } from "#/components/common/page";
 import { ThemePicker, type GiftTheme } from "#/components/common/theme-picker";
 import { GiftArt } from "#/components/display/gift-art";
-import { truncateAddress } from "#/format/address";
 import { useApiTask } from "#/hooks/use-api-task";
 import { useAuth } from "#/hooks/use-auth";
 import { useGiftTransactions } from "#/hooks/use-gift-transactions";
@@ -60,6 +59,7 @@ function GiftForm() {
   const [years, setYears] = useState(1);
   const [minLength, setMinLength] = useState(5);
   const [maxLength, setMaxLength] = useState(20);
+  const [senderName, setSenderName] = useState("");
   const [recipient, setRecipient] = useState("");
   const [recipientEmail, setRecipientEmail] = useState("");
   const [message, setMessage] = useState("For your next chapter. Make it a good one.");
@@ -90,6 +90,11 @@ function GiftForm() {
       }
     }
 
+    if (step === 1 && !Schema.is(CreateGift.fields.senderName)(senderName.trim())) {
+      setError("Enter your name (up to 100 characters).");
+      return;
+    }
+
     if (
       step === 1 &&
       !Schema.is(GiftRecipientContact)({ name: recipient.trim(), email: recipientEmail.trim() })
@@ -111,6 +116,7 @@ function GiftForm() {
         sponsorWallet: account,
         recipient: { kind: "email", value: recipientEmail.trim().toLowerCase() },
         recipientName: recipient.trim(),
+        senderName: senderName.trim(),
         message,
         theme,
         policy: {
@@ -226,6 +232,16 @@ function GiftForm() {
                   {step === 1 ? (
                     <>
                       <Field
+                        label="Your name"
+                        value={senderName}
+                        onChange={setSenderName}
+                        placeholder="Alex"
+                        required
+                        maxLength={100}
+                        autoComplete="name"
+                        description="Shown in their gift email."
+                      />
+                      <Field
                         label="Recipient’s name"
                         value={recipient}
                         onChange={setRecipient}
@@ -267,6 +283,7 @@ function GiftForm() {
                   {step === 2 ? (
                     <>
                       <DetailList>
+                        <DetailRow label="From">{senderName.trim()}</DetailRow>
                         <DetailRow label="For">{recipient}</DetailRow>
                         <DetailRow label="Email">{recipientEmail.trim().toLowerCase()}</DetailRow>
                         <DetailRow label="Gift">A name they choose</DetailRow>
@@ -353,7 +370,7 @@ function GiftForm() {
               name={previewName}
               theme={theme}
               size="md"
-              sender={auth.address ? truncateAddress(auth.address) : "From you"}
+              sender={senderName.trim() || "From you"}
             />
             <div className="border-t border-rule px-6 py-5 text-center">
               <p className="m-0 text-[11px] tracking-[0.12em] text-ink-faint uppercase">
@@ -362,9 +379,7 @@ function GiftForm() {
               <p className="mx-auto mt-3 mb-0 max-w-[34ch] text-[15px] leading-relaxed text-ink">
                 “{message || "A little gift, just for you."}”
               </p>
-              <p className="mt-3 mb-0 text-xs text-ink-soft">
-                {auth.address ? truncateAddress(auth.address) : "From you"}
-              </p>
+              <p className="mt-3 mb-0 text-xs text-ink-soft">{senderName.trim() || "From you"}</p>
             </div>
           </div>
         </aside>
