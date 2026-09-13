@@ -54,27 +54,29 @@ export function ClaimSuccess({ name }: { name: string }) {
   return (
     <>
       <ClaimCelebration />
-      <Button
-        isDisabled={!address || busy || isPrimary || primary.isInitial || primary.isWaiting}
-        onPress={() => {
-          if (primary.isFailure) {
-            void primary.refresh().catch((cause: unknown) => setError(journeyError(cause).message));
-          } else {
-            void setPrimary();
-          }
-        }}
-      >
-        {busy || primary.isInitial || primary.isWaiting ? (
-          <Spinner size="sm" color="current" />
-        ) : null}
-        {busy
-          ? "Setting primary name…"
-          : isPrimary
-            ? "Primary name"
+      {!isPrimary ? (
+        <Button
+          isDisabled={!address || busy || isPrimary || primary.isInitial || primary.isWaiting}
+          onPress={() => {
+            if (primary.isFailure) {
+              void primary
+                .refresh()
+                .catch((cause: unknown) => setError(journeyError(cause).message));
+            } else {
+              void setPrimary();
+            }
+          }}
+        >
+          {busy || primary.isInitial || primary.isWaiting ? (
+            <Spinner size="sm" color="current" />
+          ) : null}
+          {busy
+            ? "Setting primary name…"
             : primary.isFailure
               ? "Retry name check"
               : "Set as primary name"}
-      </Button>
+        </Button>
+      ) : null}
       {error ? <Note status="warning">{error}</Note> : null}
     </>
   );

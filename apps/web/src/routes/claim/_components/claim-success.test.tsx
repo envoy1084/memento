@@ -46,6 +46,7 @@ vi.mock("#/hooks/use-api-task", () => ({
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mocks.button = undefined;
   mocks.primary.data.name = null;
   mocks.primary.isInitial = false;
   mocks.intent.mockReturnValue("primary-intent");
@@ -54,10 +55,10 @@ beforeEach(() => {
   mocks.primary.refresh.mockResolvedValue(undefined);
 });
 
-it("shows a disabled Primary name button when this name is already primary", () => {
+it("hides the primary-name button when this name is already primary", () => {
   mocks.primary.data.name = "jamie.eth";
-  expect(renderToStaticMarkup(<ClaimSuccess name="jamie.eth" />)).toContain("Primary name");
-  expect(mocks.button?.isDisabled).toBe(true);
+  expect(renderToStaticMarkup(<ClaimSuccess name="jamie.eth" />)).not.toContain("<button");
+  expect(mocks.button).toBeUndefined();
   expect(mocks.send).not.toHaveBeenCalled();
 });
 
