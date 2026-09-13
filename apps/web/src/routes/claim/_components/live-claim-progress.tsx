@@ -46,7 +46,7 @@ export function ClaimProgress({
   const remaining = readyAt ? Math.max(0, Math.ceil(readyAt - now / 1000)) : null;
   return (
     <div className="space-y-7">
-      <div className="rounded-2xl border border-rule bg-paper-sunken px-5 py-6">
+      <div className="rounded-lg border border-rule bg-paper-sunken px-5 py-4">
         {phase === "complete" ? (
           <p className="mt-0 mb-2 text-xs font-semibold tracking-[0.16em] text-lavender-700 uppercase">
             Yours to keep
