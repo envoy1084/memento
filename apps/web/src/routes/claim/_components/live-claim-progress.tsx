@@ -29,28 +29,21 @@ const phases = {
 export function ClaimProgress({
   name,
   phase,
-  startedAt,
   readyAt,
-  finishedAt,
 }: {
   name: string;
   phase: ClaimPhase;
-  startedAt: number | null;
   readyAt: number | null;
-  finishedAt: number | null;
 }) {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
-    if (phase === "complete") return;
+    if (phase !== "waiting") return;
     const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(timer);
   }, [phase]);
   const index =
     phase === "complete" ? 3 : phase === "registering" ? 2 : phase === "waiting" ? 1 : 0;
   const remaining = readyAt ? Math.max(0, Math.ceil(readyAt - now / 1000)) : null;
-  const elapsed = startedAt
-    ? Math.max(0, Math.floor(((finishedAt ?? now) - startedAt) / 1000))
-    : null;
   return (
     <div className="space-y-7">
       <div className="rounded-2xl border border-rule bg-paper-sunken px-5 py-6">
@@ -88,17 +81,6 @@ export function ClaimProgress({
           </li>
         ))}
       </ol>
-      {elapsed !== null ? (
-        <p className="text-xs text-ink-soft tabular-nums">
-          {phase === "complete" ? "Completed in" : "Time so far:"} {Math.floor(elapsed / 60)}m{" "}
-          {elapsed % 60}s
-        </p>
-      ) : null}
-      {phase !== "complete" ? (
-        <p className="border-t border-rule pt-4 text-xs leading-relaxed text-ink-soft">
-          Keep this page open. We’ll take care of the next step — no extra funds needed.
-        </p>
-      ) : null}
     </div>
   );
 }

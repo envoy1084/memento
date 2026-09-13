@@ -128,9 +128,7 @@ function RecipientClaim({
     recipientClaimAtom(new GiftQuery({ id: gift.id, userId: auth.actor?.userId ?? "" })),
   );
   const [phase, setPhase] = useState<ClaimPhase>("confirming");
-  const [startedAt, setStartedAt] = useState<number | null>(null);
   const [readyAt, setReadyAt] = useState<number | null>(null);
-  const [finishedAt, setFinishedAt] = useState<number | null>(null);
   const task = useApiTask();
   const send = useGiftTransactions();
   const { wallets } = useWallets();
@@ -180,7 +178,6 @@ function RecipientClaim({
       saved.refresh();
       const current = await Effect.runPromise(api.claims.get({ params: { id: preparation.id } }));
       if (current.state === "complete") return;
-      setStartedAt((previous) => previous ?? Date.now());
       if (current.state === "prepared") {
         const setup = await Effect.runPromise(api.claims.setup({ params: { id: preparation.id } }));
         if (setup.stage === "commit-name") {
@@ -211,7 +208,6 @@ function RecipientClaim({
             api.claims.get({ params: { id: preparation.id } }),
           );
           if (latest.state === "complete") {
-            setFinishedAt(Date.now());
             setPhase("complete");
             break;
           }
@@ -219,7 +215,6 @@ function RecipientClaim({
             api.claims.setup({ params: { id: preparation.id } }),
           );
           if (setup.stage === "not-required") {
-            setFinishedAt(Date.now());
             setPhase("complete");
             break;
           }
@@ -252,13 +247,7 @@ function RecipientClaim({
   if (claim?.state === "complete" || phase === "complete")
     return (
       <div className="space-y-6">
-        <ClaimProgress
-          name={claim?.label ?? label}
-          phase="complete"
-          startedAt={startedAt}
-          readyAt={readyAt}
-          finishedAt={finishedAt}
-        />
+        <ClaimProgress name={claim?.label ?? label} phase="complete" readyAt={readyAt} />
         <CopyButton value={`${claim?.label ?? label}.eth`} label="Copy name" />
       </div>
     );
@@ -268,11 +257,9 @@ function RecipientClaim({
         <ClaimProgress
           name={label}
           phase={task.busy ? phase : claim?.state === "waiting" ? "waiting" : "registering"}
-          startedAt={startedAt}
           readyAt={readyAt}
-          finishedAt={finishedAt}
         />
-        {task.error || claim?.lastError ? (
+        {!task.busy && (task.error || claim?.lastError) ? (
           <Note status="warning">
             We couldn’t finish this step. Your name won’t be registered twice. Continue to check
             where you left off.
