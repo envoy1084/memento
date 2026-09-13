@@ -28,3 +28,6 @@ research/
 packages/contracts/out/
 packages/contracts/cache/
 packages/contracts/broadcast/
+
+# React Email preview output
+.react-email/

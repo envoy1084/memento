@@ -126,6 +126,9 @@ layer(testLayer)("backend HTTP workflows with migrated PGlite", (it) => {
         expect(yield* Ref.get((yield* TestProviders).emails)).toHaveLength(1);
         expect((yield* Ref.get((yield* TestProviders).emails))[0]).toMatchObject({
           senderName: "Alice",
+          recipientName: "Bob",
+          message: input.message,
+          expiresAt: input.policy.expiresAt,
         });
         expect((yield* gift.sender.gifts.get({ params: { id: gift.id } })).emailStatus).toBe(
           "complete",
@@ -134,6 +137,9 @@ layer(testLayer)("backend HTTP workflows with migrated PGlite", (it) => {
         expect(yield* Ref.get((yield* TestProviders).emails)).toHaveLength(1);
         expect((yield* Ref.get((yield* TestProviders).emails))[0]).toMatchObject({
           senderName: "Alice",
+          recipientName: "Bob",
+          message: input.message,
+          expiresAt: input.policy.expiresAt,
         });
       }),
   );

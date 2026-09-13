@@ -43,10 +43,10 @@
     "@memento/application": "workspace:*",
     "@memento/chain": "workspace:*",
     "@memento/database": "workspace:*",
+    "@memento/emails": "workspace:*",
     "@memento/privy": "workspace:*",
     "@memento/protocol": "workspace:*",
     "effect": "catalog:",
-    "resend": "catalog:",
     "viem": "catalog:"
   },
   "devDependencies": {

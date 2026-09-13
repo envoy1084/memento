@@ -1,7 +1,8 @@
 {
   "extends": "klarity/tsconfig/app/node",
   "compilerOptions": {
-    "customConditions": ["memento-source"]
+    "customConditions": ["memento-source"],
+    "jsx": "react-jsx"
   },
   "include": ["src/**/*.ts"]
 }

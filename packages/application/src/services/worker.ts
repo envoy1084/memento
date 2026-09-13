@@ -12,17 +12,11 @@ import {
   Conflict,
   InvalidRequest,
   ProviderError,
+  GiftEmail,
 } from "@memento/protocol";
 
 import { Chain, Mailer } from "./chain.js";
 import { Cryptography } from "./cryptography.js";
-
-const Mail = Schema.Struct({
-  to: Schema.String,
-  url: Schema.String,
-  idempotencyKey: Schema.String,
-  senderName: Schema.optionalKey(Schema.String),
-});
 
 const make = Effect.gen(function* () {
   const claims = yield* ClaimRepository;
@@ -46,7 +40,9 @@ const make = Effect.gen(function* () {
 
       const payload = yield* crypto.open(job.payloadCiphertext, `email:${job.subjectId}`);
 
-      const mail = yield* Schema.decodeUnknownEffect(Schema.fromJsonString(Mail))(payload).pipe(
+      const mail = yield* Schema.decodeUnknownEffect(Schema.fromJsonString(GiftEmail))(
+        payload,
+      ).pipe(
         Effect.mapError(
           () => new InvalidRequest({ code: "INVALID_EMAIL_JOB", message: "Invalid email payload" }),
         ),

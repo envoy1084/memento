@@ -102,6 +102,7 @@ export const makeGifts = Effect.gen(function* () {
     const { url } = yield* link(gift);
     const timestamp = yield* now;
     const dedupeKey = `email:${id}:${emailHash}`;
+    const contact = yield* recipientContact(gift);
 
     yield* jobs.enqueue({
       id: crypto.random(),
@@ -119,7 +120,10 @@ export const makeGifts = Effect.gen(function* () {
           to: destination.trim().toLowerCase(),
           url,
           idempotencyKey: dedupeKey,
-          senderName: (yield* recipientContact(gift))?.senderName,
+          senderName: contact?.senderName,
+          recipientName: contact?.name,
+          message: yield* crypto.open(gift.messageCiphertext, `gift:${id}:message`),
+          expiresAt: gift.policy.expiresAt,
         }),
         `email:${id}`,
       ),

@@ -33,4 +33,6 @@ With `NODE_ENV=development` (the default) or `test`, the Mailer console Layer pr
 subject and private claim link to the server console without contacting Resend or requiring email
 credentials. These local previews contain private invitation links. `NODE_ENV=production` selects
 Resend and requires `RESEND_API_KEY` and `EMAIL_FROM`; it never falls back to console delivery.
-The production adapter currently sends plain text; designed templates remain future work.
+Both layers use the shared `@memento/emails` React Email invitation. Production sends the React
+component and a plain-text alternative; development logs the rendered HTML and text.
+Preview the template with `pnpm --filter @memento/emails preview` at http://localhost:3002.

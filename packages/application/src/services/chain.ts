@@ -2,6 +2,7 @@ import { Context, type Effect } from "effect";
 
 import type {
   ApplicationError,
+  GiftEmail,
   ClaimSetup,
   RegistrationView,
   Claim,
@@ -65,12 +66,7 @@ export class Chain extends Context.Service<
 export class Mailer extends Context.Service<
   Mailer,
   {
-    readonly send: (payload: {
-      to: string;
-      url: string;
-      idempotencyKey: string;
-      senderName?: string;
-    }) => Effect.Effect<void, ApplicationError>;
+    readonly send: (payload: GiftEmail) => Effect.Effect<void, ApplicationError>;
   }
 >()("@memento/application/Mailer") {}
 
