@@ -345,6 +345,7 @@ function GiftForm() {
                   size="md"
                   isDisabled={task.busy || (step === 2 && (!auth.address || !amount))}
                 >
+                  {task.busy ? <Spinner size="sm" color="current" /> : null}
                   {task.busy
                     ? "Creating…"
                     : step === 2
@@ -352,11 +353,7 @@ function GiftForm() {
                       : step === 1
                         ? "Review"
                         : "Add your note"}
-                  {task.busy ? (
-                    <Spinner size="sm" color="current" />
-                  ) : (
-                    <Icon name="arrow" size={18} />
-                  )}
+                  {!task.busy ? <Icon name="arrow" size={18} /> : null}
                 </Button>
               </div>
             </Card>
