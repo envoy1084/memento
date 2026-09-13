@@ -9,8 +9,7 @@ import { useRegistrationPrice } from "@ensforge/react";
 import { sepoliaDeployment } from "@memento/chain/deployments/sepolia";
 import { Digest, type GiftView } from "@memento/protocol";
 import { toViemAccount, useWallets } from "@privy-io/react-auth";
-import { Button, Card, NumberValue, Spinner } from "@thenamespace/uikit";
-import { formatUnits } from "viem";
+import { Button, Card, Spinner } from "@thenamespace/uikit";
 
 import { claimSignature } from "#/atoms/claim-signature";
 import { GiftQuery, InvitationQuery, invitationAtom, recipientClaimAtom } from "#/atoms/gifts";
@@ -292,34 +291,6 @@ function RecipientClaim({ gift, secret }: { gift: typeof GiftView.Type; secret: 
               placeholder="yourname.eth"
             />
           }
-          {valid ? (
-            <p role="status" className="text-sm">
-              {price.isFailure ? (
-                "Name lookup failed. Try again."
-              ) : price.isWaiting || price.isInitial ? (
-                "Checking the name…"
-              ) : available ? (
-                <>
-                  <span>Available and covered by your gift · </span>
-                  <ClaimAmount
-                    amount={price.data?.status === "available" ? price.data.total.toString() : "0"}
-                  />
-                </>
-              ) : (
-                "Unavailable or above this gift’s funded amount."
-              )}
-            </p>
-          ) : null}
-          {price.isFailure ? (
-            <Button
-              variant="secondary"
-              onPress={() => {
-                void price.refresh().catch(() => {});
-              }}
-            >
-              Retry lookup
-            </Button>
-          ) : null}
         </>
       ) : (
         <p className="text-lg font-medium">{label}.eth</p>
@@ -333,24 +304,31 @@ function RecipientClaim({ gift, secret }: { gift: typeof GiftView.Type; secret: 
         size="md"
         isDisabled={
           task.busy ||
-          !available ||
           !valid ||
-          (!claim && (price.isWaiting || price.isInitial || price.isFailure))
+          (!claim && !price.isFailure && (price.isWaiting || price.isInitial || !available))
         }
         onPress={() => {
+          if (!claim && price.isFailure) {
+            void price.refresh().catch(() => {});
+            return;
+          }
           void start();
         }}
       >
-        {claim ? "Continue claiming" : "Claim my name"}
+        {claim
+          ? "Continue claiming"
+          : !label
+            ? "Claim my name"
+            : !valid
+              ? "Unavailable"
+              : price.isFailure
+                ? "Retry lookup"
+                : price.isWaiting || price.isInitial
+                  ? "Checking…"
+                  : available
+                    ? "Claim my name"
+                    : "Unavailable"}
       </Button>
     </div>
-  );
-}
-
-function ClaimAmount({ amount }: { amount: string }) {
-  return (
-    <>
-      <NumberValue value={Number(formatUnits(BigInt(amount), 6))} maximumFractionDigits={2} /> USDC
-    </>
   );
 }
