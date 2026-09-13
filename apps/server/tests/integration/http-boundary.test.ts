@@ -1,5 +1,5 @@
 import { Layer, Schema } from "effect";
-import { HttpRouter, HttpServer } from "effect/unstable/http";
+import { HttpRouter, HttpServer, HttpServerResponse } from "effect/unstable/http";
 
 import { Application } from "@memento/application";
 import { RepositoriesLive } from "@memento/database";
@@ -210,3 +210,33 @@ it("returns only the verified actor and rejects missing or invalid session token
     await web.dispose();
   }
 });
+
+it.each([false, true])(
+  "uses forwarded client addresses only with proxy trust enabled (%s)",
+  async (trustProxy) => {
+    const web = HttpRouter.toWebHandler(
+      Layer.mergeAll(
+        HttpRouter.add("GET", "/", HttpServerResponse.text("ok")),
+        HttpPolicy(origin, trustProxy),
+      ).pipe(Layer.provide(HttpServer.layerServices)),
+      { disableLogger: true },
+    );
+    const send = (prefix: string, client: string) =>
+      web.handler(
+        new Request("http://localhost/", {
+          headers: { "x-forwarded-for": `${prefix}, ${client}` },
+        }),
+      );
+
+    try {
+      const responses = await Promise.all(
+        Array.from({ length: 180 }, (_, index) => send(`192.0.2.${index}`, "198.51.100.1")),
+      );
+      expect(responses.every((response) => response.status === 200)).toBe(true);
+      expect((await send("192.0.2.200", "198.51.100.1")).status).toBe(429);
+      expect((await send("192.0.2.200", "198.51.100.2")).status).toBe(trustProxy ? 200 : 429);
+    } finally {
+      await web.dispose();
+    }
+  },
+);

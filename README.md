@@ -14,8 +14,10 @@ pnpm install
 pnpm check
 ```
 
-Copy `.env.example` to `.env` and configure providers using the [deployment guide](architecture/deployment/README.md). Start local PostgreSQL with `docker compose -f compose.yml up -d --wait`, then run `pnpm dev`. The frontend runs at http://localhost:3000.
+Copy `.env.example` to `.env` and configure providers using the [deployment guide](architecture/deployment/README.md). Start local PostgreSQL with `docker compose up -d --wait`, then run `pnpm dev`. The frontend runs at http://localhost:3000.
 
 `pnpm check` runs formatting, lint, types, tests and builds. `pnpm test:postgres` runs concurrency checks against disposable PostgreSQL. `pnpm format` applies Oxfmt formatting.
 
 This is a fresh development schema and contract interface. Reset the development database and deploy the new escrow before a live test; old gifts are not migrated. Deployment is a manual operator action.
+
+Deploy the web and API Dockerfiles through Dokploy using the [VPS deployment guide](architecture/deployment/README.md#dokploy-vps).

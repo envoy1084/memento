@@ -11,3 +11,9 @@ See [frontend architecture](../../architecture/frontend/README.md) and [deployme
 After registration, recipients can optionally set the new name as their wallet’s primary name. ENSForge prepares and verifies the reverse-record call; the existing Privy-sponsored claim transport sends it and waits for confirmation, then refreshes the shared primary-name lookup. This adds one optional transaction and needs no escrow redeployment. Live Privy sponsorship must allow the ENS reverse registrar adapter.
 
 Successful claims celebrate with a short, lazy-loaded `canvas-confetti` sequence using the theme’s lavender, blush and sage colors. Reduced-motion preferences disable it; navigating away cancels it. The celebration plays whenever a successfully claimed gift is opened, including on refresh.
+
+## Deployment
+
+Build `apps/web/Dockerfile` with repository-root context and public `VITE_API_URL` and
+`VITE_PRIVY_APP_ID` build arguments. Nginx serves the compiled app on port 80 with SPA fallback.
+See the [Dokploy guide](../../architecture/deployment/README.md#dokploy-vps).

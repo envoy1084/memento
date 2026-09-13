@@ -39,6 +39,7 @@ Effect.gen(function* () {
   const port = yield* Config.port("PORT").pipe(Config.withDefault(3001));
   const url = yield* Config.redacted("DATABASE_URL");
   const webOrigin = yield* Config.string("WEB_ORIGIN");
+  const trustProxy = yield* Config.boolean("TRUST_PROXY").pipe(Config.withDefault(false));
   const encryptionKey = yield* Config.redacted("ENCRYPTION_KEY");
   const emailKey = yield* Config.redacted("EMAIL_HMAC_KEY");
   const privyId = yield* Config.string("PRIVY_APP_ID");
@@ -74,7 +75,7 @@ Effect.gen(function* () {
     RpcRoutes.pipe(
       Layer.provide(Layer.unwrap(Config.redacted("RPC_URL").pipe(Effect.map(SepoliaRpc.live)))),
     ),
-    HttpPolicy(webOrigin),
+    HttpPolicy(webOrigin, trustProxy),
     HttpApiScalar.layer(Api, { path: "/docs" }),
   );
 

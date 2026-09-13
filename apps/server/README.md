@@ -36,3 +36,10 @@ Resend and requires `RESEND_API_KEY` and `EMAIL_FROM`; it never falls back to co
 Both layers use the shared `@memento/emails` React Email invitation. Production sends the React
 component and a plain-text alternative; development logs the rendered HTML and text.
 Preview the template with `pnpm --filter @memento/emails preview` at http://localhost:3002.
+
+## Deployment
+
+The root `Dockerfile` builds the API and worker together. Startup migrates PostgreSQL and validates
+the chain configuration before accepting requests. Set `TRUST_PROXY=true` only behind Dokploy
+Traefik with no publicly published API port; otherwise leave it false. See the
+[Dokploy guide](../../architecture/deployment/README.md#dokploy-vps) for runtime variables and domains.

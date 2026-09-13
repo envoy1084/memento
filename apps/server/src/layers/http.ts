@@ -1,3 +1,5 @@
+import { isIP } from "node:net";
+
 import { DateTime, Effect, FileSystem, Layer, Option } from "effect";
 import {
   HttpEffect,
@@ -6,7 +8,7 @@ import {
   HttpServerResponse,
 } from "effect/unstable/http";
 
-export const HttpPolicy = (origin: string) =>
+export const HttpPolicy = (origin: string, trustProxy = false) =>
   Layer.unwrap(
     Effect.sync(() => {
       const buckets = new Map<string, { count: number; until: number }>();
@@ -27,10 +29,13 @@ export const HttpPolicy = (origin: string) =>
             );
 
             const now = yield* DateTime.now.pipe(Effect.map(DateTime.toEpochMillis));
-            // The VPS proxy overwrites this header; the application port is not published externally.
+            // Dokploy's Traefik appends the client address. Ignore caller-supplied prefixes.
+            // Enable only when the API port is reachable exclusively through that proxy.
+            const forwarded = request.headers["x-forwarded-for"]?.split(",").at(-1)?.trim();
             const ip =
-              request.headers["x-memento-client-ip"] ??
-              Option.getOrElse(request.remoteAddress, () => "unknown");
+              trustProxy && forwarded && isIP(forwarded)
+                ? forwarded
+                : Option.getOrElse(request.remoteAddress, () => "unknown");
 
             for (const [key, bucket] of buckets) if (bucket.until <= now) buckets.delete(key);
 
