@@ -15,7 +15,7 @@ import { claimSignature } from "#/atoms/claim-signature";
 import { GiftQuery, InvitationQuery, invitationAtom, recipientClaimAtom } from "#/atoms/gifts";
 import { AccountRequired } from "#/components/common/account-required";
 import { Field } from "#/components/common/fields";
-import { CopyButton, Note, Section } from "#/components/common/page";
+import { Note, Section } from "#/components/common/page";
 import { GiftArt } from "#/components/display/gift-art";
 import { formatDate } from "#/format/date";
 import { giftTheme } from "#/format/gift";
@@ -23,6 +23,7 @@ import { JourneyError, useApiTask, useRemote } from "#/hooks/use-api-task";
 import { useAuth } from "#/hooks/use-auth";
 import { useGiftTransactions } from "#/hooks/use-gift-transactions";
 
+import { ClaimSuccess } from "./claim-success";
 import { ClaimProgress, type ClaimPhase } from "./live-claim-progress";
 
 export function LiveClaim({ giftId }: { giftId: string }) {
@@ -248,7 +249,7 @@ function RecipientClaim({
     return (
       <div className="space-y-6">
         <ClaimProgress name={claim?.label ?? label} phase="complete" readyAt={readyAt} />
-        <CopyButton value={`${claim?.label ?? label}.eth`} label="Copy name" />
+        <ClaimSuccess name={`${claim?.label ?? label}.eth`} />
       </div>
     );
   if (task.busy || (claim && claim.state !== "prepared"))
